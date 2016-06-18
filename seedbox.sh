@@ -10,11 +10,11 @@
 # prochaine maj :
 # - plus de visilbilté dans les jails
 # - améliorer les regex de fail2ban
-# - option supplementaire dans transmission
+# - options supplementaires dans transmission
 # - chrooter le vpn
 # - revoir le nom des variables.
 # - plus de commentaires
-# - ameliorer les retours erreur
+# - ameliorer les retours d'erreur
 # - simplifier les grep awk sed
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 
