@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck source=/dev/null
 # script auto install VPN et seedbox (openvpn + transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 
 # date : juin 2016
@@ -100,7 +101,6 @@ if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 WARN=$(tput setaf 1)
 NC=$(tput sgr0)
 
-# shellcheck source=/dev/null
 function verification(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
