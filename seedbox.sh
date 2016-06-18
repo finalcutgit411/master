@@ -564,7 +564,7 @@ function start_openvpn(){
 
 
 function recap_install(){
-	echo "${WARN}RECAPITULATIF INSTALLATION SERVEUR ( $OS_DESC ) :
+	echo "RECAPITULATIF INSTALLATION SERVEUR ( $OS_DESC ) :
 $(hostname --fqdn) $IP
 
 Accès seedbox 
@@ -590,7 +590,7 @@ Clients vpn"  > "$REP_SEEDBOX"/documents/infos.txt
 	echo "
 Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 	tree -pagu "$REP_SEEDBOX" >> "$REP_SEEDBOX"/documents/infos.txt
-${NC}}
+}
 
 ####################################################
 # début du script
@@ -786,7 +786,7 @@ $OS_DESC
 					conf_fail2ban
 					start_openvpn
 					start_seedbox
-					recap_install
+					${WARN} recap_install ${NC}
 					clear
 					status_services
 					echo ""
@@ -887,7 +887,9 @@ $OS_DESC
 	conf_fail2ban
 	start_openvpn
 	start_seedbox
+	${WARN}
 	recap_install
+	${NC}
 	clear
 	status_services
 	echo ""
