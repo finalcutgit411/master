@@ -765,8 +765,6 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$SYS_CTL".bak > "$SYS_CTL"
 					cat "$RC_L".bak > "$RC_L"
-					cat "$VSFTPD".bak > "$VSFTPD"
-					cat "$NGINX".bak > "$NGINX"
 					cat "$RSYSLOG".bak > "$RSYSLOG"
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
 					show_infos
