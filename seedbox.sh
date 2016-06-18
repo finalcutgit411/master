@@ -383,8 +383,8 @@ listen 443;
 ssl on;
 #ssl_certificate $SERVICES_CRT;
 #ssl_certificate_key $SERVICES_KEY;
-ssl_certificate $SENCRYTP/live/$(hostname --fqdn)/fullchain.pem;
-ssl_certificate_key $SENCRYTP/live/$(hostname --fqdn)/privkey.pem;
+ssl_certificate /etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem;
 location / {
 proxy_pass http://127.0.0.1:9091/;
 }
@@ -478,8 +478,8 @@ force_local_logins_ssl=YES
 force_anon_logins_ssl=YES
 #rsa_cert_file=$SERVICES_CRT
 #rsa_private_key_file=$SERVICES_KEY
-rsa_cert_file=$SENCRYTP/live/$(hostname --fqdn)/fullchain.pem
-rsa_private_key_file=$SENCRYTP/live/$(hostname --fqdn)/privkey.pem
+rsa_cert_file=/etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem
+rsa_private_key_file=/etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem
 ssl_tlsv1=YES
 ssl_sslv2=NO
 ssl_sslv3=NO
