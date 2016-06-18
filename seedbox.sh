@@ -369,6 +369,7 @@ function nat(){
 iptables -t nat -A PREROUTING -p tcp --dport $b -j DNAT --to-destination 10.8.0.$a:$b
 iptables -t nat -A PREROUTING -p udp --dport $b -j DNAT --to-destination 10.8.0.$a:$b" >> "$RC_L"
         done
+        # dans le doute je prefere passer par rc.local j'ai entendu parler de bug avec iptables save
         echo "
 # ouverture acces internet aux clients vpn 
 iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
