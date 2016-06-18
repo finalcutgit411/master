@@ -752,10 +752,13 @@ l'utilisateur : $NOM_USER = $MDP_USER
 
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
+			
 			6)
 			rm -rf "$SENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$SENCRYTP"
 			$CERTBOT && $CRONCMD
 			( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
+			read -p "
+Appuyez sur [Enter] " -r 
 			;;
 			
 			7)
