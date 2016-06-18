@@ -16,7 +16,7 @@ CERT_MAIL="admin@$(uname -n)"
 ADD_VPN="5"
 PORT_VPN="1194"
 
-# infos systeme
+# infos systèmes
 OS_DESC=$(lsb_release -ds)
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
@@ -39,12 +39,12 @@ PKITOOL="$REP_RSA/pkitool"
 REVOKE="$REP_RSA/revoke-full"
 INDEX="$REP_KEY/index.txt"
 
-# log perso
+# logs perso
 VPN="$REP_SEEDBOX/vpn.log"
 FTP="$REP_SEEDBOX/ftp.log"
 SSH="$REP_SEEDBOX/ssh.log"
 
-# fichiers systeme
+# fichiers systèmes
 SSHD="/etc/ssh/sshd_config"
 SYS_CTL="/etc/sysctl.conf"
 RC_L="/etc/rc.local"
@@ -355,7 +355,7 @@ exit 0" >> "$RC_L"
 
 function conf_transmission(){
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	# ajouter eventuellment l'option "recharger tous les .torrents"
+	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	cat "$TRANSMISSION".bak > "$TRANSMISSION"
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
@@ -564,7 +564,7 @@ function start_openvpn(){
 
 
 function recap_install(){
-	echo "RECAPITULATIF INSTALLATION SERVEUR ( $OS_DESC ) :
+	echo "${WARN}RECAPITULATIF INSTALLATION SERVEUR ( $OS_DESC ) :
 $(hostname --fqdn) $IP
 
 Accès seedbox 
@@ -590,7 +590,7 @@ Clients vpn"  > "$REP_SEEDBOX"/documents/infos.txt
 	echo "
 Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 	tree -pagu "$REP_SEEDBOX" >> "$REP_SEEDBOX"/documents/infos.txt
-}
+${NC}}
 
 ####################################################
 # début du script
