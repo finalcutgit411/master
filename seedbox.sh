@@ -5,7 +5,7 @@
 # auteur : finalcut
 # infos : https://github.com/finalcutgit411/master/blob/master/README.md
 # vidéo : 
-# prochaine maj : plus de visilbilté dans les jails, améliorer les regex de fail2ban, option supplementaire dans transmission, chrooter le vpn.  
+# prochaine maj : plus de visilbilté dans les jails, améliorer les regex de fail2ban, option supplementaire dans transmission, chrooter le vpn, revoir le nom des variables.  
 # éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 # compatible debian 8 jessie, debian 7 wheezy, ubuntu 16 xenial, ubuntu 15 vivid, ubuntu 15 wily, ubuntu 14 trusty (voir pour du centos si il y a des demandes)
 
