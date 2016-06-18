@@ -357,7 +357,6 @@ function conf_transmission(){
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
-	cat "$TRANSMISSION".bak > "$TRANSMISSION"
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
 	echo "\"dht-enabled\":false,
 \"download-dir\":\"$REP_SEEDBOX/seed\",
@@ -762,6 +761,13 @@ Taper Q pour quitter
 Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					clear
+					cat "$SSHD".bak > "$SSHD"
+					cat "$TRANSMISSION".bak > "$TRANSMISSION"
+					cat "$SYS_CTL".bak > "$SYS_CTL"
+					cat "$RC_L".bak > "$RC_L"
+					cat "$VSFTPD".bak > "$VSFTPD"
+					cat "$NGINX".bak > "$NGINX"
+					cat "$RSYSLOG".bak > "$RSYSLOG"
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
 					show_infos
 					set_infos
@@ -786,13 +792,13 @@ $OS_DESC
 					conf_fail2ban
 					start_openvpn
 					start_seedbox
-					${WARN}
 					recap_install
-					${NC}
 					clear
 					status_services
 					echo ""
+					${WARN}
 					cat "$REP_SEEDBOX"/documents/infos.txt
+					${NC}
 					read -p "
 Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
@@ -889,13 +895,13 @@ $OS_DESC
 	conf_fail2ban
 	start_openvpn
 	start_seedbox
-	${WARN}
 	recap_install
-	${NC}
 	clear
 	status_services
 	echo ""
+	${WARN}
 	cat "$REP_SEEDBOX"/documents/infos.txt
+	${NC}
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
