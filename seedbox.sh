@@ -390,7 +390,7 @@ proxy_pass http://127.0.0.1:9091/;
 }
 }" > "$NGINX"
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/443/127.0.0.1:9090/" "$NGINX"; fi
-	if [[ ! -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
+	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
 }
 
 function conf_fail2ban(){
@@ -495,7 +495,7 @@ xferlog_enable=YES
 log_ftp_protocol=YES
 vsftpd_log_file=$FTP" > "$VSFTPD"
 	touch "$FTP" && chmod 600 "$FTP" && chown -R ftp:ftp "$FTP"
-	if [[ ! -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
+	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
 download_enable=YES
