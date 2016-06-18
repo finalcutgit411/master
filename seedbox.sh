@@ -606,16 +606,17 @@ VPN
 1 ) Ajouter des clients vpn
 2 ) Revoquer des clients vpn
 3 ) Renvoyer les clients vpn dans le FTP
-4 ) Supprimer et réinitialiser tous les certificats vpn (serveur et clients)
+4 ) Supprimer et réinitialiser tous les certificats serveur et clients d'openvpn
 
 SEEDBOX
 5 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
+6 ) Redemander un certificat let's encrypt (explication dans la video)
 
-SERVEUR (les données FTP sont toujours conservées)
-6 ) Réinitialiser la configuration openvpn et seedbox
-7 ) Supprimer installation 
-8 ) Redémarrer le VPN et la seedbox
-9 ) Redémarrer le serveur
+SERVEUR (les données upload et download du FTP sont toujours conservées)
+7 ) Réinitialiser la configuration openvpn et seedbox
+8 ) Supprimer installation 
+9 ) Redémarrer les services VPN et seedbox
+10) Redémarrer le serveur
 
 QUITTER
 Q ) Taper Q pour quitter
@@ -751,8 +752,13 @@ l'utilisateur : $NOM_USER = $MDP_USER
 
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
-
 			6)
+			rm -rf "$SENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$SENCRYTP"
+			$CERTBOT && $CRONCMD
+			( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
+			;;
+			
+			7)
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "REINITIALISER CONFIGURATION VPN ET SEEDBOX
@@ -803,7 +809,7 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			done
 			;;
 
-			7)
+			8)
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "SUPPRIMER INSTALLATION VPN ET SEEDBOX
@@ -838,7 +844,7 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			done
 			;;
 
-			8)
+			9)
 			echo ""
 			stop_openvpn
 			stop_seedbox
@@ -851,7 +857,7 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			read -p "Appuyez sur [Enter] " -r
 			;;
 			
-			9)
+			10)
 			shutdown -r now
 			exit 0
 			;;
