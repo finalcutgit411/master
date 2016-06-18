@@ -1,10 +1,12 @@
 #!/bin/bash
-# shellcheck source=/dev/null
 # script auto install VPN et seedbox (openvpn + transmission-daemon + nginx + vsftpd + fail2ban + Let's encrypt)
 # date : juin 2016
 # auteur : finalcut
 # infos : https://github.com/finalcutgit411/master/blob/master/README.md
 # vidéo : 
+# prochaine maj : plus de visilbilté dans les jails, améliorer les regex de fail2ban, option supplementaire dans transmission, chrooter le vpn.  
+# éventuellement creer ou adatper le script pour du multi-users + mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
+# compatible debian 8 jessie, debian 7 wheezy, ubuntu 16 xenial, ubuntu 15 vivid, ubuntu 15 wily, ubuntu 14 trusty (voir pour centos si il y a des demandes)
 
 # certificats openvpn
 CERT_PAYS="Fr"
@@ -16,7 +18,7 @@ CERT_MAIL="admin@$(uname -n)"
 ADD_VPN="5"
 PORT_VPN="1194"
 
-# infos systèmes
+# infos système
 OS_DESC=$(lsb_release -ds)
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
@@ -44,7 +46,7 @@ VPN="$REP_SEEDBOX/vpn.log"
 FTP="$REP_SEEDBOX/ftp.log"
 SSH="$REP_SEEDBOX/ssh.log"
 
-# fichiers systèmes
+# fichiers système
 SSHD="/etc/ssh/sshd_config"
 SYS_CTL="/etc/sysctl.conf"
 RC_L="/etc/rc.local"
@@ -79,6 +81,7 @@ if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 WARN=$(tput setaf 1)
 NC=$(tput sgr0)
 
+# shellcheck source=/dev/null
 function verification(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
@@ -216,6 +219,7 @@ function letsencrypt(){
 	$CERTBOT &>/dev/null && $CRONCMD
 	( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
+	# certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
 	openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
@@ -250,6 +254,8 @@ function revoke_cert_client(){
 }
 
 function conf_serveur(){
+	# Eventuellment prochaine maj chrooter le vpn
+	# Verifier les fails DH pour les old versions stables
 	echo "port $PORT_VPN
 proto udp
 dev tun
@@ -390,6 +396,8 @@ proxy_pass http://127.0.0.1:9091/;
 }
 }" > "$NGINX"
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/443/127.0.0.1:9090/" "$NGINX"; fi
+	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
+	# on bascule sur le certificat auto signé (voir vidéo pour explications)
 	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
 }
 
@@ -407,7 +415,7 @@ enabled = true
 port = ssh,sftp
 filter = sshd
 logpath = $SSH
-maxretry = 3
+maxretry = 4
 [vsftpd]
 enabled = true
 port = ftp,ftp-data,ftps,ftps-data
@@ -424,13 +432,13 @@ bantime = 604800
 findtime = 86400
 maxretry = 3" > "$FAILLOCAL"
 
-# regex vsftpd basic à ameliorer
+# regex vsftpd basic à ameliorer pour prochaine maj need sleep too
 	echo '[Definition]
 failregex = .*Client "<HOST>",."530 Permission denied."$
             .*Client "<HOST>",."530 Login incorrect."$          
 ignoreregex =' > "$FAILFTP"
 
-# regex recidive basic à ameliorer
+# regex recidive basic à ameliorer pour prochaine maj
 	echo '[INCLUDES]
 before = common.conf
 [Definition]
@@ -495,6 +503,8 @@ xferlog_enable=YES
 log_ftp_protocol=YES
 vsftpd_log_file=$FTP" > "$VSFTPD"
 	touch "$FTP" && chmod 600 "$FTP" && chown -R ftp:ftp "$FTP"
+	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
+	# on bascule sur le certificat auto signé (voir vidéo pour explications)
 	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
