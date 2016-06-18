@@ -15,7 +15,7 @@ CERT_PROV="French"
 CERT_VILLE="Paris"
 CERT_DESC="Prive"
 CERT_NAME=$(uname -n)
-CERT_MAIL="admin@$(uname -n)"
+CERT_MAIL="admin@$(hostname --fqdn)"
 ADD_VPN="5"
 PORT_VPN="1194"
 
@@ -64,12 +64,12 @@ NGINX="/etc/nginx/sites-available/default"
 
 # certificats ssl delivrés par let's encrypt
 # attention 5 certificats max distribués par FQDN par semaine
+# donc si vous depassez la limite de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 SENCRYTP="/opt/letsencrypt"
 CERTBOT="$SENCRYTP/certbot-auto certonly --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
 CRONCMD="$SENCRYTP/letsencrypt-auto renew --non-interactive"
 CRONJOB="0 0 * * * $CRONCMD &>/dev/null"
 
-# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 # certificat auto signé
 SERVICES_KEY="/etc/ssl/private/services.key"
 SERVICES_CRT="/etc/ssl/private/services.crt"
