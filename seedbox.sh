@@ -362,6 +362,7 @@ function nat(){
         sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC_L"
         a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
+	# dans le doute je prefere passer par rc.local j'ai entendu parler de bug avec iptables save
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
                 echo "
@@ -369,7 +370,6 @@ function nat(){
 iptables -t nat -A PREROUTING -p tcp --dport $b -j DNAT --to-destination 10.8.0.$a:$b
 iptables -t nat -A PREROUTING -p udp --dport $b -j DNAT --to-destination 10.8.0.$a:$b" >> "$RC_L"
         done
-        # dans le doute je prefere passer par rc.local j'ai entendu parler de bug avec iptables save
         echo "
 # ouverture acces internet aux clients vpn 
 iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
