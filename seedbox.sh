@@ -786,7 +786,9 @@ $OS_DESC
 					conf_fail2ban
 					start_openvpn
 					start_seedbox
-					${WARN} recap_install ${NC}
+					${WARN}
+					recap_install
+					${NC}
 					clear
 					status_services
 					echo ""
