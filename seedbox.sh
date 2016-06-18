@@ -796,9 +796,7 @@ $OS_DESC
 					clear
 					status_services
 					echo ""
-					${WARN}
 					cat "$REP_SEEDBOX"/documents/infos.txt
-					${NC}
 					read -p "
 Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
@@ -899,9 +897,7 @@ $OS_DESC
 	clear
 	status_services
 	echo ""
-	${WARN}
 	cat "$REP_SEEDBOX"/documents/infos.txt
-	${NC}
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
