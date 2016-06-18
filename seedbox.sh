@@ -271,7 +271,7 @@ function revoke_cert_client(){
 
 function conf_serveur(){
 	# Eventuellment prochaine maj chrooter le vpn
-	# Verifier les fails DH pour les old versions stables
+	# Verifier les weaks diffie hellman pour les versions oldstables
 	echo "port $PORT_VPN
 proto udp
 dev tun
