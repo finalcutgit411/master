@@ -761,6 +761,8 @@ Taper Q pour quitter
 Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					clear
+					stop_openvpn
+					stop_seedbox
 					cat "$SSHD".bak > "$SSHD"
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$SYS_CTL".bak > "$SYS_CTL"
@@ -774,8 +776,6 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -
 $OS_DESC
 "
 					installation
-					stop_openvpn
-					stop_seedbox
 					seedbox
 					letsencrypt
 					create_cert_serveur
