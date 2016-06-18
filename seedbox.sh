@@ -362,7 +362,7 @@ function nat(){
         sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC_L"
         a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
-	# dans le doute je prefere passer par rc.local j'ai entendu parler de bug avec iptables save
+	# je prefere passer par rc.local, jamais vu mais entendu parler de bug avec iptables save; bon dans le doute ..
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
                 echo "
