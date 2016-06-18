@@ -11,7 +11,8 @@
 # - améliorer les regex de fail2ban
 # - option supplementaire dans transmission
 # - chrooter le vpn
-# - revoir le nom des variables.  
+# - revoir le nom des variables.
+# - plus de commentaire et ameliorer les retours erreur
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 
 # compatible :
