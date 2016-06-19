@@ -661,7 +661,7 @@ SEEDBOX
 SERVEUR (les données upload et download du FTP sont toujours conservées)
 7 ) Réinitialiser la configuration d'openvpn et de la seedbox
 8 ) Supprimer installation 
-9 ) Redémarrer les services VPN et seedbox
+9 ) Redémarrer les services vpn et seedbox
 10) Redémarrer le serveur
 
 QUITTER
