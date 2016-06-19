@@ -800,7 +800,7 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			stop_seedbox
 			clear
 			echo "
-DEMANDE DE CERTIFICAT SSL APRES DE LET'S ENCRYPT
+DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT
 "
 			letsencrypt
 			conf_nginx
