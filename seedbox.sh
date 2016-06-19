@@ -630,7 +630,8 @@ if [[ -e "$OPENVPN" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
 		REP="0" && ADD_VPN="5"
-		read -p "LES SERVICES SEEDBOX SONT DEJA INSTALLES SUR CE SERVEUR
+		read -p "LES SERVICES SEEDBOX SONT DEJA INSTALLES SUR CE SERVEUR ( $OS_DESC ) :
+$(hostname --fqdn) $IP
 
 VPN
 1 ) Ajouter des clients vpn
