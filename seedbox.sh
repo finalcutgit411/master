@@ -848,7 +848,13 @@ $OS_DESC
 "
 					installation
 					seedbox
+					clean
+					echo "Requete pour obtenir un certificat SSL delivré par let's encrypt
+patientez quelques minutes"
 					letsencrypt
+					clean
+					echo "Création des certificats VPN
+cette étape est longue"
 					create_cert_serveur
 					create_cert_clients
 					conf_serveur
