@@ -418,7 +418,7 @@ proxy_pass http://127.0.0.1:9091/;
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/443/127.0.0.1:9090/" "$NGINX"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
+	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
 }
 
 function conf_fail2ban(){
@@ -525,7 +525,7 @@ vsftpd_log_file=$FTP" > "$VSFTPD"
 	touch "$FTP" && chmod 600 "$FTP" && chown -R ftp:ftp "$FTP"
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ -d "$SENCRYTP/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
+	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
 download_enable=YES
@@ -640,10 +640,10 @@ VPN
 
 SEEDBOX
 5 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
-6 ) Redemander un certificat let's encrypt (explication dans la video)
+6 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
 
 SERVEUR (les données upload et download du FTP sont toujours conservées)
-7 ) Réinitialiser la configuration openvpn et seedbox
+7 ) Réinitialiser la configuration d'openvpn et de la seedbox
 8 ) Supprimer installation 
 9 ) Redémarrer les services VPN et seedbox
 10) Redémarrer le serveur
@@ -652,7 +652,7 @@ QUITTER
 Q ) Taper Q pour quitter
 
 
-Que voulez vous faire ? [1-9]: " -r OPTIONS
+Que voulez vous faire ? [1-10]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
 			while [[ "$REP" != "Q" ]]; do
@@ -695,14 +695,14 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			2)
 			while [[ "$REP" != "Q" ]]; do
 				VALID=$(grep 'V' "$INDEX" | grep -c 'client')
-				VERIF=$(grep 'V' $INDEX | grep -n 'client[0-90-9]' | awk -F ':' '{print $1}')
+				VERIF=$(grep 'V' $INDEX | grep -n 'client[0-9]*' | awk -F ':' '{print $1}')
 				clear
 				echo "REVOQUER UN CLIENT VPN
 
 $VALID client(s) vpn actif(s) sur le serveur
 
 Liste client(s) VPN actif(s) :"
-				grep 'V' $INDEX | grep -o 'client[0-90-9]' | awk -F "client" '{print "client : " $2}'
+				grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 				read -p "
 Taper Q pour quitter
 Taper le numéro du client à révoquer : " -r REP
@@ -754,8 +754,9 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
 			5)
-			clear
 			stop_seedbox
+			clear
+			cat "$TRANSMISSION".bak > "$TRANSMISSION"
 			NOM_USER="lancelot"
 			MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 			while [[ "$REP" != "Y" ]]; do
@@ -782,15 +783,36 @@ l'utilisateur : $NOM_USER = $MDP_USER
 
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
-			
+
 			6)
-			rm -rf "$SENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$SENCRYTP"
-			$CERTBOT && $CRONCMD
-			( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
+			echo ""
+			stop_seedbox
+			clear
+			echo "
+DEMANDE DE CERTIFICAT SSL APRES DE LET'S ENCRYPT
+"
+			letsencrypt
+			conf_nginx
+			conf_vsftpd
+			echo ""
+			start_seedbox
+			echo ""
+			status_services
+			echo ""
+			if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then 
+				echo "
+Vos certificats ne sont pas disponibles, attendez encore quelques jours,
+let's encrypt n'en delivre que 5 par semaine par FQDN
+Votre certificat de secours auto signé est installé et utilisé sur votre serveur"
+			else 
+				echo "
+Vos certificats sont disponibles et installés sur votre serveur"
+				tree /etc/letsencrypt/live/$(hostname --fqdn)/
+			fi
 			read -p "
-Appuyez sur [Enter] " -r 
+Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
-			
+
 			7)
 			while [[ "$REP" != "Q" ]]; do
 			clear
@@ -802,6 +824,7 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -
 					clear
 					stop_openvpn
 					stop_seedbox
+					clear
 					cat "$SSHD".bak > "$SSHD"
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$SYS_CTL".bak > "$SYS_CTL"
