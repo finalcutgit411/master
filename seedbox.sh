@@ -949,6 +949,9 @@ $OS_DESC
 	stop_seedbox
 	backup
 	seedbox
+	clean
+	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt
+patientez quelques minutes"
 	letsencrypt
 	create_cert_serveur
 	create_cert_clients
