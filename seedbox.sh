@@ -62,7 +62,7 @@ PKITOOL="$REP_RSA/pkitool"
 REVOKE="$REP_RSA/revoke-full"
 INDEX="$REP_KEY/index.txt"
 
-# logs perso
+# fichiers log
 VPN="$REP_SEEDBOX/vpn.log"
 FTP="$REP_SEEDBOX/ftp.log"
 SSH="$REP_SEEDBOX/ssh.log"
