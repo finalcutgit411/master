@@ -102,7 +102,7 @@ if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 WARN=$(tput setaf 1)
 NC=$(tput sgr0)
 
-# check user root, carte tun/tap, distribution
+# check si utilisateur root, carte tun/tap active, et distribution valide
 function verification(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
