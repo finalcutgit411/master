@@ -954,6 +954,8 @@ $OS_DESC
 patientez quelques minutes"
 	letsencrypt
 	clean
+	echo "Création des certificats OpenVPN
+Cette étape peut etre longue"
 	create_cert_serveur
 	create_cert_clients
 	conf_serveur
