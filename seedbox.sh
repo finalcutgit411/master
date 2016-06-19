@@ -88,7 +88,7 @@ NGINX="/etc/nginx/sites-available/default"
 SENCRYTP="/opt/letsencrypt"
 CERTBOT="$SENCRYTP/certbot-auto certonly --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
 CRONCMD="$SENCRYTP/letsencrypt-auto renew --non-interactive"
-CRONJOB="0 0 * * * $CRONCMD &>/dev/null"
+CRONJOB="00 00 * * * $CRONCMD &>/dev/null"
 
 # certificat auto signé
 SERVICES_KEY="/etc/ssl/private/services.key"
