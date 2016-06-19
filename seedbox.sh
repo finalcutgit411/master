@@ -16,6 +16,7 @@
 # - plus de commentaires
 # - ameliorer les retours d'erreur
 # - simplifier les grep awk sed
+# - peut etre separer ce script en plusieur fichier variables / fonctions / script
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 
 # compatible :
