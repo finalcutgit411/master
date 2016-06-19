@@ -778,8 +778,9 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			start_seedbox
 			recap_install
 			read -p "
-Vous pouvez maintenant vous reconnecter au FTP et à la seedbox avec
-l'utilisateur : $NOM_USER = $MDP_USER
+Vous pouvez maintenant vous reconnecter au FTP et à la seedbox avec :
+utilisateur : $NOM_USER = $MDP_USER
+adresse : $(hostname --fqdn)
 
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
