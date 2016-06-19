@@ -630,7 +630,6 @@ Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 
 ####################################################
 # début du script
-# je commente pas trop les cases il y a un menu
 verification
 clear
 if [[ -e "$OPENVPN" ]]; then
