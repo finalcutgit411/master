@@ -604,9 +604,9 @@ function start_openvpn(){
 function recap_install(){
 	echo "RECAPITULATIF INSTALLATION SERVEUR :
 
-Distrib : $OS_DESC
-FQDN : $(hostname --fqdn)
-IP : $IP
+distrib : $OS_DESC
+hostname : $(hostname --fqdn)
+ip : $IP
 
 Accès seedbox 
 http://$(hostname --fqdn)
@@ -644,9 +644,9 @@ if [[ -e "$OPENVPN" ]]; then
 		REP="0" && ADD_VPN="5"
 		read -p "LES SERVICES SEEDBOX SONT DEJA INSTALLES SUR CE SERVEUR :
 
-Distrib : $OS_DESC
-FQDN : $(hostname --fqdn)
-IP : $IP
+distrib : $OS_DESC
+hostname : $(hostname --fqdn)
+ip : $IP
 
 VPN
 1 ) Ajouter des clients vpn
