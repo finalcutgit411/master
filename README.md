@@ -1,7 +1,6 @@
-## En cours ...
 ## Script auto install VPN et seedbox sécurisée
 #### Compatibilité serveur Debian et Ubuntu ( 32 ou 64 bits )
- * debian 8  jessie
+ * debian 8  jessie (conseillé)
  * debian 7  wheezy
  * ubuntu 16 xenial
  * ubuntu 15 vivid
