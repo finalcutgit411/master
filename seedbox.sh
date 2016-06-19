@@ -953,6 +953,7 @@ $OS_DESC
 	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt
 patientez quelques minutes"
 	letsencrypt
+	clean
 	create_cert_serveur
 	create_cert_clients
 	conf_serveur
