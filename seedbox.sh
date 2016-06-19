@@ -477,6 +477,9 @@ failregex = .*WARNING .* Ban <HOST>
             .*NOTICE .* Ban <HOST>
 ignoreregex = .*WARNING \[recidive\] Ban <HOST>
               .*NOTICE \[recidive\] Ban <HOST>' > "$FAILRECID"
+              
+# peut etre ajouter une regex dos pour transmission 
+# failregex = ^<HOST> -.*"(GET|POST).*HTTP.*"$
 }
 
 function conf_vsftpd(){
