@@ -602,8 +602,10 @@ function start_openvpn(){
 
 
 function recap_install(){
-	echo "RECAPITULATIF INSTALLATION SERVEUR ( $OS_DESC ) :
-$(hostname --fqdn) $IP
+	echo "RECAPITULATIF INSTALLATION SERVEUR :
+$OS_DESC
+$(hostname --fqdn)
+$IP
 
 Accès seedbox 
 http://$(hostname --fqdn)
