@@ -241,6 +241,8 @@ export KEY_NAME=$CERT_NAME" >> "$VARS"
 function letsencrypt(){
 	rm -rf "$SENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$SENCRYTP"
 	$CERTBOT &>/dev/null && $CRONCMD
+	# les certificats letsencrypt sont valables 90 jours
+	# planification automatique dans le cron de la demande de renouvellement
 	( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat de secours auto signé 
@@ -368,7 +370,7 @@ function nat(){
         sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC_L"
         a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
-	# je prefere passer par rc.local, jamais vu mais entendu parler de bug avec iptables-save en fonction des hebergeurs; 
+	# je prefere passer par rc.local, jamais vu, mais entendu parler de bug avec iptables-save en fonction des hebergeurs; 
 	# alors bon dans le doute ..
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
@@ -386,7 +388,7 @@ exit 0" >> "$RC_L"
 
 function conf_transmission(){
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	# ajouter eventuellment une option "recharger tous les .torrents"
+	# ajouter eventuellment une option "recharger tous les .torrents" dans une prochaine maj
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
 	echo "\"dht-enabled\":false,
@@ -628,7 +630,7 @@ Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 
 ####################################################
 # début du script
-# je commente pas les cases il y a le menu
+# je commente pas trop les cases il y a un menu
 verification
 clear
 if [[ -e "$OPENVPN" ]]; then
