@@ -102,6 +102,7 @@ if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 WARN=$(tput setaf 1)
 NC=$(tput sgr0)
 
+# check user root, carte tun/tap, distribution
 function verification(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
@@ -195,7 +196,9 @@ function quitter(){
 
 function installation(){
 	apt-get update -y && apt-get upgrade -y
+	# maj timezone pour la date et l'heure des logs
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
+	# supprime les anciennes installations d'openvpn
 	if [[ -d "$REP_OPENVPN" ]]; then rm -rf "${REP_OPENVPN:?}/"*; fi
 	apt-get install -y openvpn openssl transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
 	if [[ "$OS" = "wheezy" ]]; then cp -r /usr/share/doc/openvpn/examples/easy-rsa/2.0 "$REP_RSA"; else apt-get install -y easy-rsa && cp -r /usr/share/easy-rsa "$REP_OPENVPN"; fi
@@ -225,6 +228,7 @@ function seedbox(){
 	echo "local5.* $SSH" >> "$RSYSLOG"
 	sed -i '/^$\|#\|COUNTRY\|PROVINCE\|CITY\|ORG\|EMAI\|OU\|NAME\|EASY_RSA=/d' "$VARS"
 	sed -i '1iexport EASY_RSA="'$REP_RSA'"' "$VARS"
+	# charge vos variables
 	echo "export KEY_COUNTRY=$CERT_PAYS 
 export KEY_PROVINCE=$CERT_PROV 
 export KEY_CITY=$CERT_VILLE 
@@ -239,7 +243,7 @@ function letsencrypt(){
 	$CERTBOT &>/dev/null && $CRONCMD
 	( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
-	# certificat de secours auto signé 
+	# création certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
 	openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
@@ -274,8 +278,7 @@ function revoke_cert_client(){
 }
 
 function conf_serveur(){
-	# Eventuellment prochaine maj chrooter le vpn
-	# Verifier les weaks diffie hellman pour les versions oldstables
+	# prochaine maj du script éventuellement chrooter le vpn et verifier les weaks diffie hellman pour les versions oldstables
 	echo "port $PORT_VPN
 proto udp
 dev tun
@@ -365,7 +368,8 @@ function nat(){
         sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC_L"
         a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
-	# je prefere passer par rc.local, jamais vu mais entendu parler de bug avec iptables save; bon dans le doute ..
+	# je prefere passer par rc.local, jamais vu mais entendu parler de bug avec iptables-save en fonction des hebergeurs; 
+	# alors bon dans le doute ..
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
                 echo "
@@ -624,6 +628,7 @@ Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 
 ####################################################
 # début du script
+# je commente pas les cases il y a le menu
 verification
 clear
 if [[ -e "$OPENVPN" ]]; then
