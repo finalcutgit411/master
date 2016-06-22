@@ -1,4 +1,4 @@
-## Script auto install VPN et seedbox sécurisée
+## Script auto install VPN et seedbox sécurisée (mono utilisateur)
 #### Compatibilité serveur Debian et Ubuntu ( 32 ou 64 bits )
  * debian 8  jessie (conseillé)
  * debian 7  wheezy
