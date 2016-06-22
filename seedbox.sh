@@ -39,8 +39,7 @@ CERT_MAIL="admin@$(hostname --fqdn)"
 ADD_VPN="5"
 PORT_VPN="1194"
 
-# infos système
-OS_DESC=$(lsb_release -ds)
+# infos ip
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
 
@@ -639,6 +638,7 @@ Arborescence " >> "$REP_SEEDBOX"/documents/infos.txt
 ####################################################
 # début du script
 verification
+OS_DESC=$(lsb_release -ds)
 clear
 if [[ -e "$OPENVPN" ]]; then
 	OPTIONS="0"
