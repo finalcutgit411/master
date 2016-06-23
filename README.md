@@ -12,3 +12,6 @@
 
 #### Video
 [![Video youtube](http://img15.hostingpics.net/pics/901427seedbox.jpg)](https://youtu.be/CRw4nTvR8ng "Video youtube")
+
+#### Support
+###### https://www.t411.ch/forum.php#/discussion/69408/tuto-video-debutant-script-installation-vpn-et-seedbox
