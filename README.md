@@ -1,5 +1,6 @@
 ## Script auto install VPN et seedbox sécurisée (mono utilisateur)
 #### Installation (openvpn + transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
+Apres une clean install du serveur
 <code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin && seedbox.sh</code>
 
 #### Youtube
