@@ -9,3 +9,7 @@
 
 #### Installation (openvpn + transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 ###### wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin && seedbox.sh
+
+
+
+[![Video youtube](http://img15.hostingpics.net/pics/901427seedbox.jpg)](https://youtu.be/CRw4nTvR8ng "Video youtube")
