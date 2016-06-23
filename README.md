@@ -16,3 +16,4 @@
 
 #### Support
 <code>https://www.t411.ch/forum.php#/discussion/69408/tuto-video-debutant-script-installation-vpn-et-seedbox</code>
+(penser à activer adblock avant d'aller sur ce site)
