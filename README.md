@@ -4,7 +4,7 @@
 <code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin && seedbox.sh</code>
 
 #### Tuto Youtube
-[![Video youtube](http://img15.hostingpics.net/pics/901427seedbox.jpg)](https://youtu.be/CRw4nTvR8ng "Video youtube")
+[![Video youtube](http://img11.hostingpics.net/pics/552319seedbox.jpg)](https://youtu.be/CRw4nTvR8ng "Video youtube")
 
 #### Compatibilité serveur Debian et Ubuntu ( 32 ou 64 bits )
  * debian 8  jessie (recommandé debian 8 jessie 64)
