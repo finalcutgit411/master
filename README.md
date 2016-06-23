@@ -5,8 +5,8 @@
 #### Youtube
 [![Video youtube](http://img15.hostingpics.net/pics/901427seedbox.jpg)](https://youtu.be/CRw4nTvR8ng "Video youtube")
 
-#### Compatibilité serveur Debian et Ubuntu ( 32 ou 64 bits ) (fortement conseillé debian 8 jessie 64)
- * debian 8  jessie
+#### Compatibilité serveur Debian et Ubuntu ( 32 ou 64 bits )
+ * debian 8  jessie (recommendé debian 8 jessie 64)
  * debian 7  wheezy
  * ubuntu 16 xenial
  * ubuntu 15 vivid
