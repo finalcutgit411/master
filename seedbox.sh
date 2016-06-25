@@ -5,7 +5,7 @@
 # date : juin 2016
 # auteur : finalcut
 # infos : https://github.com/finalcutgit411/master/blob/master/README.md
-# vidéo : 
+# vidéo : https://youtu.be/CRw4nTvR8ng
 
 # prochaine maj :
 # - plus de visilbilté dans les jails
