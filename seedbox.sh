@@ -218,6 +218,7 @@ function backup(){
 
 function seedbox(){
 	usermod -aG debian-transmission ftp
+	usermod -aG ftp debian-transmission
 	mkdir -p "$REP_SEEDBOX"/documents
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
