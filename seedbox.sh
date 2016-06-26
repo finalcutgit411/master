@@ -217,7 +217,6 @@ function backup(){
 }
 
 function seedbox(){
-	usermod -aG debian-transmission ftp
 	usermod -aG ftp debian-transmission
 	mkdir -p "$REP_SEEDBOX"/documents
 	chmod 700 -R "$REP_SEEDBOX"/documents
@@ -399,7 +398,7 @@ function conf_transmission(){
 \"pex-enabled\":false,
 \"rpc-password\":\"$MDP_USER\",
 \"rpc-username\":\"$NOM_USER\",
-\"umask\":7,
+\"umask\":0,
 \"utp-enabled\":false,
 \"watch-dir-enabled\":true,
 \"watch-dir\":\"$REP_SEEDBOX/torrents\"
