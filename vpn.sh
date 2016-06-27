@@ -579,6 +579,7 @@ Installation VPN terminée
 Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r 
 	if [[ ! -e "$TRANSMISSION" ]]; then
 		while [[ "$REP" != "N" ]]; do
+			clear
 			read -p "
 Voulez vous installer la seedbox securisée ? [Y/N] " -r REP
 			if [[ "$REP" = "Y" ]]; then
