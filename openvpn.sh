@@ -25,12 +25,12 @@ if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
 
 # config openvpn
 OPENVPN="$REP_OPENVPN/openvpn.conf"
-VPN="$REP_OPENVPN/status.log"
-OPENVPNLOG="$REP_OPENVPN/openvpn.log"
+STATUS="$REP_OPENVPN/status.log"
+LOG="$REP_OPENVPN/openvpn.log"
 
 # config system
-SYS_CTL="/etc/sysctl.conf"
-RC_L="/etc/rc.local"
+SYSCTL="/etc/sysctl.conf"
+RC="/etc/rc.local"
 
 # scripts openvpn
 VARS="$REP_RSA/vars"
@@ -110,14 +110,14 @@ function set_infos(){
 	REP="0"
 	while [[ "$REP" != "Y" ]]; do
 		echo "PERSONNALISATION (ou laisser par defaut) :"
-		read -p "Pays: " -e -i "$CERT_PAYS" -r CERT_PAYS
-		read -p "Province: " -e -i "$CERT_PROV" -r CERT_PROV
-		read -p "Ville: " -e -i "$CERT_VILLE" -r CERT_VILLE
-		read -p "Description: " -e -i "$CERT_DESC" -r CERT_DESC
-		read -p "Port VPN: " -e -i "$PORT_VPN" -r PORT_VPN
-		read -p "Protocol VPN: " -e -i "$PROTO_VPN" -r PROTO_VPN
-		read -p "Nombre de client VPN: " -e -i "$ADD_VPN" -r ADD_VPN
-		read -p "IP serveur: " -e -i "$IP" -r IP
+		read -p "Pays : " -e -i "$CERT_PAYS" -r CERT_PAYS
+		read -p "Province : " -e -i "$CERT_PROV" -r CERT_PROV
+		read -p "Ville : " -e -i "$CERT_VILLE" -r CERT_VILLE
+		read -p "Description : " -e -i "$CERT_DESC" -r CERT_DESC
+		read -p "Port VPN : " -e -i "$PORT_VPN" -r PORT_VPN
+		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
+		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
+		read -p "IP serveur : " -e -i "$IP" -r IP
 		clear
 		echo "VERIFICATION :"
 		show_infos
@@ -142,8 +142,8 @@ function installation(){
 }
 
 function backup(){
-        if [[ ! -e "$SYS_CTL".bak ]]; then cp "$SYS_CTL" "$SYS_CTL".bak; fi
-        if [[ ! -e "$RC_L".bak ]]; then cp "$RC_L" "$RC_L".bak; fi
+        if [[ ! -e "$SYSCTL".bak ]]; then cp "$SYSCTL" "$SYSCTL".bak; fi
+        if [[ ! -e "$RC".bak ]]; then cp "$RC" "$RC".bak; fi
 }
 
 function vpn(){
@@ -210,12 +210,11 @@ group nogroup
 persist-key
 persist-tun
 verb 3
-log-append $OPENVPNLOG
-status $VPN" > "$OPENVPN"
-	#touch "$VPN"
+log-append $LOG
+status $STATUS" > "$OPENVPN"
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i 's/udp/tcp/' "$OPENVPN"; fi
 	if [[ "$OS" = "wheezy" ]]; then sed -i "s/dh2048.pem/dh1024.pem/" "$OPENVPN";
-	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYS_CTL"
+	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
 }
 
 function conf_client(){
@@ -272,7 +271,7 @@ function create_rep_clients(){
 }
 
 function nat(){
-        sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC_L"
+        sed -i '/^exit\|^$\|Client\|# ouvert\|10.8.0./d' "$RC"
         a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
         for (( i=1 ; i<="$n" ; i++ )); do
@@ -280,12 +279,12 @@ function nat(){
                 echo "
 # ouverture port $b pour le client$i 
 iptables -t nat -A PREROUTING -p tcp --dport $b -j DNAT --to-destination 10.8.0.$a:$b
-iptables -t nat -A PREROUTING -p udp --dport $b -j DNAT --to-destination 10.8.0.$a:$b" >> "$RC_L"
+iptables -t nat -A PREROUTING -p udp --dport $b -j DNAT --to-destination 10.8.0.$a:$b" >> "$RC"
         done
         echo "
 # ouverture acces internet aux clients vpn 
 iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
-exit 0" >> "$RC_L"
+exit 0" >> "$RC"
 }
 
 
@@ -456,9 +455,9 @@ Taper Q pour quitter
 Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					stop_openvpn
-					cat "$SYS_CTL".bak > "$SYS_CTL"
-					cat "$RC_L".bak > "$RC_L"
-					rm {"$SYS_CTL".bak,"$RC_L".bak}
+					cat "$SYSCTL".bak > "$SYSCTL"
+					cat "$RC".bak > "$RC"
+					rm {"$SYSCTL".bak,"$RC".bak}
 					rm -rf /etc/openvpn/*
 					apt-get purge -y openvpn
 					apt-get autoremove -y
