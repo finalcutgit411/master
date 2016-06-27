@@ -2,14 +2,6 @@
 # shellcheck source=/dev/null
 # script auto install VPN
 
-# compatible :
-# - debian 8 jessie,
-# - debian 7 wheezy
-# - ubuntu 16 xenial
-# - ubuntu 15 vivid
-# - ubuntu 15 wily
-# - ubuntu 14 trusty
-
 # exemple certificats openvpn
 CERT_PAYS="Fr"
 CERT_PROV="French"
