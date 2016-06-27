@@ -581,7 +581,7 @@ Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r
 		while [[ "$REP" != "Q" ]]; do
 			read -p "
 Taper Q pour quitter
-Voulez vous installer la seedbox securisée ? ? [Y/Q] " -r REP
+Voulez vous installer la seedbox securisée ? [Y/Q] " -r REP
 			if [[ "$REP" = "Y" ]]; then wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin/seedbox && seedbox; fi
 			REP="Q"
 		done
