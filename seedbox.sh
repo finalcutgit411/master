@@ -535,7 +535,7 @@ Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 					cat "$NGINX".bak > "$NGINX"
 					rm {"$TRANSMISSION".bak,"$VSFTPD".bak,"$NGINX".bak,"$LOG","$FAILLOCAL"}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
-					apt-get purge -y openvpn minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx-light vsftpd fail2ban
+					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
 					apt-get update -y
