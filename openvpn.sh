@@ -364,7 +364,7 @@ if [[ -e "$OPENVPN" ]]; then
 
 Q ) Taper Q pour quitter
 
-Que voulez vous faire ? [1-6]: " -r OPTIONS
+Que voulez vous faire ? [1-8]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
 			while [[ "$REP" != "Q" ]]; do
