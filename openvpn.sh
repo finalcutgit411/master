@@ -289,6 +289,28 @@ iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
 exit 0" >> "$RC"
 }
 
+function recap_install(){
+	echo "INSTALLATION VPN TERMINEE"
+	status_openvpn
+	echo "
+Ouverture automatique d'un port pour chaque client VPN
+"
+	a=1 && b=60000
+        n=$(grep -c "client" "$INDEX")
+        for (( i=1 ; i<="$n" ; i++ )); do
+                a=$((a+4)) && b=$((b+1))
+                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
+	done
+	echo "
+Envoi des clients vpn dans le dosier /tmp 
+
+Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
+
+Si vous etes sur Linux ou Mac vous pouvez les recuperer avec la commande scp suivante
+copier-coller dans votre terminal : scp -P 22 -r root@$IP:/tmp/clients ./
+"
+	tree -d /tmp/
+}
 
 function stop_openvpn(){
         if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn stop &>/dev/null;
@@ -458,22 +480,10 @@ cette étape est longue"
 					start_openvpn
 					clear
 					status_openvpn
-					echo "
-Ouverture automatique d'un port pour chaque client VPN
-"
-					a=1 && b=60000
-				        n=$(grep -c "client" "$INDEX")
-				        for (( i=1 ; i<="$n" ; i++ )); do
-				                a=$((a+4)) && b=$((b+1))
-				                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
-					done
+					recap_install
 					read -p "
 Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
-					read -p "
-Vous devez maintenant ajouter des clients VPN
-Appuyez sur [Enter] pour revenir au menu précedent " -r
-					REP="Q"
 				fi
 			done
 			;;
@@ -556,18 +566,9 @@ cette étape est longue"
 	conf_client
 	create_rep_clients
 	nat
-	clear
 	start_openvpn
-	status_openvpn
-	echo "
-Ouverture automatique d'un port pour chaque client VPN
-"
-	a=1 && b=60000
-        n=$(grep -c "client" "$INDEX")
-        for (( i=1 ; i<="$n" ; i++ )); do
-                a=$((a+4)) && b=$((b+1))
-                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
-	done
+	clear
+	recap_install
 	read -p "
 Installation terminée Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
