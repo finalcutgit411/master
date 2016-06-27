@@ -858,7 +858,7 @@ $OS_DESC
 					installation
 					seedbox
 					letsencrypt
-					clean
+					clear
 					echo "Création des certificats VPN
 cette étape est longue"
 					create_cert_serveur
@@ -961,11 +961,11 @@ $OS_DESC
 	stop_seedbox
 	backup
 	seedbox
-	clean
+	clear
 	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt
 patientez quelques minutes"
 	letsencrypt
-	clean
+	clear
 	echo "Création des certificats VPN
 cette étape est longue"
 	create_cert_serveur
