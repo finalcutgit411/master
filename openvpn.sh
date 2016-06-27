@@ -454,6 +454,7 @@ Appuyez sur [Enter] " -r
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "REINITIALISER CERTIFICATS SERVEUR VPN
+
 Taper Q pour quitter
 Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
