@@ -419,8 +419,7 @@ Taper le numéro du client à révoquer : " -r REP
 					for i in $VERIF; do
 						if [[ "$REP" = "$i" ]]; then
 							read -p "
-Vous avez selectionné le client $REP
-Merci de confirmer votre choix [Y/N] " -r CONF
+Vous avez selectionné le client $REP, merci de confirmer [Y/N] " -r CONF
 							if [[ "$CONF" = "Y" ]]; then
 								DEL_VPN="$REP"
 								echo ""
