@@ -304,7 +304,7 @@ Ouverture automatique d'un port pour chaque client VPN
                 echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
 	done
 	echo "
-Envoi des clients vpn dans le dosier /tmp
+Envoie des clients vpn dans le dosier /tmp
 Récuperez les avant de redémarrer votre serveur !!
 
 Si vous etes sur Windows, utilisez winscp (voir video)
