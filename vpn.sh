@@ -578,11 +578,6 @@ cette étape est longue"
 Installation VPN terminée
 Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r 
 	if [[ ! -e "$TRANSMISSION" ]]; then
-		while [[ "$REP" != "Q" ]]; do
-			read -p "
-Taper Q pour quitter
-Voulez vous installer la seedbox securisée ? [Y/Q] " -r REP
-			if [[ ! -e "$TRANSMISSION" ]]; then
 		while [[ "$REP" != "N" ]]; do
 			read -p "
 Voulez vous installer la seedbox securisée ? [Y/N] " -r REP
@@ -600,3 +595,4 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 	shutdown -r now
 fi
 exit 0
+
