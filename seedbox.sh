@@ -422,13 +422,9 @@ if [[ -e "$TRANSMISSION" ]]; then
 		clear
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
-distrib : $OS_DESC $IP
-
-Accès seedbox 
-http://$(hostname --fqdn)
-
-Accès ftps
-$(hostname --fqdn) port 21
+		
+Accéder à la seedbox : http://$(hostname --fqdn)
+Accéder au ftps : $(hostname --fqdn) port 21
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
