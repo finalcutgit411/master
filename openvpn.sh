@@ -472,6 +472,7 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "SUPPRIMER INSTALLATION VPN
+
 Taper Q pour quitter
 Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
