@@ -467,10 +467,15 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			vsftpd
 			start_seedbox
 			read -p "
-Vous pouvez maintenant vous reconnecter à la seedbox avec :
-utilisateur : $NOM_USER = $MDP_USER
+Accès seedbox 
+http://$(hostname --fqdn)
 
-adresse : $(hostname --fqdn)
+Accès ftps
+$(hostname --fqdn) port 21
+
+Utilisateur
+$NOM_USER = $MDP_USER
+
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
