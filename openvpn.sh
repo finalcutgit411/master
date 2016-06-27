@@ -222,7 +222,7 @@ log-append $OPENVPNLOG
 status $VPN" > "$OPENVPN"
 	#touch "$VPN"
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i 's/udp/tcp/' "$OPENVPN"; fi
-	sed -i "s/dh1024.pem/dh2048.pem/" "$OPENVPN";
+	if [[ "$OS" = "wheezy" ]]; then sed -i "s/dh2048.pem/dh1024.pem/" "$OPENVPN";
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYS_CTL"
 }
 
