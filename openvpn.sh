@@ -8,7 +8,7 @@ REP_RSA="$REP_OPENVPN/easy-rsa"
 REP_KEY="$REP_RSA/keys"
 
 # config openvpn
-OPENVPN="$REP_OPENVPN/openvpn.conf"
+OPENVPN="$REP_OPENVPN/vpn.conf"
 STATUS="$REP_OPENVPN/status.log"
 LOG="$REP_OPENVPN/openvpn.log"
 
