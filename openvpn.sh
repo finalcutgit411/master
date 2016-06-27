@@ -545,11 +545,20 @@ cette étape est longue"
 	conf_client
 	create_rep_clients
 	nat
-	start_openvpn
 	clear
+	start_openvpn
 	status_openvpn
+	echo "
+Ouverture port pour chaque client VPN
+"
+	a=1 && b=60000
+        n=$(grep -c "client" "$INDEX")
+        for (( i=1 ; i<="$n" ; i++ )); do
+                a=$((a+4)) && b=$((b+1))
+                echo "client vpn $i \"client$i\" Ip : 10.8.0.$a ouverture du port $b"
+	done
 	echo ""
-	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+	read -p "Installation terminée Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
 exit 0
