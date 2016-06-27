@@ -359,8 +359,8 @@ if [[ -e "$OPENVPN" ]]; then
 
 6 ) Voir les clients connectés au vpn
 
-6 ) Redémarrer le vpn
-7 ) Redémarrer le serveur
+7 ) Redémarrer le vpn
+8 ) Redémarrer le serveur
 
 Q ) Taper Q pour quitter
 
