@@ -540,7 +540,7 @@ $(hostname --fqdn) port 21
 Utilisateur
 $NOM_USER = $MDP_USER
 
-Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
+Réinitialisation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 					exit 0
 				fi
 			done
