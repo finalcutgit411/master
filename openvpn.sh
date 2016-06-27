@@ -267,6 +267,8 @@ function create_rep_clients(){
                         echo "ifconfig-push 10.8.0.$a 10.8.0.$b" > "$REP_OPENVPN"/ccd/client"$i"
                 fi
         done
+	cp -r "$REP_OPENVPN"/clients /tmp/
+	chmod -R 777 /tmp/clients
 }
 
 function nat(){
@@ -321,14 +323,19 @@ if [[ -e "$OPENVPN" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
 		REP="0" && ADD_VPN="5"
-		read -p "LE VPN EST DEJA INSTALLES SUR CE SERVEUR :
+		read -p "LE VPN EST DEJA INSTALLE SUR CE SERVEUR :
 
 1 ) Ajouter des clients
 2 ) Revoquer des clients
-3 ) Réinitialiser tous les certificats
-4 ) Supprimer installation vpn
-5 ) Redémarrer le vpn
-6 ) Redémarrer le serveur
+3 ) Renvoyer les clients dans le dossier /tmp
+
+4 ) Réinitialiser tous les certificats vpn
+5 ) Supprimer l'installation du vpn
+
+6 ) Voir dans les clients connectés au vpn
+
+6 ) Redémarrer le vpn
+7 ) Redémarrer le serveur
 
 Q ) Taper Q pour quitter
 
@@ -406,6 +413,19 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
 			3)
+			create_rep_clients
+			echo "
+Envoi dans le dosier /tmp du serveur terminé
+
+Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
+Si vous etes sur Linux ou Mac avec la commande scp daans votre terminal:
+scp -P 22 -r user@adresse_ip:/tmp/clients ./ "
+			tree -d /tmp/
+			read -p "
+Appuyez sur [Enter] " -r 
+			;;
+
+			4)
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "REINITIALISER CERTIFICATS SERVEUR VPN
@@ -446,7 +466,7 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			done
 			;;
 
-			4)
+			5)
 			while [[ "$REP" != "Q" ]]; do
 			clear
 				read -p "SUPPRIMER INSTALLATION VPN
@@ -469,7 +489,16 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			done
 			;;
 
-			5)
+			6)
+			echo "Les clients connectés au vpn
+"
+			clear
+			cat $STATUS
+			read -p "
+Appuyez sur [Enter] pour revenir au menu précedent " -r 
+			;;
+
+			7)
 			echo ""
 			stop_openvpn
 			echo ""
@@ -480,7 +509,7 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			read -p "Appuyez sur [Enter] " -r
 			;;
 			
-			6)
+			8)
 			shutdown -r now
 			exit 0
 			;;
