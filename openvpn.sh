@@ -483,6 +483,7 @@ cette étape est longue"
 					read -p "
 Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
+					REP="Q"
 				fi
 			done
 			;;
