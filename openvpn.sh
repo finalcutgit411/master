@@ -302,12 +302,13 @@ Ouverture automatique d'un port pour chaque client VPN
                 echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
 	done
 	echo "
-Envoi des clients vpn dans le dosier /tmp 
+Envoi des clients vpn dans le dosier /tmp
+Récuperez les avant de redémarrer votre serveur !!
 
-Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
+Si vous etes sur Windows, utilisez winscp (voir video)
 
-Si vous etes sur Linux ou Mac vous pouvez les recuperer avec la commande scp suivante
-copier-coller dans votre terminal : scp -P 22 -r root@$IP:/tmp/clients ./
+Si vous etes sur Linux ou Mac copier-coller dans votre terminal la commande scp suivante :
+scp -P 22 -r root@$IP:/tmp/clients ./
 "
 	tree -d /tmp/
 }
@@ -438,12 +439,13 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			3)
 			create_rep_clients
 			echo "
-Envoi dans le dosier /tmp du serveur terminé
+Envoi des clients vpn dans le dosier /tmp
+Récuperez les avant de redémarrer votre serveur !!
 
-Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
+Si vous etes sur Windows, utilisez winscp (voir video)
 
-Si vous etes sur Linux ou Mac vous pouvez les recuperer avec la commande scp
-dans votre terminal : scp -P 22 -r root@$IP:/tmp/clients ./
+Si vous etes sur Linux ou Mac copier-coller dans votre terminal la commande scp suivante :
+scp -P 22 -r root@$IP:/tmp/clients ./
 "
 			tree -d /tmp/
 			read -p "
