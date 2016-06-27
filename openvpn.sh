@@ -422,7 +422,32 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 Taper Q pour quitter
 Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
+					clear
+					echo "EXEMPLE INFORMATIONS A SAISIR :"
+					show_infos
+					set_infos
+					clear
+					echo "INSTALLATION SERVEUR VPN
+$OS_DESC
+"
+					installation
+					stop_openvpn
+					vpn
+					clear
+					echo "Création des nouveaux certificats VPN
+cette étape est longue"
 					create_cert_serveur
+					create_cert_clients
+					conf_serveur
+					conf_client
+					create_rep_clients
+					nat
+					start_openvpn
+					clear
+					status_openvpn
+					echo ""
+					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+					shutdown -r now
 					read -p "
 Vous devez maintenant ajouter des clients VPN
 Appuyez sur [Enter] pour revenir au menu précedent " -r
