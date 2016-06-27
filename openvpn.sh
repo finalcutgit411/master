@@ -479,7 +479,6 @@ cette étape est longue"
 					nat
 					start_openvpn
 					clear
-					status_openvpn
 					recap_install
 					read -p "
 Appuyez sur [Enter] pour redemarrer le serveur... " -r 
