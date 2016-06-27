@@ -116,6 +116,7 @@ function set_infos(){
 		read -p "Ville : " -e -i "$CERT_VILLE" -r CERT_VILLE
 		read -p "Description : " -e -i "$CERT_DESC" -r CERT_DESC
 		read -p "Port VPN : " -e -i "$PORT_VPN" -r PORT_VPN
+		if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; fi
 		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
 		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
 		read -p "IP serveur : " -e -i "$IP" -r IP
