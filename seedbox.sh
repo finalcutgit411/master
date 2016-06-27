@@ -353,7 +353,6 @@ Pour accéder à votre seedbox : http://$(hostname --fqdn)
 Pour accéder accéder à votre ftps : $(hostname --fqdn) port 21
 Pour relancer vos scripts tapez : vpn ou seedbox
 " >> /etc/motd
-   
 }
 
 function stop_openvpn(){
