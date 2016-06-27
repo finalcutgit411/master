@@ -332,7 +332,7 @@ if [[ -e "$OPENVPN" ]]; then
 4 ) Réinitialiser tous les certificats vpn
 5 ) Supprimer l'installation du vpn
 
-6 ) Voir dans les clients connectés au vpn
+6 ) Voir les clients connectés au vpn
 
 6 ) Redémarrer le vpn
 7 ) Redémarrer le serveur
@@ -418,8 +418,10 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 Envoi dans le dosier /tmp du serveur terminé
 
 Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
-Si vous etes sur Linux ou Mac avec la commande scp daans votre terminal:
-scp -P 22 -r user@adresse_ip:/tmp/clients ./ "
+
+Si vous etes sur Linux ou Mac vous pouvez les recuperer avec la commande scp
+dans votre terminal : scp -P 22 -r user@adresse_ip:/tmp/clients ./
+"
 			tree -d /tmp/
 			read -p "
 Appuyez sur [Enter] " -r 
