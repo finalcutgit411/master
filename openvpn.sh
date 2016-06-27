@@ -574,7 +574,8 @@ cette étape est longue"
 	clear
 	recap_install
 	read -p "
-Installation terminée Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+Installation terminée
+Récuperez vos certificats puis appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
 exit 0
