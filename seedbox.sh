@@ -346,6 +346,18 @@ account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 	fi
 }
 
+function motd(){
+	sed -i '/Acc/,$d' /etc/motd
+	echo "
+Accès seedbox 
+http://$(hostname --fqdn)
+
+Accès ftps
+$(hostname --fqdn) port 21
+" >> /etc/motd
+   
+}
+
 function stop_openvpn(){
         if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn stop &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Stopping"; fi
@@ -406,11 +418,13 @@ if [[ -e "$TRANSMISSION" ]]; then
 		clear
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
-distrib : $OS_DESC
+distrib : $OS_DESC $IP
 
-hostname : $(hostname --fqdn)
-ip : $IP
+Accès seedbox 
+http://$(hostname --fqdn)
 
+Accès ftps
+$(hostname --fqdn) port 21
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
@@ -424,7 +438,7 @@ ip : $IP
 
 
 Q ) Taper Q pour quitter
-Que voulez vous faire ? [1-10]: " -r OPTIONS
+Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
 			stop_seedbox
@@ -528,7 +542,9 @@ Installation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 Taper Q pour quitter
 Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
+					echo ""
 					stop_seedbox
+					echo ""
 					gpasswd -d debian-transmission ftp 
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$VSFTPD".bak > "$VSFTPD"
@@ -540,7 +556,7 @@ Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 					apt-get autoremove -y
 					apt-get update -y
 					read -p "
-Installation seedbox terminée appuyez sur [Enter] pour quitter... " -r
+Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 					exit 0
 				fi
 			done
@@ -594,6 +610,19 @@ patientez quelques minutes"
 	start_seedbox
 	clear
 	status_services
-	read -p "Installation seedbox terminée appuyez sur [Enter] pour quitter... " -r 
+	motd
+	read -p "
+RECAPITULATIF INSTALLATION SEEDBOX :
+
+Accès seedbox 
+http://$(hostname --fqdn)
+
+Accès ftps
+$(hostname --fqdn) port 21
+
+Utilisateur
+$NOM_USER = $MDP_USER
+
+Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 fi
 exit 0
