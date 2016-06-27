@@ -267,7 +267,6 @@ function create_rep_clients(){
                         echo "ifconfig-push 10.8.0.$a 10.8.0.$b" > "$REP_OPENVPN"/ccd/client"$i"
                 fi
         done
-        cp "$REP_KEY"/ca.crt "$REP_OPENVPN"/clients/
 }
 
 function nat(){
