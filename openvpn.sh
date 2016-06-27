@@ -443,7 +443,7 @@ Envoi dans le dosier /tmp du serveur terminé
 Si vous etes sur Windows, vous pouvez les recuperer avec winscp (voir video)
 
 Si vous etes sur Linux ou Mac vous pouvez les recuperer avec la commande scp
-dans votre terminal : scp -P 22 -r user@adresse_ip:/tmp/clients ./
+dans votre terminal : scp -P 22 -r root@$IP:/tmp/clients ./
 "
 			tree -d /tmp/
 			read -p "
