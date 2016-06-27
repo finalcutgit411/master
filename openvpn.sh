@@ -2,7 +2,17 @@
 # shellcheck source=/dev/null
 # script auto install VPN
 
-# exemple certificats openvpn
+# repertoires openvpn
+REP_OPENVPN="/etc/openvpn"
+REP_RSA="$REP_OPENVPN/easy-rsa"
+REP_KEY="$REP_RSA/keys"
+
+# config openvpn
+OPENVPN="$REP_OPENVPN/openvpn.conf"
+STATUS="$REP_OPENVPN/status.log"
+LOG="$REP_OPENVPN/openvpn.log"
+
+# exemple informations openvpn
 CERT_PAYS="Fr"
 CERT_PROV="French"
 CERT_VILLE="Paris"
@@ -11,22 +21,13 @@ CERT_NAME=$(uname -n)
 CERT_MAIL="admin@$(hostname --fqdn)"
 ADD_VPN="5"
 PORT_VPN="1194"
+if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
 PROTO_VPN="udp"
+if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; fi
 
 # infos ip
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
-
-# repertoires openvpn
-REP_OPENVPN="/etc/openvpn"
-REP_RSA="$REP_OPENVPN/easy-rsa"
-REP_KEY="$REP_RSA/keys"
-if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
-
-# config openvpn
-OPENVPN="$REP_OPENVPN/openvpn.conf"
-STATUS="$REP_OPENVPN/status.log"
-LOG="$REP_OPENVPN/openvpn.log"
 
 # config system
 SYSCTL="/etc/sysctl.conf"
