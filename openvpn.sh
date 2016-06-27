@@ -437,6 +437,7 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
 			3)
+			clear
 			create_rep_clients
 			echo "
 Envoi des clients vpn dans le dosier /tmp
@@ -449,7 +450,7 @@ scp -P 22 -r root@$IP:/tmp/clients ./
 "
 			tree -d /tmp/
 			read -p "
-Appuyez sur [Enter] " -r 
+Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
 
 			4)
