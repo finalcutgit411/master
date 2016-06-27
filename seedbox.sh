@@ -416,8 +416,8 @@ if [[ -e "$TRANSMISSION" ]]; then
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
 		
-Accéder à la seedbox : http://$(hostname --fqdn)
-Accéder au ftps : $(hostname --fqdn) port 21
+Accès seedbox : http://$(hostname --fqdn)
+Accès ftps : $(hostname --fqdn) port 21
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
@@ -456,8 +456,8 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			vsftpd
 			start_seedbox
 			read -p "
-Accéder à la seedbox : http://$(hostname --fqdn)
-Accéder au ftps : $(hostname --fqdn) port 21
+Accès seedbox : http://$(hostname --fqdn)
+Accès ftps : $(hostname --fqdn) port 21
 
 Utilisateur : $NOM_USER = $MDP_USER
 
@@ -523,8 +523,8 @@ $OS_DESC
 					status_services
 					motd
 					read -p "
-Accéder à la seedbox : http://$(hostname --fqdn)
-Accéder au ftps : $(hostname --fqdn) port 21
+Accès seedbox : http://$(hostname --fqdn)
+Accès ftps : $(hostname --fqdn) port 21
 
 Utilisateur : $NOM_USER = $MDP_USER
 
@@ -614,8 +614,8 @@ patientez quelques minutes"
 	read -p "
 RECAPITULATIF INSTALLATION SEEDBOX :
 
-Accéder à la seedbox : http://$(hostname --fqdn)
-Accéder au ftps : $(hostname --fqdn) port 21
+Accès seedbox : http://$(hostname --fqdn)
+Accès ftps : $(hostname --fqdn) port 21
 
 Utilisateur : $NOM_USER = $MDP_USER
 
