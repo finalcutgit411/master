@@ -28,9 +28,10 @@ if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
 
-# config system
+# config
 SYSCTL="/etc/sysctl.conf"
 RC="/etc/rc.local"
+TRANSMISSION="/etc/transmission-daemon/settings.json"
 
 # scripts openvpn
 VARS="$REP_RSA/vars"
@@ -574,8 +575,19 @@ cette étape est longue"
 	clear
 	recap_install
 	read -p "
-Installation terminée
-Récuperez vos certificats puis appuyez sur [Enter] pour redemarrer le serveur... " -r 
+Installation VPN terminée
+Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r 
+	if [[ ! -e "$TRANSMISSION" ]]; then
+		while [[ "$REP" != "Q" ]]; do
+			read -p "
+Taper Q pour quitter
+Voulez vous installer la seedbox securisée ? ? [Y/Q] " -r REP
+			if [[ "$REP" = "Y" ]]; then wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin/seedbox && seedbox; fi
+			REP="Q"
+		done
+	fi
+	read -p "
+Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
 exit 0
