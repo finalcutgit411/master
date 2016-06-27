@@ -492,9 +492,9 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			;;
 
 			6)
+			clear
 			echo "Les clients connectés au vpn
 "
-			clear
 			cat $STATUS
 			read -p "
 Appuyez sur [Enter] pour revenir au menu précedent " -r 
