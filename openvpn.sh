@@ -458,8 +458,17 @@ cette étape est longue"
 					start_openvpn
 					clear
 					status_openvpn
-					echo ""
-					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+					echo "
+Ouverture automatique d'un port pour chaque client VPN
+"
+					a=1 && b=60000
+				        n=$(grep -c "client" "$INDEX")
+				        for (( i=1 ; i<="$n" ; i++ )); do
+				                a=$((a+4)) && b=$((b+1))
+				                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
+					done
+					read -p "
+Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
 					read -p "
 Vous devez maintenant ajouter des clients VPN
@@ -551,16 +560,16 @@ cette étape est longue"
 	start_openvpn
 	status_openvpn
 	echo "
-Ouverture port pour chaque client VPN
+Ouverture automatique d'un port pour chaque client VPN
 "
 	a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
-                echo "client vpn $i \"client$i\" Ip : 10.8.0.$a ouverture du port $b"
+                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
 	done
-	echo ""
-	read -p "Installation terminée Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+	read -p "
+Installation terminée Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
 exit 0
