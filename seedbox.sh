@@ -463,14 +463,10 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			vsftpd
 			start_seedbox
 			read -p "
-Accès seedbox 
-http://$(hostname --fqdn)
+Accéder à la seedbox : http://$(hostname --fqdn)
+Accéder au ftps : $(hostname --fqdn) port 21
 
-Accès ftps
-$(hostname --fqdn) port 21
-
-Utilisateur
-$NOM_USER = $MDP_USER
+Utilisateur : $NOM_USER = $MDP_USER
 
 Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
@@ -534,16 +530,10 @@ $OS_DESC
 					status_services
 					motd
 					read -p "
-RECAPITULATIF INSTALLATION SEEDBOX :
+Accéder à la seedbox : http://$(hostname --fqdn)
+Accéder au ftps : $(hostname --fqdn) port 21
 
-Accès seedbox 
-http://$(hostname --fqdn)
-
-Accès ftps
-$(hostname --fqdn) port 21
-
-Utilisateur
-$NOM_USER = $MDP_USER
+Utilisateur : $NOM_USER = $MDP_USER
 
 Réinitialisation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 					exit 0
@@ -631,14 +621,10 @@ patientez quelques minutes"
 	read -p "
 RECAPITULATIF INSTALLATION SEEDBOX :
 
-Accès seedbox 
-http://$(hostname --fqdn)
+Accéder à la seedbox : http://$(hostname --fqdn)
+Accéder au ftps : $(hostname --fqdn) port 21
 
-Accès ftps
-$(hostname --fqdn) port 21
-
-Utilisateur
-$NOM_USER = $MDP_USER
+Utilisateur : $NOM_USER = $MDP_USER
 
 Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 fi
