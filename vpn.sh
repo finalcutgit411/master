@@ -2,6 +2,13 @@
 # shellcheck source=/dev/null
 # script auto install VPN
 
+# prochaine maj :
+# - voir l'interet d'un chroot vpn
+
+# compatible :
+# - debian 7 wheezy / debian 8 jessie
+# - ubuntu 14 trusty / ubuntu 15 wily / ubuntu 15 vivid / ubuntu 16 xenial
+
 # repertoires openvpn
 REP_OPENVPN="/etc/openvpn"
 REP_RSA="$REP_OPENVPN/easy-rsa"
