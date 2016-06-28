@@ -554,7 +554,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
 					apt-get update -y
-					echo ""
+					clear
 					read -p "Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 					exit 0
 				fi
