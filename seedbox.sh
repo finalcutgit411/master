@@ -431,18 +431,19 @@ Accès ftps : $(hostname --fqdn) port 21
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
 
-(les données upload et download du FTP sont toujours conservées)
+les données upload et download du FTP sont toujours conservées
 3 ) Réinitialiser la configuration de la seedbox
 4 ) Supprimer installation
 
 5 ) Redémarrer les services seedbox
 6 ) Redémarrer le serveur
 
-
 Q ) Taper Q pour quitter
+
 Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
+			echo ""
 			stop_seedbox
 			clear
 			cat "$TRANSMISSION".bak > "$TRANSMISSION"
@@ -471,6 +472,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			;;
 
 			2)
+			echo ""
 			stop_seedbox
 			clear
 			echo "DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT"
@@ -591,6 +593,7 @@ else
 	echo "$OS_DESC"
 	echo ""
 	installation
+	echo ""
 	stop_seedbox
 	backup
 	seedbox
