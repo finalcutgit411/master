@@ -6,10 +6,10 @@ Lundi 27 juin 11h00
 ###### A executer suite à une clean install de votre serveur
 <code>apt-get update -y && apt-get upgrade -y</code>
 #### Installation VPN
-<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate && chmod +x vpn.sh && mv vpn.sh /usr/local/bin/vpn && vpn</code>
+<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate && chmod +x vpn.sh && mv vpn.sh /usr/local/bin/vpn.sh && vpn.sh</code>
 
 #### Installation Seedbox
-<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin/seedbox && seedbox</code>
+<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && mv seedbox.sh /usr/local/bin/seedbox.sh && seedbox.sh</code>
 
 
 
