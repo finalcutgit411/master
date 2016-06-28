@@ -109,20 +109,15 @@ périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
 fi
 }
 
-function show_infos(){
-	echo "Utilisateur: $NOM_USER = $MDP_USER
-"
-}
-
 function set_infos(){
 	REP="0"
 	while [[ "$REP" != "Y" ]]; do
-		echo "PERSONNALISATION :"
+		echo "Creation de l'utilisateur virtuel de la Seedbox :"
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
-		clear
-		echo "VERIFICATION :"
-		show_infos
+		echo ""
+		echo "Vérification :"
+		echo "Utilisateur: $NOM_USER = $MDP_USER"
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 		clear
 	done
@@ -139,7 +134,7 @@ function installation(){
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
-	##test
+	##test!!!!!!!!!!!!!!!!!!!!!
 	openssl genrsa 2048 > "$SERVICES_KEY"
 	openssl req -subj "/OU=$(uname -n)/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 
@@ -177,7 +172,6 @@ function seedbox(){
 \"watch-dir-enabled\":true,
 \"watch-dir\":\"$REP_SEEDBOX/torrents\"
 }" >> $TRANSMISSION
-
 }
 
 function letsencrypt(){
