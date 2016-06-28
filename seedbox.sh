@@ -356,7 +356,8 @@ Administrer votre VPN :
 vpn
 
 Administrer votre Seedbox :
-seedbox" >> /etc/motd
+seedbox
+" >> /etc/motd
 }
 
 function recap(){
