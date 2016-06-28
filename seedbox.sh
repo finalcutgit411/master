@@ -356,10 +356,10 @@ Administrer votre Seedbox: seedbox
 }
 
 function recap(){
-	echo "Accès seedbox : http://$(hostname --fqdn)"
-	echo "Accès ftps : $(hostname --fqdn) port 21"
+	echo "Accès seedbox: http://$(hostname --fqdn)"
+	echo "Accès ftps: $(hostname --fqdn) port 21"
 	echo ""
-	echo "Utilisateur : $NOM_USER = $MDP_USER"
+	echo "Utilisateur: $NOM_USER = $MDP_USER"
 }
 
 function stop_openvpn(){
@@ -422,8 +422,8 @@ if [[ -e "$TRANSMISSION" ]]; then
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
 		
-Accès seedbox : http://$(hostname --fqdn)
-Accès ftps : $(hostname --fqdn) port 21
+Accès seedbox: http://$(hostname --fqdn)
+Accès ftp: $(hostname --fqdn) port 21
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
