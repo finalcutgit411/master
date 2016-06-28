@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck source=/dev/null
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 # apt-get update -y && apt-get upgrade -y
 
