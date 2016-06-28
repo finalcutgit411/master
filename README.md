@@ -4,7 +4,7 @@ Lundi 27 juin 11h00
 
 ## Script installation VPN et seedbox sécurisée (mono utilisateur)
 ###### A executer suite à une clean install de votre serveur
-<code>apt-get update -y && apt-get upgrade -y</code>
+<code>apt-get update -y && apt-get upgrade -y && shutdown -r now</code>
 #### Installation VPN
 <code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate && chmod +x vpn.sh && mv vpn.sh /usr/local/bin/vpn.sh && vpn.sh</code>
 
