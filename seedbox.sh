@@ -78,7 +78,7 @@ function verification(){
 					OPTIONS="0"
                         		while [[ -z "$OS" ]]; do
 					clear
-                        		echo "Je n'ai pas reussi à récuperer la version de votre distibution.
+                        		read -p " Je n'ai pas reussi à récuperer la version de votre distibution
 Est ce bien un des systèmes d'exploitation ci-dessous ?
 1 ) Debian 8  Jessie
 2 ) Debian 7  Wheezy
@@ -87,8 +87,8 @@ Est ce bien un des systèmes d'exploitation ci-dessous ?
 5 ) Ubuntu 15.04 Vivid
 6 ) Ubuntu 14.04 Trusty
 Q ) Taper Q pour quitter
-"
-                        		read -p "Si oui merci de me l'indiquer [1-7]: " -r OPTIONS
+
+Si oui merci de me l'indiquer [1-7]: " -r OPTIONS
                                 		case "$OPTIONS" in
                                         		1) OS="jessie" ;;
                                         		2) OS="wheezy" ;;
@@ -112,13 +112,16 @@ fi
 function set_infos(){
 	REP="0"
 	while [[ "$REP" != "Y" ]]; do
-		echo "Creation de l'utilisateur virtuel de la Seedbox :"
+		echo "CREATION UTILISATEUR VIRTUEL SEEDBOX : "
+		echo ""
+		echo "Personnalisation"
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
-		echo "
-Utilisateur: $NOM_USER = $MDP_USER"
-		read -p "
-Etes-vous satisfait ? Press [Y/N] " -r REP
+		echo ""
+		echo "Vérification"
+		echo "Utilisateur: $NOM_USER = $MDP_USER"
+		echo ""
+		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 		clear
 	done
 }
@@ -342,28 +345,24 @@ account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 
 function motd(){
 	sed -i '/Acc/,$d' /etc/motd
-	echo "
-Accès seedbox :
-http://$(hostname --fqdn)
-
-Accès ftps :
-$(hostname --fqdn) port 21
-
-Gestion client VPN :
-vpn
-
-Gestion seedbox :
-seedbox
-" >> /etc/motd
+	echo "Accès seedbox :"
+	echo "http://$(hostname --fqdn)"
+	echo ""
+	echo "Accès ftps :"
+	echo "$(hostname --fqdn) port 21"
+	echo ""
+	echo "Gestion client VPN :"
+	echo "vpn"
+	echo ""
+	echo "Gestion seedbox :"
+	echo "seedbox" >> /etc/motd
 }
 
 function recap(){
-	echo "
-Accès seedbox : http://$(hostname --fqdn)
-Accès ftps : $(hostname --fqdn) port 21
-
-Utilisateur : $NOM_USER = $MDP_USER
-"
+	echo "Accès seedbox : http://$(hostname --fqdn)"
+	echo "Accès ftps : $(hostname --fqdn) port 21"
+	echo ""
+	echo "Utilisateur : $NOM_USER = $MDP_USER"
 }
 
 function stop_openvpn(){
@@ -381,7 +380,6 @@ function start_openvpn(){
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Starting"; else echo "${WARN}[ FAIL ]${NC} openvpn is not Starting"; fi
         fi
 }
-
 
 function stop_seedbox(){
         for i in "transmission-daemon" "vsftpd" "nginx" "fail2ban"; do
@@ -451,18 +449,14 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			NOM_USER="lancelot"
 			MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 			while [[ "$REP" != "Y" ]]; do
-				read -p "MODIFIER NOM ET MOT DE PASSE UTILISATEUR SEEDBOX
-
-Personnalisation
-Nouvel utilisateur : " -e -i "$NOM_USER" -r NOM_USER
+				echo "MODIFIER NOM ET MOT DE PASSE UTILISATEUR SEEDBOX"
+				echo "Personnalisation"
+				read -p "Nouvel utilisateur : " -e -i "$NOM_USER" -r NOM_USER
 				read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
-				read -p "
-Vérification
-Nouvel utilisateur : $NOM_USER = $MDP_USER
-
-Etes-vous satisfait ? Press [Y/N] " -r REP
+				echo "Vérification"
+				echo "Nouvel utilisateur : $NOM_USER = $MDP_USER"
+				read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 			done
-			echo ""
 			seedbox
 			vsftpd
 			start_seedbox
@@ -471,12 +465,10 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			;;
 
 			2)
-			echo ""
 			stop_seedbox
 			clear
-			echo "
-DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT
-"
+			echo "DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT"
+			echo ""
 			#letsencrypt
 			nginx
 			vsftpd
@@ -486,35 +478,34 @@ DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT
 			status_services
 			echo ""
 			if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then 
-				echo "
-Vos certificats ne sont pas disponibles, attendez encore quelques jours,
-let's encrypt n'en delivre que 5 par semaine par FQDN
-Votre certificat de secours auto signé est installé et utilisé sur votre serveur"
+				echo "Vos certificats ne sont pas disponibles, attendez encore quelques jours,"
+				echo "let's encrypt n'en delivre que 5 par semaine par FQDN"
+				echo "Votre certificat de secours auto signé est installé et utilisé sur votre serveur"
 			else 
-				echo "
-Vos certificats sont disponibles et installés sur votre serveur"
+				echo "Vos certificats sont disponibles et installés sur votre serveur"
+				echo ""
 				tree /etc/letsencrypt/live/$(hostname --fqdn)/
 			fi
-			read -p "
-Appuyez sur [Enter] pour revenir au menu précedent " -r 
+			echo ""
+			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
 
 			3)
 			while [[ "$REP" != "Q" ]]; do
-			clear
-				read -p "REINITIALISER CONFIGURATION SEEDBOX
-
-Taper Q pour quitter
-Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q]" -r REP
+				clear
+				echo "REINITIALISER CONFIGURATION SEEDBOX"
+				echo ""
+				echo "Taper Q pour quitter"
+				read -p "Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q]" -r REP
 				if [[ "$REP" = "Y" ]]; then
 					stop_seedbox
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					set_infos
 					clear
-					echo "REINITIALISER CONFIGURATION SEEDBOX
-$OS_DESC
-"
+					echo "REINITIALISER CONFIGURATION SEEDBOX"
+					echo "$OS_DESC"
+					echo ""
 					installation
 					seedbox
 					#letsencrypt
@@ -534,11 +525,11 @@ $OS_DESC
 
 			4)
 			while [[ "$REP" != "Q" ]]; do
-			clear
-				read -p "SUPPRIMER INSTALLATION SEEDBOX
-
-Taper Q pour quitter
-Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
+				clear
+				echo "SUPPRIMER INSTALLATION SEEDBOX"
+				echo ""
+				echo "Taper Q pour quitter"
+				read -p "Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					echo ""
 					stop_seedbox
@@ -553,8 +544,8 @@ Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
 					apt-get update -y
-					read -p "
-Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
+					echo ""
+					read -p "Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 					exit 0
 				fi
 			done
@@ -595,8 +586,8 @@ $OS_DESC
 	backup
 	seedbox
 	clear
-	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt
-patientez quelques minutes"
+	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt"
+	echo "patientez quelques minutes"
 	#letsencrypt
 	clear
 	nginx
