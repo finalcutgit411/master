@@ -1,6 +1,5 @@
 #!/bin/bash
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
-#
 
 # prochaine maj :
 # - plus de visilbilté dans les jails
