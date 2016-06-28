@@ -503,7 +503,6 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -
 					stop_seedbox
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
-					echo "EXEMPLE INFORMATIONS A SAISIR :"
 					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX
