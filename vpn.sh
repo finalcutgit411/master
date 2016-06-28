@@ -32,6 +32,7 @@ if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '1
 SYSCTL="/etc/sysctl.conf"
 RC="/etc/rc.local"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
+NGINX="/etc/nginx/sites-available/default"
 
 # scripts openvpn
 VARS="$REP_RSA/vars"
@@ -63,7 +64,7 @@ contacter votre service technique et demander l'activation du module TUN/TAP"
 					OPTIONS="0"
                         		while [[ -z "$OS" ]]; do
 					clear
-                        		echo "Je n'ai pas reussi à récuperer la version de votre distibution.
+                        		read -p "Je n'ai pas reussi à récuperer la version de votre distibution.
 Est ce bien un des systèmes d'exploitation ci-dessous ?
 1 ) Debian 8  Jessie
 2 ) Debian 7  Wheezy
@@ -72,8 +73,8 @@ Est ce bien un des systèmes d'exploitation ci-dessous ?
 5 ) Ubuntu 15.04 Vivid
 6 ) Ubuntu 14.04 Trusty
 Q ) Taper Q pour quitter
-"
-                        		read -p "Si oui merci de me l'indiquer [1-7]: " -r OPTIONS
+
+Si oui merci de me l'indiquer [1-6]: " -r OPTIONS
                                 		case "$OPTIONS" in
                                         		1) OS="jessie" ;;
                                         		2) OS="wheezy" ;;
@@ -82,7 +83,7 @@ Q ) Taper Q pour quitter
                                         		5) OS="vivid" ;;
                                         		6) OS="trusty" ;;
                                         		Q) MESSAGE="Si votre systeme d'exploitation n'est pas référencé, si vous etes bien 
-sur un Debian like vous pouvez forcer l'installation à vos risques et
+sur un serveur basé sur Debian vous pouvez forcer l'installation à vos risques et
 périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
                                 		esac
                         		done
@@ -103,8 +104,7 @@ Description: $CERT_DESC
 Port VPN: $PORT_VPN
 Protocol VPN: $PROTO_VPN
 Nombre de client VPN: $ADD_VPN
-IP serveur: $IP
-"
+IP serveur: $IP"
 }
 
 function set_infos(){
@@ -116,13 +116,14 @@ function set_infos(){
 		read -p "Ville : " -e -i "$CERT_VILLE" -r CERT_VILLE
 		read -p "Description : " -e -i "$CERT_DESC" -r CERT_DESC
 		read -p "Port VPN : " -e -i "$PORT_VPN" -r PORT_VPN
-		if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
+			if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
 		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
 		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
 		read -p "IP serveur : " -e -i "$IP" -r IP
 		clear
 		echo "VERIFICATION :"
 		show_infos
+		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 		clear
 	done
@@ -214,7 +215,13 @@ persist-tun
 verb 3
 log-append $LOG
 status $STATUS" > "$OPENVPN"
-	if [[ "$PORT_VPN" = "443" ]]; then sed -i 's/udp/tcp/' "$OPENVPN"; fi
+	if [[ "$PORT_VPN" = "443" ]]; then
+		sed -i 's/udp/tcp/' "$OPENVPN"
+			if [[ -e "$NGINX" ]]; then
+				sed -i "s/443/127.0.0.1:9090/" "$NGINX" && reload_nginx
+				sed -i '/port-share/d' "$OPENVPN" && echo "port-share 127.0.0.1 9090" >> "$OPENVPN"	
+			fi
+	fi
 	if [[ "$OS" = "wheezy" ]]; then sed -i "s/dh2048.pem/dh1024.pem/" "$OPENVPN"; fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
 }
@@ -240,9 +247,9 @@ verb 3" > "$REP_OPENVPN"/client_model
 
 function create_rep_clients(){
 	rm -rf "$REP_OPENVPN"/clients
+	rm -rf /tmp/clients
 	rm -rf "$REP_OPENVPN"/ccd
-	mkdir "$REP_OPENVPN"/clients
-	mkdir "$REP_OPENVPN"/ccd
+	mkdir "$REP_OPENVPN"/{clients,ccd}
         n=$(grep -c "client" "$INDEX")
         a=1 && b=2
         for (( i=1 ; i<="$n" ; i++ )); do
@@ -253,14 +260,14 @@ function create_rep_clients(){
 		        {
 		        echo "<ca>"
 		        cat "$REP_KEY"/ca.crt 
-		        echo "</ca>
-<cert>"
+		        echo "</ca>"
+		        echo "<cert>"
 		        cat "$REP_KEY"/client$i.crt
-		        echo "</cert>
-<key>"
+		        echo "</cert>"
+		        echo "<key>"
 		        cat "$REP_KEY"/client$i.key
-		        echo "</key>
-<tls-auth>"
+		        echo "</key>"
+		        echo "<tls-auth>"
 		        cat "$REP_KEY"/ta.key
 		        echo "</tls-auth>"
 		        } >> "$REP_OPENVPN"/clients/client"$i".ovpn
@@ -292,27 +299,26 @@ exit 0" >> "$RC"
 }
 
 function recap_install(){
-	echo "INSTALLATION VPN TERMINEE"
 	status_openvpn
-	echo "
-Ouverture automatique d'un port pour chaque client VPN
-"
+	echo ""
+	echo "Ouverture automatique d'un port pour chaque client VPN"
+	echo ""
 	a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
         for (( i=1 ; i<="$n" ; i++ )); do
                 a=$((a+4)) && b=$((b+1))
-                echo "Pour le client vpn : \"client$i\" (Ip:10.8.0.$a) ouverture du port $b"
+                echo "Client vpn $i \"10.8.0.$a\" ouverture du port $b"
 	done
-	echo "
-Envoie des clients vpn dans le dosier /tmp
-Récuperez les avant de redémarrer votre serveur !!
-
-Si vous etes sur Windows, utilisez winscp (voir video)
-
-Si vous etes sur Linux ou Mac copier-coller dans votre terminal la commande scp suivante :
-scp -P 22 -r root@$IP:/tmp/clients ./
-"
+	echo ""
 	tree -d /tmp/
+	echo ""
+	echo "Vos dossiers de clients VPN sont dans /tmp/clients/"
+	echo "Récupérez-les puis rédemarrez votre serveur pour activer les règles NAT"
+	echo ""
+	echo "Infos :"
+	echo "Si vous etes sur Windows, utilisez winscp (voir video)"
+	echo "Si vous etes sur Linux ou Mac copier dans votre terminal la commande scp suivante :"
+	echo "scp -P 22 -r root@$IP:/tmp/clients ./"
 }
 
 function stop_openvpn(){
@@ -339,6 +345,9 @@ function status_openvpn(){
 	fi
 }
 
+function reload_nginx(){
+                if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service nginx reload &>/dev/null; else systemctl reload nginx.service &>/dev/null; fi
+}
 
 # début du script
 verification
@@ -396,10 +405,9 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					clear
 					echo "Liste client(s) VPN actif(s) :"
 					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
-					read -p "	
-Vous devez redémarrer le serveur pour activer les règles NAT des clients VPN
-
-Appuyez sur [Enter] pour revenir au menu précedent " -r
+					echo ""	
+					echo "Vous devez redémarrer le serveur pour activer les règles NAT des clients VPN"
+					read -p "Appuyez sur [Enter] pour revenir au menu précedent ... " -r
 					REP="Q"
 				fi
 			done
@@ -408,27 +416,25 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			2)
 			while [[ "$REP" != "Q" ]]; do
 				VALID=$(grep 'V' "$INDEX" | grep -c 'client')
-				VERIF=$(grep 'V' $INDEX | grep -n 'client[0-9]*' | awk -F ':' '{print $1}')
+				VERIF=$(grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F 'client' '{print $2}')
 				clear
-				echo "$VALID client(s) vpn actif(s) sur le serveur
-Liste client(s) VPN actif(s) :"
+				echo "$VALID client(s) vpn actif(s) sur le serveur"
+				echo "Liste client(s) VPN actif(s) :"
 				grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
-				read -p "
-Taper Q pour quitter
-
-Taper le numéro du client à révoquer : " -r REP
+				echo ""
+				echo "Taper Q pour quitter"
+				read -p "Taper le numéro du client à révoquer : " -r REP
 				if [[ "$REP" != "Q" ]]; then
 					for i in $VERIF; do
 						if [[ "$REP" = "$i" ]]; then
-							read -p "
-Vous avez selectionné le client $REP, merci de confirmer [Y/N] " -r CONF
+							echo ""
+							read -p "Vous avez selectionné le client $REP, merci de confirmer [Y/N] " -r CONF
 							if [[ "$CONF" = "Y" ]]; then
 								DEL_VPN="$REP"
-								echo ""
 								revoke_cert_client
 								create_rep_clients
-								read -p "
-Appuyez sur [Enter] pour revenir au menu précedent " -r
+								echo ""
+								read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 								REP="Q" && CONF="0"
 							fi
 						fi
@@ -440,18 +446,17 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 			3)
 			clear
 			create_rep_clients
-			echo "
-Envoi des clients vpn dans le dosier /tmp
-Récuperez les avant de redémarrer votre serveur !!
-
-Si vous etes sur Windows, utilisez winscp (voir video)
-
-Si vous etes sur Linux ou Mac copier-coller dans votre terminal la commande scp suivante :
-scp -P 22 -r root@$IP:/tmp/clients ./
-"
-			tree -d /tmp/
-			read -p "
-Appuyez sur [Enter] pour revenir au menu précedent " -r 
+			tree -vd /tmp/
+			echo ""
+			echo "Vos dossiers de clients VPN sont dans /tmp/clients/"
+			echo "Récupérez-les puis rédemarrez votre serveur pour activer les règles NAT"
+			echo ""
+			echo "Infos :"
+			echo "Si vous etes sur Windows, utilisez winscp (voir video)"
+			echo "Si vous etes sur Linux ou Mac copier dans votre terminal la commande scp suivante :"
+			echo "scp -P 22 -r root@$IP:/tmp/clients ./"
+			echo ""
+			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
 
 			4)
@@ -465,17 +470,18 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					clear
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
 					show_infos
+					echo ""
 					set_infos
 					clear
-					echo "INSTALLATION SERVEUR VPN
-$OS_DESC
-"
+					echo "INSTALLATION SERVEUR VPN"
+					echo "$OS_DESC"
+					echo ""
 					installation
 					stop_openvpn
 					vpn
 					clear
-					echo "Création des nouveaux certificats VPN
-cette étape est longue"
+					echo "Création des certificats VPN"
+					echo "cette étape peut-etre longue"
 					create_cert_serveur
 					create_cert_clients
 					conf_serveur
@@ -484,9 +490,10 @@ cette étape est longue"
 					nat
 					start_openvpn
 					clear
+					echo "INSTALLATION VPN TERMINEE"
 					recap_install
-					read -p "
-Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+					echo ""
+					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
 					exit 0
 				fi
@@ -496,10 +503,10 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 			5)
 			while [[ "$REP" != "Q" ]]; do
 			clear
-				read -p "SUPPRIMER INSTALLATION VPN
-
-Taper Q pour quitter
-Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
+				echo "SUPPRIMER INSTALLATION VPN"
+				echo ""
+				echo "Taper Q pour quitter"
+				read -p "Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					stop_openvpn
 					cat "$SYSCTL".bak > "$SYSCTL"
@@ -509,8 +516,7 @@ Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 					apt-get purge -y openvpn
 					apt-get autoremove -y
 					apt-get update -y
-					read -p "
-Appuyez sur [Enter] pour redemarrer le serveur... " -r
+					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r
 					shutdown -r now
 					exit 0
 				fi
@@ -519,19 +525,17 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 
 			6)
 			clear
-			echo "Les clients connectés au vpn
-"
+			echo "Les clients connectés au vpn"
+			echo ""
 			cat $STATUS
-			read -p "
-Appuyez sur [Enter] pour revenir au menu précedent " -r 
+			echo ""
+			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
 
 			7)
 			echo ""
 			stop_openvpn
-			echo ""
 			start_openvpn
-			echo ""
 			status_openvpn
 			echo ""
 			read -p "Appuyez sur [Enter] " -r
@@ -553,18 +557,19 @@ else
 	clear
 	echo "EXEMPLE INFORMATIONS A SAISIR :"
 	show_infos
+	echo ""
 	set_infos
 	clear
-	echo "INSTALLATION SERVEUR VPN
-$OS_DESC
-"
+	echo "INSTALLATION SERVEUR VPN"
+	echo "$OS_DESC"
+	echo ""
 	installation
 	stop_openvpn
 	backup
 	vpn
 	clear
-	echo "Création des certificats VPN
-cette étape est longue"
+	echo "Création des certificats VPN"
+	echo "cette étape peut-etre longue"
 	create_cert_serveur
 	create_cert_clients
 	conf_serveur
@@ -573,14 +578,14 @@ cette étape est longue"
 	nat
 	start_openvpn
 	clear
+	echo "INSTALLATION VPN TERMINEE"
 	recap_install
-	read -p "
-Installation VPN terminée
-Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r 
+	echo ""
+	read -p "Appuyez sur [Enter] pour continuer ... " -r 
 	if [[ ! -e "$TRANSMISSION" ]]; then
 		while [[ "$REP" != "N" ]]; do
 			clear
-			read -p "Voulez vous installer la seedbox securisée ? [Y/N] " -r REP
+			read -p "Voulez vous installer votre seedbox ? [Y/N] " -r REP
 			if [[ "$REP" = "Y" ]]; then
 				wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate
 				chmod +x seedbox.sh
@@ -590,8 +595,7 @@ Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r
 			fi
 		done
 	fi
-	read -p "
-Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
 exit 0
