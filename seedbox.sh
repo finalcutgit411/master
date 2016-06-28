@@ -496,7 +496,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				echo "REINITIALISER CONFIGURATION SEEDBOX"
 				echo ""
 				echo "Taper Q pour quitter"
-				read -p "Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q]" -r REP
+				read -p "Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					stop_seedbox
 					clear
