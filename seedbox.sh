@@ -579,9 +579,7 @@ Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 	done
 else
 	clear
-	echo "EXEMPLE INFORMATIONS A SAISIR :"
 	set_infos
-	
 	clear
 	echo "INSTALLATION SERVEUR VPN ET SEEDBOX 
 $OS_DESC
