@@ -450,11 +450,14 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 			while [[ "$REP" != "Y" ]]; do
 				echo "MODIFIER NOM ET MOT DE PASSE UTILISATEUR SEEDBOX"
+				echo ""
 				echo "Personnalisation"
 				read -p "Nouvel utilisateur : " -e -i "$NOM_USER" -r NOM_USER
 				read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
+				echo ""
 				echo "Vérification"
 				echo "Nouvel utilisateur : $NOM_USER = $MDP_USER"
+				echo ""
 				read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 			done
 			seedbox
