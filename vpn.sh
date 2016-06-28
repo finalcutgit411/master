@@ -449,7 +449,6 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			tree -vd /tmp/
 			echo ""
 			echo "Vos dossiers de clients VPN sont dans /tmp/clients/"
-			echo "Récupérez-les puis rédemarrez votre serveur pour activer les règles NAT"
 			echo ""
 			echo "Infos :"
 			echo "Si vous etes sur Windows, utilisez winscp (voir video)"
