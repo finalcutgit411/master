@@ -467,6 +467,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			start_seedbox
 			echo ""
 			recap
+			echo ""
 			echo "Modifications enregistrées, sauvegardez vos informations"
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
