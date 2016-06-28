@@ -611,6 +611,19 @@ else
 	recap
 	echo ""
 	echo "Installation seedbox terminée sauvegardez vos informations"
-	read -p "Appuyez sur [Enter] pour quitter ... " -r 
+	read -p "Appuyez sur [Enter] pour continuer ... " -r 
+	if [[ ! -e "$OPENVPN" ]]; then
+		while [[ "$REP" != "N" ]]; do
+			clear
+			read -p "Voulez vous installer votre VPN ? [Y/N] " -r REP
+			if [[ "$REP" = "Y" ]]; then
+				wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate
+				chmod +x vpn.sh
+				mv vpn.sh /usr/local/bin/vpn.sh
+				vpn.sh
+				REP="N"
+			fi
+		done
+	fi
 fi
 exit 0
