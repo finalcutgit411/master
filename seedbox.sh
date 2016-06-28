@@ -355,6 +355,15 @@ Relancer script tapez : vpn ou seedbox
 " >> /etc/motd
 }
 
+function recap(){
+	echo "
+Accès seedbox : http://$(hostname --fqdn)
+Accès ftps : $(hostname --fqdn) port 21
+
+Utilisateur : $NOM_USER = $MDP_USER
+"
+}
+
 function stop_openvpn(){
         if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn stop &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Stopping"; fi
@@ -455,13 +464,8 @@ Etes-vous satisfait ? Press [Y/N] " -r REP
 			seedbox
 			vsftpd
 			start_seedbox
-			read -p "
-Accès seedbox : http://$(hostname --fqdn)
-Accès ftps : $(hostname --fqdn) port 21
-
-Utilisateur : $NOM_USER = $MDP_USER
-
-Appuyez sur [Enter] pour revenir au menu précedent " -r
+			recap
+			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
 			2)
@@ -522,13 +526,8 @@ $OS_DESC
 					clear
 					status_services
 					motd
-					read -p "
-Accès seedbox : http://$(hostname --fqdn)
-Accès ftps : $(hostname --fqdn) port 21
-
-Utilisateur : $NOM_USER = $MDP_USER
-
-Réinitialisation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
+					recap
+					read -p "Réinitialisation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 					exit 0
 				fi
 			done
@@ -611,14 +610,8 @@ patientez quelques minutes"
 	clear
 	status_services
 	motd
-	read -p "
-RECAPITULATIF INSTALLATION SEEDBOX :
-
-Accès seedbox : http://$(hostname --fqdn)
-Accès ftps : $(hostname --fqdn) port 21
-
-Utilisateur : $NOM_USER = $MDP_USER
-
-Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
+	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
+	recap
+	read -p "Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 fi
 exit 0
