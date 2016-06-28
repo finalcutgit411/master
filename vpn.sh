@@ -580,8 +580,7 @@ Récuperez vos certificats puis appuyez sur [Enter] pour continuer ... " -r
 	if [[ ! -e "$TRANSMISSION" ]]; then
 		while [[ "$REP" != "N" ]]; do
 			clear
-			read -p "
-Voulez vous installer la seedbox securisée ? [Y/N] " -r REP
+			read -p "Voulez vous installer la seedbox securisée ? [Y/N] " -r REP
 			if [[ "$REP" = "Y" ]]; then
 				wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate
 				chmod +x seedbox.sh
@@ -596,4 +595,3 @@ Appuyez sur [Enter] pour redemarrer le serveur... " -r
 	shutdown -r now
 fi
 exit 0
-
