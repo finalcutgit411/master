@@ -208,6 +208,7 @@ proxy_pass http://127.0.0.1:9091/;
 	if [[ "$PORT_VPN" = "443" ]]; then 
 		sed -i "s/443/127.0.0.1:9090/" "$NGINX"
 		stop_openvpn
+		sed -i '/port-share/d' "$OPENVPN"
 		echo "port-share 127.0.0.1 9090" >> "$OPENVPN"
 		start_openvpn
 	fi
