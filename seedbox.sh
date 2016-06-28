@@ -510,7 +510,6 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q]" -r
 					stop_seedbox
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
-					echo ""
 					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX
