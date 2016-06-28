@@ -497,12 +497,12 @@ Appuyez sur [Enter] pour revenir au menu précedent " -r
 				read -p "REINITIALISER CONFIGURATION SEEDBOX
 
 Taper Q pour quitter
-Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -r REP
+Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q]" -r REP
 				if [[ "$REP" = "Y" ]]; then
-					clear
 					stop_seedbox
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
+					echo ""
 					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX
