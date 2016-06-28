@@ -517,6 +517,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					status_services
 					motd
 					recap
+					echo""
 					read -p "Réinitialisation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 					exit 0
 				fi
