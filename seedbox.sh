@@ -112,7 +112,7 @@ fi
 function set_infos(){
 	REP="0"
 	while [[ "$REP" != "Y" ]]; do
-		echo "CREATION UTILISATEUR VIRTUEL SEEDBOX : "
+		echo "CREATION UTILISATEUR VIRTUEL SEEDBOX"
 		echo ""
 		echo "Personnalisation"
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
@@ -345,17 +345,17 @@ account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 
 function motd(){
 	sed -i '/Acc/,$d' /etc/motd
-	echo "Accès seedbox :"
-	echo "http://$(hostname --fqdn)"
-	echo ""
-	echo "Accès ftps :"
-	echo "$(hostname --fqdn) port 21"
-	echo ""
-	echo "Gestion client VPN :"
-	echo "vpn"
-	echo ""
-	echo "Gestion seedbox :"
-	echo "seedbox" >> /etc/motd
+	echo "Accès seedbox :
+http://$(hostname --fqdn)
+
+Accès ftps :
+$(hostname --fqdn) port 21
+
+Administrer votre VPN :
+vpn
+
+Administrer votre Seedbox :
+seedbox" >> /etc/motd
 }
 
 function recap(){
