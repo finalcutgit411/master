@@ -504,7 +504,6 @@ Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
-					show_infos
 					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX
@@ -581,7 +580,6 @@ Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 else
 	clear
 	echo "EXEMPLE INFORMATIONS A SAISIR :"
-	show_infos
 	set_infos
 	
 	clear
