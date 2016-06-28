@@ -462,8 +462,11 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			done
 			seedbox
 			vsftpd
+			echo ""
 			start_seedbox
+			echo ""
 			recap
+			echo ""
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
