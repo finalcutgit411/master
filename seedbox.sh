@@ -1,6 +1,5 @@
 #!/bin/bash
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
-# apt-get update -y && apt-get upgrade -y
 #
 
 # prochaine maj :
@@ -9,7 +8,6 @@
 # - options supplementaires dans transmission
 # - plus de commentaires
 # - ameliorer les retours d'erreur
-# - simplifier les grep awk sed
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 
 # compatible :
