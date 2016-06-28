@@ -521,8 +521,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					motd
 					recap
-					echo""
-					echo" Réinitialisation seedbox terminée sauvegardez vos informations"
+					echo ""
+					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
 					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r 
 				fi
 			done
