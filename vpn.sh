@@ -317,7 +317,7 @@ function recap_install(){
                 echo "Client vpn $i \"10.8.0.$a\" ouverture du port $b"
 	done
 	echo ""
-	tree -d /tmp/
+	tree -vd /tmp/clients
 	echo ""
 	echo "Vos dossiers de clients VPN sont dans /tmp/clients/"
 	echo "Récupérez-les puis rédemarrez votre serveur pour activer les règles NAT"
@@ -453,7 +453,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			3)
 			clear
 			create_rep_clients
-			tree -vd /tmp/
+			tree -vd /tmp/clients
 			echo ""
 			echo "Vos dossiers de clients VPN sont dans /tmp/clients/"
 			echo ""
