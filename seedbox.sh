@@ -134,10 +134,10 @@ function installation(){
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
-	##test!!!!!!!!!!!!!!!!!!!!!
+	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
+	# création certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
-	openssl req -subj "/OU=$(uname -n)/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
-
+	openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
 
 function backup(){
@@ -180,10 +180,6 @@ function letsencrypt(){
 	# les certificats letsencrypt sont valables 90 jours
 	# planification automatique dans le cron de la demande de renouvellement
 	( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
-	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
-	# création certificat de secours auto signé 
-	openssl genrsa 2048 > "$SERVICES_KEY"
-	openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
 
 function nginx(){
@@ -471,7 +467,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			clear
 			echo "DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT"
 			echo ""
-			#letsencrypt
+			letsencrypt
 			nginx
 			vsftpd
 			echo ""
@@ -511,7 +507,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					installation
 					seedbox
-					#letsencrypt
+					letsencrypt
 					nginx
 					vsftpd
 					fail2ban
@@ -596,7 +592,7 @@ else
 	clear
 	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt"
 	echo "patientez quelques minutes"
-	#letsencrypt
+	letsencrypt
 	clear
 	nginx
 	vsftpd
