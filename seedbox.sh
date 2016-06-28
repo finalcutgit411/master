@@ -341,10 +341,8 @@ function motd(){
 	sed -i '/Acc/,$d' /etc/motd
 	echo "Accès seedbox: http://$(hostname --fqdn)
 Accès ftps: $(hostname --fqdn) port 21
-
 Administrer votre VPN: vpn.sh
-Administrer votre Seedbox: seedbox.sh
-" >> /etc/motd
+Administrer votre Seedbox: seedbox.sh" >> /etc/motd
 }
 
 function recap(){
