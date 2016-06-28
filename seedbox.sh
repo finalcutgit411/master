@@ -12,13 +12,9 @@
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
 
 # compatible :
-# - debian 8 jessie,
-# - debian 7 wheezy
-# - ubuntu 16 xenial
-# - ubuntu 15 vivid
-# - ubuntu 15 wily
-# - ubuntu 14 trusty
-# - (voir pour du centos si il y a des demandes)
+# - debian 7 wheezy / debian 8 jessie
+# - ubuntu 14 trusty / ubuntu 15 wily / ubuntu 15 vivid / ubuntu 16 xenial
+# - voir pour du centos s'il y a des demandes
 
 # repertoires principaux
 PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' | sed -e '/\/$/ s/.*//')
@@ -31,18 +27,18 @@ NGINX="/etc/nginx/sites-available/default"
 OPENVPN="/etc/openvpn/vpn.conf"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
 
-FAILJAIL="/etc/fail2ban/jail.conf"
-FAILLOCAL="/etc/fail2ban/jail.local"
-FAILFTP="/etc/fail2ban/filter.d/vsftpd.conf"
-FAILRECID="/etc/fail2ban/filter.d/recidive.conf"
+JAIL_CONF="/etc/fail2ban/jail.conf"
+JAIL_LOCAL="/etc/fail2ban/jail.local"
+REGEX_FTP="/etc/fail2ban/filter.d/vsftpd.conf"
+REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 
 # certificats ssl delivrés par let's encrypt
 # attention 5 certificats max distribués par FQDN par semaine
 # donc si vous depassez la limite de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
-SENCRYTP="/opt/letsencrypt"
-CERTBOT="$SENCRYTP/certbot-auto certonly --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
-CRONCMD="$SENCRYTP/letsencrypt-auto renew --non-interactive"
-CRONJOB="00 00 * * * $CRONCMD &>/dev/null"
+LETS_ENCRYTP="/opt/letsencrypt"
+CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
+CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
+CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 
 # certificat auto signé
 SERVICES_KEY="/etc/ssl/private/services.key"
@@ -148,9 +144,9 @@ function backup(){
         if [[ ! -e "$TRANSMISSION".bak ]]; then cp "$TRANSMISSION" "$TRANSMISSION".bak; fi
         if [[ ! -e "$VSFTPD".bak ]]; then cp "$VSFTPD" "$VSFTPD".bak; fi
         if [[ ! -e "$NGINX".bak ]]; then cp "$NGINX" "$NGINX".bak; fi
-        if [[ ! -e "$FAILJAIL".bak ]]; then cp "$FAILJAIL" "$FAILJAIL".bak; fi
-        if [[ ! -e "$FAILFTP".bak ]]; then cp "$FAILFTP" "$FAILFTP".bak; fi
-        if [[ ! -e "$FAILRECID".bak ]]; then cp "$FAILRECID" "$FAILRECID".bak &>/dev/null; fi
+        if [[ ! -e "$JAIL_CONF".bak ]]; then cp "$JAIL_CONF" "$JAIL_CONF".bak; fi
+        if [[ ! -e "$REGEX_FTP".bak ]]; then cp "$REGEX_FTP" "$REGEX_FTP".bak; fi
+        if [[ ! -e "$REGEX_RECID".bak ]]; then cp "$REGEX_RECID" "$REGEX_RECID".bak &>/dev/null; fi
 }
 
 function seedbox(){
@@ -178,11 +174,11 @@ function seedbox(){
 }
 
 function letsencrypt(){
-	rm -rf "$SENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$SENCRYTP"
-	$CERTBOT &>/dev/null && $CRONCMD
+	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
+	$CERTBOT &>/dev/null && $CRON_CMD
 	# les certificats letsencrypt sont valables 90 jours
 	# planification automatique dans le cron de la demande de renouvellement
-	( crontab -l | grep -v "$CRONCMD" ; echo "$CRONJOB" ) | crontab -
+	( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
@@ -218,8 +214,8 @@ proxy_pass http://127.0.0.1:9091/;
 }
 
 function fail2ban(){
-	cat "$FAILJAIL".bak > "$FAILJAIL"
-	sed -i "s/\[ssh\]/\[sshd\]/" "$FAILJAIL"
+	cat "$JAIL_CONF".bak > "$JAIL_CONF"
+	sed -i "s/\[ssh\]/\[sshd\]/" "$JAIL_CONF"
 	echo "
 [DEFAULT]
 # ban 30 min
@@ -246,13 +242,13 @@ action = iptables-allports[name=recidive]
 # ban 1 semaine
 bantime = 604800
 findtime = 86400
-maxretry = 3" > "$FAILLOCAL"
+maxretry = 3" > "$JAIL_LOCAL"
 
 # regex vsftpd basic à ameliorer pour prochaine maj need sleep too
 	echo '[Definition]
 failregex = .*Client "<HOST>",."530 Permission denied."$
             .*Client "<HOST>",."530 Login incorrect."$          
-ignoreregex =' > "$FAILFTP"
+ignoreregex =' > "$REGEX_FTP"
 
 # regex recidive basic à ameliorer pour prochaine maj
 	echo '[INCLUDES]
@@ -263,7 +259,7 @@ _jailname = recidive
 failregex = .*WARNING .* Ban <HOST>
             .*NOTICE .* Ban <HOST>
 ignoreregex = .*WARNING \[recidive\] Ban <HOST>
-              .*NOTICE \[recidive\] Ban <HOST>' > "$FAILRECID"
+              .*NOTICE \[recidive\] Ban <HOST>' > "$REGEX_RECID"
               
 # peut-etre ajouter une regex anti-dos pour transmission 
 # failregex = ^<HOST> -.*"(GET|POST).*HTTP.*"$
@@ -547,7 +543,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$VSFTPD".bak > "$VSFTPD"
 					cat "$NGINX".bak > "$NGINX"
-					rm {"$TRANSMISSION".bak,"$VSFTPD".bak,"$NGINX".bak,"$LOG","$FAILLOCAL"}
+					rm {"$TRANSMISSION".bak,"$VSFTPD".bak,"$NGINX".bak,"$LOG","$JAIL_LOCAL"}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
 					rm -rf /etc/vsftpd
