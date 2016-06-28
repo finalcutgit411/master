@@ -498,6 +498,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				echo "Taper Q pour quitter"
 				read -p "Voulez vous vraiment réinitialiser la configuration de vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
+					echo ""
 					stop_seedbox
 					clear
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
@@ -515,6 +516,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					start_seedbox
 					clear
 					status_services
+					echo ""
 					motd
 					recap
 					echo""
