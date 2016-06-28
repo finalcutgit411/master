@@ -496,7 +496,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			else 
 				echo "Vos certificats sont disponibles et installés sur votre serveur"
 				echo ""
-				tree /etc/letsencrypt/live/$(hostname --fqdn)/
+				tree /etc/letsencrypt/live/"$(hostname --fqdn)"/
 			fi
 			echo ""
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
