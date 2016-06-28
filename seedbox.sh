@@ -346,17 +346,12 @@ account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 
 function motd(){
 	sed -i '/Acc/,$d' /etc/motd
-	echo "Accès seedbox :
-http://$(hostname --fqdn)
+	echo "
+Accès seedbox: http://$(hostname --fqdn)
+Accès ftps: $(hostname --fqdn) port 21
 
-Accès ftps :
-$(hostname --fqdn) port 21
-
-Administrer votre VPN :
-vpn
-
-Administrer votre Seedbox :
-seedbox
+Administrer votre VPN: vpn
+Administrer votre Seedbox: seedbox
 " >> /etc/motd
 }
 
