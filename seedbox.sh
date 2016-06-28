@@ -578,9 +578,9 @@ else
 	clear
 	set_infos
 	clear
-	echo "INSTALLATION SERVEUR VPN ET SEEDBOX 
-$OS_DESC
-"
+	echo "INSTALLATION SERVEUR VPN ET SEEDBOX"
+	echo "$OS_DESC"
+	echo ""
 	installation
 	stop_seedbox
 	backup
