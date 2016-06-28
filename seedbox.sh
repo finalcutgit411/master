@@ -116,7 +116,6 @@ function set_infos(){
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
-		echo "Vérification :"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
 		read -p "
 Etes-vous satisfait ? Press [Y/N] " -r REP
