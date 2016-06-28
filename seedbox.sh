@@ -467,7 +467,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			start_seedbox
 			echo ""
 			recap
-			echo ""
+			echo "Modifications enregistrées, sauvegardez vos informations"
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
@@ -528,7 +528,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					motd
 					recap
 					echo""
-					read -p "Réinitialisation seedbox terminée appuyez sur [Enter] pour revenir au menu précedent  ... " -r 
+					echo" Réinitialisation seedbox terminée sauvegardez vos informations"
+					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r 
 				fi
 			done
 			;;
@@ -555,7 +556,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					apt-get autoremove -y
 					apt-get update -y
 					clear
-					read -p "Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
+					echo "Désinstallation seedbox terminée"
+					read -p "Appuyez sur [Enter] pour quitter... " -r
 					exit 0
 				fi
 			done
@@ -613,6 +615,7 @@ else
 	echo ""
 	recap
 	echo ""
-	read -p "Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
+	echo "Installation seedbox terminée sauvegardez vos informations"
+	read -p "Appuyez sur [Enter] pour quitter ... " -r 
 fi
 exit 0
