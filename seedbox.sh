@@ -342,8 +342,8 @@ function motd(){
 	echo "Accès seedbox: http://$(hostname --fqdn)
 Accès ftps: $(hostname --fqdn) port 21
 
-Administrer votre VPN: vpn
-Administrer votre Seedbox: seedbox
+Administrer votre VPN: vpn.sh
+Administrer votre Seedbox: seedbox.sh
 " >> /etc/motd
 }
 
@@ -399,8 +399,6 @@ function status_services(){
                 fi
         done
 }
-
-
 
 ####################################################
 # début du script
