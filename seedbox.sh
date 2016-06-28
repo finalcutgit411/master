@@ -118,7 +118,8 @@ function set_infos(){
 		echo ""
 		echo "Vérification :"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
-		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
+		read -p "
+Etes-vous satisfait ? Press [Y/N] " -r REP
 		clear
 	done
 }
