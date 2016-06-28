@@ -362,7 +362,7 @@ if [[ -e "$OPENVPN" ]]; then
 
 1 ) Ajouter des clients
 2 ) Revoquer des clients
-3 ) Renvoyer les clients dans le dossier /tmp
+3 ) Renvoyer les clients dans le dossier /tmp/clients
 
 4 ) Réinitialiser tous les certificats vpn
 5 ) Supprimer l'installation du vpn
