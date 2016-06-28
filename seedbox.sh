@@ -232,7 +232,7 @@ maxretry = 4
 enabled = true
 port = ftp,ftp-data,ftps,ftps-data
 filter = vsftpd
-logpath = $FTP
+logpath = $LOG
 maxretry = 6
 [recidive]
 enabled = true
