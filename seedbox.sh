@@ -524,7 +524,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					recap
 					echo ""
 					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
-					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r 
+					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
+					REP="Q"
 				fi
 			done
 			;;
