@@ -589,8 +589,8 @@ else
 			if [[ "$REP" = "Y" ]]; then
 				wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate
 				chmod +x seedbox.sh
-				mv seedbox.sh /usr/local/bin/seedbox
-				seedbox
+				mv seedbox.sh /usr/local/bin/seedbox.sh
+				seedbox.sh
 				REP="N"
 			fi
 		done
