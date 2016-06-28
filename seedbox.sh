@@ -605,11 +605,14 @@ else
 	vsftpd
 	fail2ban
 	start_seedbox
+	motd
 	clear
 	status_services
-	motd
+	echo ""
 	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
+	echo ""
 	recap
+	echo ""
 	read -p "Installation seedbox terminée sauvegardez et appuyez sur [Enter] pour quitter ... " -r 
 fi
 exit 0
