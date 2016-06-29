@@ -158,9 +158,10 @@ function backup(){
 }
 
 function vpn(){
-	sed -i '/^$\|#\|COUNTRY\|PROVINCE\|CITY\|ORG\|EMAI\|OU\|NAME\|EASY_RSA=/d' "$VARS"
+	sed -i '/^$\|#\|COUNTRY\|SIZE\|PROVINCE\|CITY\|ORG\|EMAI\|OU\|NAME\|EASY_RSA=/d' "$VARS"
 	sed -i '1iexport EASY_RSA="'$REP_RSA'"' "$VARS"
-	echo "export KEY_COUNTRY=$CERT_PAYS 
+	echo "export KEY_SIZE=2048
+export KEY_COUNTRY=$CERT_PAYS 
 export KEY_PROVINCE=$CERT_PROV 
 export KEY_CITY=$CERT_VILLE 
 export KEY_ORG=$CERT_NAME 
