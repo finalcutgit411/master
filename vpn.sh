@@ -63,34 +63,13 @@ contacter votre service technique et demander l'activation du module TUN/TAP"
         elif [[ -e /etc/os-release ]] || [[ -e /etc/debian_version ]]; then 
                 OS=$(lsb_release -cs 2>/dev/null)
                 if [[ ${?} -ne 0 ]]; then
-			apt-get update -y && apt-get upgrade -y
+			apt-get update -y
 			apt-get install -y lsb-release
 			OS_DESC=$(lsb_release -ds 2>/dev/null)
 			OS=$(lsb_release -cs 2>/dev/null)
-                		if [[ ${?} -ne 0 ]]; then
-					OPTIONS="0"
-                        		while [[ -z "$OS" ]]; do
-					clear
-                        		read -p " Je n'ai pas reussi à récuperer la version de votre distibution Debian
-
-1 ) Debian 8  Jessie
-2 ) Debian 7  Wheezy
-
-Q ) Taper Q pour quitter
-
-Merci de me l'indiquer [1-2]: " -r OPTIONS
-                                		case "$OPTIONS" in
-                                        		1) OS="jessie" ;;
-                                        		2) OS="wheezy" ;;
-                                        		Q) MESSAGE="Si votre systeme d'exploitation n'est pas référencé, si vous etes
-sur un Debian like vous pouvez forcer l'installation à vos risques et
-périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
-                                		esac
-                        		done
-				fi
                 fi
         else
-                MESSAGE="Votre system d'exploitation n'est ni un Debian ni un Ubuntu "
+                MESSAGE="Votre system d'exploitation n'est pas un Debian"
                 quitter
 fi
 }
