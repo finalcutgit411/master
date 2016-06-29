@@ -195,7 +195,6 @@ ssl_dhparam $DHPARAMS;
 #ssl_certificate_key $MON_CERT_KEY;
 ssl_certificate $FULLCHAIN;
 ssl_certificate_key $PRIVKEY;
-ssl_trusted_certificate $FULLCHAIN;
 #ssl_trusted_certificate $MON_CERT;
 ssl_prefer_server_ciphers on;
 ssl_protocols TLSv1.2;
