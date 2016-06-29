@@ -3,7 +3,7 @@
 # script auto install VPN
 
 # prochaine maj :
-# - voir l'interet d'un chroot vpn
+# - porter compatibilté chroot vpn + pid
 
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
