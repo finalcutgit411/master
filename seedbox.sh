@@ -24,6 +24,7 @@ TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
 DHPARAMS="/etc/ssl/private/dhparams.pem"
 OPENVPN="/etc/openvpn/vpn.conf"
+MOTD="/etc/motd"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
@@ -141,6 +142,7 @@ function installation(){
 
 function backup(){
         if [[ ! -e "$SSHD".bak ]]; then cp "$SSHD" "$SSHD".bak; fi
+        if [[ ! -e "$MOTD".bak ]]; then cp "$MOTD" "$MOTD".bak; fi
         if [[ ! -e "$TRANSMISSION".bak ]]; then cp "$TRANSMISSION" "$TRANSMISSION".bak; fi
         if [[ ! -e "$VSFTPD".bak ]]; then cp "$VSFTPD" "$VSFTPD".bak; fi
         if [[ ! -e "$NGINX".bak ]]; then cp "$NGINX" "$NGINX".bak; fi
@@ -348,11 +350,14 @@ account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 }
 
 function motd(){
+	cat "$MOTD".bak > "$MOTD"
 	sed -i '/Acc/,$d' /etc/motd
-	echo "Accès seedbox: http://$(hostname --fqdn)
+	echo "
+Accès seedbox: http://$(hostname --fqdn)
 Accès ftps: $(hostname --fqdn) port 21
 Administrer votre VPN: vpn.sh
-Administrer votre Seedbox: seedbox.sh" >> /etc/motd
+Administrer votre Seedbox: seedbox.sh
+" >> /etc/motd
 }
 
 function recap(){
