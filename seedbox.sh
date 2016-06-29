@@ -22,9 +22,11 @@ LOG="$REP_SEEDBOX/ftp.log"
 VSFTPD="/etc/vsftpd.conf"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
-DHPARAMS="/etc/ssl/private/dhparams.pem"
 OPENVPN="/etc/openvpn/vpn.conf"
 MOTD="/etc/motd"
+DHPARAMS="/etc/ssl/private/dhparams.pem"
+MON_CERT_KEY="/etc/ssl/private/services.key"
+MON_CERT="/etc/ssl/private/services.crt"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
@@ -39,10 +41,8 @@ LETS_ENCRYTP="/opt/letsencrypt"
 CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
-
-# certificat auto signé
-SERVICES_KEY="/etc/ssl/private/services.key"
-SERVICES_CRT="/etc/ssl/private/services.crt"
+FULLCHAIN="/etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem"
+PRIVKEY="/etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem"
 
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
@@ -136,8 +136,8 @@ function installation(){
 	if [[ ! -e "$DHPARAMS" ]]; then openssl dhparam 2048 > "$DHPARAMS"; fi
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat auto signé 
-	openssl genrsa 2048 > "$SERVICES_KEY"
-	openssl req -subj "/O=mon serveur/OU=personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
+	openssl genrsa 4096 > "$MON_CERT_KEY"
+	openssl req -subj "/O=mon serveur/OU=personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$MON_CERT_KEY" -out "$MON_CERT"
 }
 
 function backup(){
@@ -185,72 +185,39 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
+function nginx(){
+	echo "
 server_tokens off;
 add_header X-Frame-Options SAMEORIGIN;
 add_header X-Content-Type-Options nosniff;
-add_header X-XSS-Protection "1; mode=block";
+add_header X-XSS-Protection '1; mode=block';
 server {
 listen 80;
-server_name vps-16063.fhnet.fr;
-return 301 https://$host$request_uri;
+server_name $(hostname --fqdn);
+return 301 https://\$host\$request_uri;
 }
 server {
-listen 127.0.0.1:9090 ssl;
-server_name vps-16063.fhnet.fr;
-#ssl_certificate /etc/ssl/private/services.crt;
-#ssl_certificate_key /etc/ssl/private/services.key;
-ssl_certificate /etc/letsencrypt/live/vps-16063.fhnet.fr/fullchain.pem;
-ssl_certificate_key /etc/letsencrypt/live/vps-16063.fhnet.fr/privkey.pem;
-ssl_dhparam /etc/ssl/private/dhparams.pem;
-ssl_trusted_certificate /etc/letsencrypt/live/vps-16063.fhnet.fr/fullchain.pem;
-#ssl_trusted_certificate /etc/ssl/private/services.crt;
+listen 443 ssl;
+server_name $(hostname --fqdn);
+ssl_dhparam $DHPARAMS;
+#ssl_certificate $MON_CERT;
+#ssl_certificate_key $MON_CERT_KEY;
+ssl_certificate $FULLCHAIN;
+ssl_certificate_key $PRIVKEY;
+ssl_trusted_certificate $FULLCHAIN;
+#ssl_trusted_certificate $MON_CERT;
 resolver 208.67.222.222 208.67.220.220 valid=300s;
 resolver_timeout 5s;
 ssl_stapling on;
 ssl_stapling_verify on;
+ssl_prefer_server_ciphers on;
 ssl_protocols TLSv1.2;
 ssl_ecdh_curve secp384r1;
-ssl_prefer_server_ciphers on;
 ssl_ciphers EECDH+AESGCM:EECDH+AES;
 ssl_session_cache shared:SSL:10m;
 ssl_session_timeout 10m;
 ssl_session_tickets off;
 add_header Strict-Transport-Security 'max-age=31622400; includeSubDomains; preload';
-location / {
-proxy_pass http://127.0.0.1:9091/;
-}
-}
-
-
-
-
-
-
-
-
-function nginx(){
-	echo "server {
-listen 80;
-return 301 https://\$host\$request_uri;
-}
-server {
-listen 443;
-ssl on;
-ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
-ssl_prefer_server_ciphers on;
-ssl_ecdh_curve secp384r1;
-ssl_session_cache shared:SSL:10m;
-ssl_session_timeout 10m;
-ssl_session_tickets off;
-add_header Strict-Transport-Security \"max-age=31536000\";
-add_header X-Frame-Options SAMEORIGIN;
-add_header X-Content-Type-Options nosniff;
-#ssl_certificate $SERVICES_CRT;
-#ssl_certificate_key $SERVICES_KEY;
-ssl_dhparam $DHPARAMS;
-ssl_certificate /etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem;
-ssl_certificate_key /etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem;
 location / {
 proxy_pass http://127.0.0.1:9091/;
 }
@@ -353,10 +320,10 @@ force_local_data_ssl=YES
 force_anon_data_ssl=YES
 force_local_logins_ssl=YES
 force_anon_logins_ssl=YES
-#rsa_cert_file=$SERVICES_CRT
-#rsa_private_key_file=$SERVICES_KEY
-rsa_cert_file=/etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem
-rsa_private_key_file=/etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem
+#rsa_cert_file=$MON_CERT
+#rsa_private_key_file=$MON_CERT_KEY
+rsa_cert_file=$FULLCHAIN
+rsa_private_key_file=$PRIVKEY
 ssl_tlsv1=YES
 ssl_sslv2=NO
 ssl_sslv3=NO
@@ -400,6 +367,7 @@ function motd(){
 	echo "
 Accès seedbox: http://$(hostname --fqdn)
 Accès ftps: $(hostname --fqdn) port 21
+
 Administrer votre VPN: vpn.sh
 Administrer votre Seedbox: seedbox.sh
 " >> /etc/motd
