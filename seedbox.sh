@@ -47,9 +47,10 @@ PRIVKEY="/etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem"
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
 
-# infos ip
+# infos serveur
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
+ARCH=$(getconf LONG_BIT)
 
 MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 USER_LIST="/etc/vsftpd/vsftpd.user_list"
@@ -352,12 +353,13 @@ virtual_use_local_privs=YES
 local_umask=007
 local_root=$REP_SEEDBOX
 guest_username=ftp" > /etc/vsftpd/vsftpd_user_conf/"$NOM_USER"
-	echo "auth required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/login
-account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
-	if [[ "$OS" = "wheezy" ]]; then
-		sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"
+	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
+	if [[ "$OS" = "wheezy" ]] || [[ "$ARCH" = "32" ]]; then
 		echo "auth required pam_userdb.so db=/etc/vsftpd/login
 account required pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
+	else 
+		echo "auth required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/login
+account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/login" > /etc/pam.d/vsftpd
 	fi
 }
 
