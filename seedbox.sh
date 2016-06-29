@@ -134,7 +134,8 @@ function installation(){
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
-	openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
+	# openssl req -subj "/C=$CERT_PAYS/ST=$CERT_PROV/L=$CERT_VILLE/O=$CERT_DESC/OU=$CERT_NAME/CN=Seedbox" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
+	openssl req -subj "/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
 
 function backup(){
