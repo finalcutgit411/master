@@ -131,10 +131,10 @@ function installation(){
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
-	openssl dhparam -out $DHPARAMS 2048
+	openssl dhparam 2048 -out "$DHPARAMS"
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
-	# création certificat de secours auto signé 
-	openssl genrsa 2048 > "$SERVICES_KEY"
+	# création certificat auto signé 
+	openssl genrsa 2048 -out "$SERVICES_KEY"
 	openssl req -subj "/O=mon serveur/OU=personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
 
