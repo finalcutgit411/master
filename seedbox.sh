@@ -64,7 +64,7 @@ function verification(){
         elif [[ -e /etc/os-release ]] || [[ -e /etc/debian_version ]]; then 
                 OS=$(lsb_release -cs 2>/dev/null)
                 if [[ ${?} -ne 0 ]]; then
-			apt-get update -y && apt-get upgrade -y
+			apt-get update -y
 			apt-get install -y lsb-release
 			OS_DESC=$(lsb_release -ds 2>/dev/null)
 			OS=$(lsb_release -cs 2>/dev/null)
