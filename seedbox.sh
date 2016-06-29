@@ -188,6 +188,9 @@ return 301 https://\$host\$request_uri;
 server {
 listen 443;
 ssl on;
+ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+ssl_prefer_server_ciphers on;
+ssl_ciphers \"EECDH+AESGCM:AES128+EECDH:AES256+EECDH\";
 #ssl_certificate $SERVICES_CRT;
 #ssl_certificate_key $SERVICES_KEY;
 ssl_certificate /etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem;
