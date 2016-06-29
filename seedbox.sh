@@ -197,17 +197,12 @@ ssl_certificate $FULLCHAIN;
 ssl_certificate_key $PRIVKEY;
 ssl_trusted_certificate $FULLCHAIN;
 #ssl_trusted_certificate $MON_CERT;
-resolver 208.67.222.222 208.67.220.220 valid=300s;
-resolver_timeout 5s;
-ssl_stapling on;
-ssl_stapling_verify on;
 ssl_prefer_server_ciphers on;
 ssl_protocols TLSv1.2;
 ssl_ecdh_curve secp384r1;
 ssl_ciphers EECDH+AESGCM:EECDH+AES;
 ssl_session_cache shared:SSL:10m;
 ssl_session_timeout 10m;
-ssl_session_tickets off;
 add_header Strict-Transport-Security 'max-age=31622400; includeSubDomains; preload';
 location / {
 proxy_pass http://127.0.0.1:9091/;
