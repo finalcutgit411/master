@@ -22,6 +22,7 @@ LOG="$REP_SEEDBOX/ftp.log"
 VSFTPD="/etc/vsftpd.conf"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
+DHPARAMS="/etc/ssl/private/dhparams.pem"
 OPENVPN="/etc/openvpn/vpn.conf"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
 
@@ -41,7 +42,7 @@ CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 # certificat auto signé
 SERVICES_KEY="/etc/ssl/private/services.key"
 SERVICES_CRT="/etc/ssl/private/services.crt"
-DHPARAMS="/etc/ssl/private/dhparams.pem"
+
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
 
