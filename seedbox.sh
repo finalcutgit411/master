@@ -602,8 +602,7 @@ else
 	echo ""
 	recap
 	echo ""
-	echo "Installation seedbox terminée sauvegardez vos informations"
-	read -p "Appuyez sur [Enter] pour continuer ... " -r 
+	read -p "Appuyez sur [Enter] pour continuer ... " -r
 	if [[ ! -e "$OPENVPN" ]]; then
 		while [[ "$REP" != "N" ]]; do
 			clear
@@ -617,5 +616,13 @@ else
 			fi
 		done
 	fi
+	clear
+	status_services
+	echo ""
+	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
+	echo ""
+	recap
+	echo ""
+	echo "Installation Seedbox terminée sauvegardez vos informations"
 fi
 exit 0
