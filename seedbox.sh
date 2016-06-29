@@ -185,6 +185,49 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
+server_tokens off;
+add_header X-Frame-Options SAMEORIGIN;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection "1; mode=block";
+server {
+listen 80;
+server_name vps-16063.fhnet.fr;
+return 301 https://$host$request_uri;
+}
+server {
+listen 127.0.0.1:9090 ssl;
+server_name vps-16063.fhnet.fr;
+#ssl_certificate /etc/ssl/private/services.crt;
+#ssl_certificate_key /etc/ssl/private/services.key;
+ssl_certificate /etc/letsencrypt/live/vps-16063.fhnet.fr/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/vps-16063.fhnet.fr/privkey.pem;
+ssl_dhparam /etc/ssl/private/dhparams.pem;
+ssl_trusted_certificate /etc/letsencrypt/live/vps-16063.fhnet.fr/fullchain.pem;
+#ssl_trusted_certificate /etc/ssl/private/services.crt;
+resolver 208.67.222.222 208.67.220.220 valid=300s;
+resolver_timeout 5s;
+ssl_stapling on;
+ssl_stapling_verify on;
+ssl_protocols TLSv1.2;
+ssl_ecdh_curve secp384r1;
+ssl_prefer_server_ciphers on;
+ssl_ciphers EECDH+AESGCM:EECDH+AES;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 10m;
+ssl_session_tickets off;
+add_header Strict-Transport-Security 'max-age=31622400; includeSubDomains; preload';
+location / {
+proxy_pass http://127.0.0.1:9091/;
+}
+}
+
+
+
+
+
+
+
+
 function nginx(){
 	echo "server {
 listen 80;
