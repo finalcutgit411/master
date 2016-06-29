@@ -134,7 +134,7 @@ function installation(){
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat de secours auto signé 
 	openssl genrsa 2048 > "$SERVICES_KEY"
-	openssl req -subj "/O=Mon Serveur/OU=Privée/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
+	openssl req -subj "/O=Mon Serveur/OU=Personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
 
 function backup(){
