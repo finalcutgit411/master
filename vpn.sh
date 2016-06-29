@@ -8,7 +8,6 @@
 
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
-# - ubuntu 14 trusty / ubuntu 15 wily / ubuntu 15 vivid / ubuntu 16 xenial
 
 # repertoires openvpn
 REP_OPENVPN="/etc/openvpn"
@@ -76,20 +75,13 @@ contacter votre service technique et demander l'activation du module TUN/TAP"
 Est ce bien un des systèmes d'exploitation ci-dessous ?
 1 ) Debian 8  Jessie
 2 ) Debian 7  Wheezy
-3 ) Ubuntu 16.04 Xenial
-4 ) Ubuntu 15.10 Wily
-5 ) Ubuntu 15.04 Vivid
-6 ) Ubuntu 14.04 Trusty
+
 Q ) Taper Q pour quitter
 
-Si oui merci de me l'indiquer [1-6]: " -r OPTIONS
+Si oui merci de me l'indiquer [1-2]: " -r OPTIONS
                                 		case "$OPTIONS" in
                                         		1) OS="jessie" ;;
                                         		2) OS="wheezy" ;;
-                                        		3) OS="xenial" ;;
-                                        		4) OS="wily" ;;
-                                        		5) OS="vivid" ;;
-                                        		6) OS="trusty" ;;
                                         		Q) MESSAGE="Si votre systeme d'exploitation n'est pas référencé, si vous etes bien 
 sur un serveur basé sur Debian vous pouvez forcer l'installation à vos risques et
 périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
@@ -249,6 +241,7 @@ tls-auth ta.key 1
 cipher AES-128-CBC
 comp-lzo
 verb 3" > "$REP_OPENVPN"/client_model
+	# force proto TCP pour https 
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/udp/tcp/" "$REP_OPENVPN"/client_model; fi
 }
 
@@ -329,7 +322,7 @@ function recap_install(){
 }
 
 function stop_openvpn(){
-        if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn stop &>/dev/null;
+        if [[ "$OS" = "wheezy" ]]; then service openvpn stop &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Stopping"; fi
         else systemctl stop openvpn.service &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Stopping"; fi
@@ -337,7 +330,7 @@ function stop_openvpn(){
 }
 
 function start_openvpn(){
-        if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn start &>/dev/null;
+        if [[ "$OS" = "wheezy" ]]; then service openvpn start &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Starting"; else echo "${WARN}[ FAIL ]${NC} openvpn is not Starting"; fi
         else systemctl start openvpn.service &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Starting"; else echo "${WARN}[ FAIL ]${NC} openvpn is not Starting"; fi
@@ -345,7 +338,7 @@ function start_openvpn(){
 }
 
 function status_openvpn(){
-	if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn status &>/dev/null;
+	if [[ "$OS" = "wheezy" ]]; then service openvpn status &>/dev/null;
 		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn is running"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
 	else systemctl status openvpn.service &>/dev/null;
 		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn is running"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
@@ -353,7 +346,7 @@ function status_openvpn(){
 }
 
 function reload_nginx(){
-                if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service nginx reload &>/dev/null; else systemctl reload nginx.service &>/dev/null; fi
+                if [[ "$OS" = "wheezy" ]]; then service nginx reload &>/dev/null; else systemctl reload nginx.service &>/dev/null; fi
 }
 
 
