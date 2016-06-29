@@ -231,7 +231,6 @@ status $STATUS" > "$OPENVPN"
 				sed -i '/port-share/d' "$OPENVPN" && echo "port-share 127.0.0.1 9090" >> "$OPENVPN"	
 			fi
 	fi
-	if [[ "$OS" = "wheezy" ]]; then sed -i "s/dh2048.pem/dh1024.pem/" "$OPENVPN"; fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
 }
 
