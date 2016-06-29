@@ -72,18 +72,18 @@ function verification(){
 					OPTIONS="0"
                         		while [[ -z "$OS" ]]; do
 					clear
-                        		read -p " Je n'ai pas reussi à récuperer la version de votre distibution
-Est ce bien un des systèmes d'exploitation ci-dessous ?
+                        		read -p " Je n'ai pas reussi à récuperer la version de votre distibution Debian
+
 1 ) Debian 8  Jessie
 2 ) Debian 7  Wheezy
 
 Q ) Taper Q pour quitter
 
-Si oui merci de me l'indiquer [1-2]: " -r OPTIONS
+Merci de me l'indiquer [1-2]: " -r OPTIONS
                                 		case "$OPTIONS" in
                                         		1) OS="jessie" ;;
                                         		2) OS="wheezy" ;;
-                                        		Q) MESSAGE="Si votre systeme d'exploitation n'est pas référencé, si vous etes bien 
+                                        		Q) MESSAGE="Si votre systeme d'exploitation n'est pas référencé, si vous etes
 sur un Debian like vous pouvez forcer l'installation à vos risques et
 périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
                                 		esac
