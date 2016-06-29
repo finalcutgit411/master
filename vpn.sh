@@ -601,6 +601,10 @@ else
 			fi
 		done
 	fi
+	clear
+	echo "INSTALLATION VPN TERMINEE"
+	recap_install
+	echo ""
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 fi
