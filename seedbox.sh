@@ -25,7 +25,7 @@ NGINX="/etc/nginx/sites-available/default"
 DHPARAMS="/etc/ssl/private/dhparams.pem"
 OPENVPN="/etc/openvpn/vpn.conf"
 MOTD="/etc/motd"
-if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
+if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN") && stop_openvpn; else PORT_VPN="0"; fi
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
