@@ -18,7 +18,6 @@
 PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' | sed -e '/\/$/ s/.*//')
 REP_SEEDBOX="$PARTITION/seedbox"
 
-LOG="$REP_SEEDBOX/ftp.log"
 VSFTPD="/etc/vsftpd.conf"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
@@ -254,7 +253,7 @@ maxretry = 4
 enabled = true
 port = ftp,ftp-data,ftps,ftps-data
 filter = vsftpd
-logpath = $LOG
+logpath = /var/log/vsftpd.log
 maxretry = 6
 [recidive]
 enabled = true
@@ -338,8 +337,7 @@ require_ssl_reuse=NO
 ssl_ciphers=HIGH
 xferlog_enable=YES
 log_ftp_protocol=YES
-vsftpd_log_file=$LOG" > "$VSFTPD"
-	touch "$LOG" && chmod 600 "$LOG" && chown -R ftp:ftp "$LOG"
+vsftpd_log_file=/var/log/vsftpd.log" > "$VSFTPD"
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
 	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
