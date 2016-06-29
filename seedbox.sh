@@ -428,6 +428,7 @@ function status_services(){
 
 ####################################################
 # début du script
+####################################################
 verification
 OS_DESC=$(lsb_release -ds)
 clear
