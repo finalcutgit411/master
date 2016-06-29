@@ -217,7 +217,7 @@ proxy_pass http://127.0.0.1:9091/;
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; fi
+	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
 }
 
 function fail2ban(){
