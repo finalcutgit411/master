@@ -41,7 +41,7 @@ CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 # certificat auto signé
 SERVICES_KEY="/etc/ssl/private/services.key"
 SERVICES_CRT="/etc/ssl/private/services.crt"
-
+DHPARAMS="/etc/ssl/private/dhparams.pem"
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
 
@@ -133,6 +133,7 @@ function installation(){
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat de secours auto signé 
+	openssl dhparam -out $DHPARAMS 2048
 	openssl genrsa 2048 > "$SERVICES_KEY"
 	openssl req -subj "/O=mon serveur/OU=personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$SERVICES_KEY" -out "$SERVICES_CRT"
 }
@@ -188,10 +189,11 @@ server {
 listen 443;
 ssl on;
 ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-DSS-AES128-GCM-SHA256:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA256:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:DHE-RSA-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-SHA256:AES256-SHA256:AES128-SHA:AES256-SHA:AES:CAMELLIA:DES-CBC3-SHA:!aNULL:!eNULL:!EXPORT:!DES:!RC4:!MD5:!PSK:!aECDH:!EDH-DSS-DES-CBC3-SHA:!EDH-RSA-DES-CBC3-SHA:!KRB5-DES-CBC3-SHA';
 ssl_prefer_server_ciphers on;
-ssl_ciphers \"AES256+EECDH:AES256+EDH:!aNULL\";
 #ssl_certificate $SERVICES_CRT;
 #ssl_certificate_key $SERVICES_KEY;
+ssl_dhparam $DHPARAMS;
 ssl_certificate /etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem;
 ssl_certificate_key /etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem;
 location / {
