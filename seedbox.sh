@@ -636,5 +636,7 @@ else
 	recap
 	echo ""
 	echo "Installation Seedbox terminée sauvegardez vos informations"
+	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
+	shutdown -r now
 fi
 exit 0
