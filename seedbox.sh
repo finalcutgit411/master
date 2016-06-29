@@ -472,11 +472,11 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			status_services
 			echo ""
 			if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then 
-				echo "Vos certificats ne sont pas disponibles, attendez encore quelques jours,"
-				echo "let's encrypt n'en delivre que 5 par semaine par FQDN"
-				echo "Votre certificat de secours auto signé est installé et utilisé sur votre serveur"
+				echo "Vos certificats SSL ne sont pas disponibles, attendez encore quelques jours,"
+				echo "let's encrypt ne delivre que 5 certificats max par semaine pour chaque FQDN"
+				echo "Votre certificat auto signé est installé; Il est utilisé actuellement sur votre serveur"
 			else 
-				echo "Vos certificats sont disponibles et installés sur votre serveur"
+				echo "Vos certificats Let's Encrypt sont disponibles et installés sur votre serveur"
 				echo ""
 				tree /etc/letsencrypt/live/"$(hostname --fqdn)"/
 			fi
