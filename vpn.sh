@@ -4,6 +4,7 @@
 
 # prochaine maj :
 # - porter compatibilté chroot vpn + pid
+# - si netfilter actif et ajouter règles iptables 
 
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
