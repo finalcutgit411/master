@@ -103,7 +103,6 @@ périls en choisissant l'option Jessie (systemd) ou Wheezy (init)" && quitter
 fi
 }
 
-
 function show_infos(){
 	echo "Pays: $CERT_PAYS
 Province: $CERT_PROV
@@ -357,7 +356,10 @@ function reload_nginx(){
                 if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service nginx reload &>/dev/null; else systemctl reload nginx.service &>/dev/null; fi
 }
 
+
+####################################################
 # début du script
+####################################################
 verification
 OS_DESC=$(lsb_release -ds)
 clear
