@@ -543,8 +543,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					apt-get autoremove -y
 					apt-get update -y
 					clear
-					echo "Désinstallation seedbox terminée"
-					read -p "Appuyez sur [Enter] pour quitter... " -r
+					read -p "Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 					exit 0
 				fi
 			done
