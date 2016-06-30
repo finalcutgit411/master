@@ -27,6 +27,7 @@ if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else 
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
+REGEX_FTP="/etc/fail2ban/filter.d/vsftpd_virtuel.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 
 # certificats ssl delivrés par let's encrypt
@@ -195,7 +196,6 @@ proxy_pass http://127.0.0.1:9091/;
 }
 
 function fail2ban(){
-	cat "$JAIL_CONF".bak > "$JAIL_CONF"
 	echo "
 [DEFAULT]
 # ban 30 min
@@ -237,6 +237,10 @@ _jailname = recidive
 failregex = ^(%(__prefix_line)s|,\d{3} fail2ban.actions%(__pid_re)s?:\s+)WARNING\s+\[(?!%(_jailname)s\])(?:.*)\]\s+Ban\s+<HOST>\s*$
 ignoreregex =' > "$REGEX_RECID"
 	fi
+	echo '[Definition]
+failregex = .*Client "<HOST>",."530 Permission denied."$
+            .*Client "<HOST>",."530 Login incorrect."$          
+ignoreregex =' > "$REGEX_FTP"
 # peut-etre ajouter une regex anti-ddos pour transmission web
 # failregex = ^<HOST> -.*"(GET|POST).*HTTP.*"$
 }
@@ -519,7 +523,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$VSFTPD".bak > "$VSFTPD"
 					cat "$NGINX".bak > "$NGINX"
-					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$REGEX_RECID","$REGEX_RECID".bak}
+					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$REGEX_RECID","$REGEX_RECID".bak,"$REGEX_FTP"}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
 					sed -i '/Accès/,$d' /etc/motd
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
