@@ -27,7 +27,7 @@ if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else 
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
-REGEX_FTP="/etc/fail2ban/filter.d/vsftpd_virtuel.conf"
+REGEX_FTP="/etc/fail2ban/filter.d/vsftpd-virtuel.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 
 # certificats ssl delivrés par let's encrypt
@@ -214,10 +214,10 @@ port     = ssh
 filter   = sshd-ddos
 logpath  = /var/log/auth.log
 maxretry = 4
-[vsftpd_virtuel]
+[vsftpd-virtuel]
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
-filter   = vsftpd_virtuel
+filter   = vsftpd-virtuel
 logpath  = $VSFTPD_LOG
 maxretry = 6
 [recidive]
