@@ -592,6 +592,7 @@ else
 			if [[ "$REP" = "Y" ]]; then
 				wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate
 				chmod +x vpn.sh
+				rm -f /usr/local/bin/vpn.sh
 				mv vpn.sh /usr/local/bin/vpn.sh
 				vpn.sh
 				REP="N"
