@@ -115,7 +115,7 @@ function backup(){
         if [[ ! -e "$VSFTPD".bak ]]; then cp "$VSFTPD" "$VSFTPD".bak; fi
         if [[ ! -e "$NGINX".bak ]]; then cp "$NGINX" "$NGINX".bak; fi
         if [[ ! -e "$JAIL_CONF".bak ]]; then cp "$JAIL_CONF" "$JAIL_CONF".bak; fi
-        if [[ ! -e "$REGEX_FTP".bak ]]; then cp "$REGEX_FTP" "$REGEX_FTP".bak; fi
+        # if [[ ! -e "$REGEX_FTP".bak ]]; then cp "$REGEX_FTP" "$REGEX_FTP".bak; fi
         if [[ ! -e "$REGEX_RECID".bak ]]; then cp "$REGEX_RECID" "$REGEX_RECID".bak &>/dev/null; fi
 }
 
