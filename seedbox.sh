@@ -15,6 +15,7 @@ PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' |
 REP_SEEDBOX="$PARTITION/seedbox"
 
 VSFTPD="/etc/vsftpd.conf"
+VSFTPD_LOG="/var/log/vsftpd.log"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
 OPENVPN="/etc/openvpn/vpn.conf"
@@ -26,7 +27,6 @@ if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else 
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
-#REGEX_FTP="/etc/fail2ban/filter.d/vsftpd.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 
 # certificats ssl delivrés par let's encrypt
@@ -115,7 +115,6 @@ function backup(){
         if [[ ! -e "$VSFTPD".bak ]]; then cp "$VSFTPD" "$VSFTPD".bak; fi
         if [[ ! -e "$NGINX".bak ]]; then cp "$NGINX" "$NGINX".bak; fi
         if [[ ! -e "$JAIL_CONF".bak ]]; then cp "$JAIL_CONF" "$JAIL_CONF".bak; fi
-        # if [[ ! -e "$REGEX_FTP".bak ]]; then cp "$REGEX_FTP" "$REGEX_FTP".bak; fi
         if [[ ! -e "$REGEX_RECID".bak ]]; then cp "$REGEX_RECID" "$REGEX_RECID".bak &>/dev/null; fi
 }
 
@@ -197,7 +196,6 @@ proxy_pass http://127.0.0.1:9091/;
 
 function fail2ban(){
 	cat "$JAIL_CONF".bak > "$JAIL_CONF"
-	#sed -i "s/\[ssh\]/\[sshd\]/" "$JAIL_CONF"
 	echo "
 [DEFAULT]
 # ban 30 min
@@ -220,7 +218,7 @@ maxretry = 4
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
 filter   = vsftpd
-logpath  = /var/log/vsftpd.log
+logpath  = $VSFTPD_LOG
 maxretry = 6
 [recidive]
 enabled  = true
@@ -231,11 +229,6 @@ action   = iptables-allports[name=recidive]
 bantime  = 604800
 findtime = 86400
 maxretry = 3" > "$JAIL_LOCAL"
-# regex vsftpd basic à ameliorer pour prochaine maj need sleep too
-#	echo '[Definition]
-#failregex = .*Client "<HOST>",."530 Permission denied."$
-#            .*Client "<HOST>",."530 Login incorrect."$          
-#ignoreregex =' > "$REGEX_FTP"
 	if [[ ! -e "$REGEX_RECID" ]]; then echo '[INCLUDES]
 before = common.conf
 [Definition]
@@ -306,7 +299,9 @@ ascii_upload_enable=YES
 max_clients=10
 max_per_ip=5
 require_ssl_reuse=NO
+xferlog_enable=YES
 ssl_ciphers=HIGH" > "$VSFTPD"
+	if [[ ! -e "$VSFTPD_LOG" ]]; then touch "$VSFTPD_LOG"; fi
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
