@@ -327,7 +327,7 @@ account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/log
 
 function infos(){
 	cat "$MOTD".bak > "$MOTD"
-	sed -i '/Acc/,$d' /etc/motd
+	sed -i '/Accès/,$d' /etc/motd
 	echo "
 Accès seedbox: http://$(hostname --fqdn)
 Accès ftps: $(hostname --fqdn) port 21
@@ -531,7 +531,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$NGINX".bak > "$NGINX"
 					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$REGEX_RECID","$REGEX_RECID".bak}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
-					sed -i '/Acc/,$d' /etc/motd
+					sed -i '/Accès/,$d' /etc/motd
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
