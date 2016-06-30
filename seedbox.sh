@@ -214,10 +214,10 @@ port     = ssh
 filter   = sshd-ddos
 logpath  = /var/log/auth.log
 maxretry = 4
-[vsftpd]
+[vsftpd_virtuel]
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
-filter   = vsftpd
+filter   = $REGEX_FTP
 logpath  = $VSFTPD_LOG
 maxretry = 6
 [recidive]
