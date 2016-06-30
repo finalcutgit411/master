@@ -582,5 +582,6 @@ else
 	echo ""
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
+	exit 0
 fi
 exit 0
