@@ -618,5 +618,5 @@ else
 	echo "Installation Seedbox terminée sauvegardez vos informations"
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
+	exit 0
 fi
-exit 0
