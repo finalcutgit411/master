@@ -237,17 +237,7 @@ _jailname = recidive
 failregex = ^(%(__prefix_line)s|,\d{3} fail2ban.actions%(__pid_re)s?:\s+)WARNING\s+\[(?!%(_jailname)s\])(?:.*)\]\s+Ban\s+<HOST>\s*$
 ignoreregex =' > "$REGEX_RECID"
 	fi
-#	echo '[INCLUDES]
-#before = common.conf
-#[Definition]
-#_daemon = fail2ban\.actions\s*
-#_jailname = recidive
-#failregex = .*WARNING .* Ban <HOST>
-#            .*NOTICE .* Ban <HOST>
-#ignoreregex = .*WARNING \[recidive\] Ban <HOST>
-#              .*NOTICE \[recidive\] Ban <HOST>' > "$REGEX_RECID"
-#              
-# peut-etre ajouter une regex anti-dos generale pour transmission 
+# peut-etre ajouter une regex anti-ddos pour transmission web
 # failregex = ^<HOST> -.*"(GET|POST).*HTTP.*"$
 }
 
