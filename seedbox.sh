@@ -325,7 +325,7 @@ account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/log
 	fi
 }
 
-function motd(){
+function infos(){
 	cat "$MOTD".bak > "$MOTD"
 	sed -i '/Acc/,$d' /etc/motd
 	echo "
@@ -394,6 +394,7 @@ function status_services(){
 # début du script
 ####################################################
 verification
+infos
 OS_DESC=$(lsb_release -ds)
 clear
 if [[ -e "$TRANSMISSION" ]]; then
@@ -504,7 +505,6 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					clear
 					status_services
 					echo ""
-					motd
 					recap
 					echo ""
 					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
@@ -531,6 +531,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$NGINX".bak > "$NGINX"
 					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$REGEX_RECID","$REGEX_RECID".bak}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
+					sed -i '/Acc/,$d' /etc/motd
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
@@ -586,7 +587,6 @@ else
 	vsftpd
 	fail2ban
 	start_seedbox
-	motd
 	clear
 	status_services
 	echo ""
