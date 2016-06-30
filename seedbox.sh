@@ -306,10 +306,7 @@ ascii_upload_enable=YES
 max_clients=10
 max_per_ip=5
 require_ssl_reuse=NO
-ssl_ciphers=HIGH
-xferlog_enable=YES
-log_ftp_protocol=YES
-vsftpd_log_file=/var/log/vsftpd.log" > "$VSFTPD"
+ssl_ciphers=HIGH" > "$VSFTPD"
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
