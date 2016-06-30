@@ -217,7 +217,7 @@ maxretry = 4
 [vsftpd_virtuel]
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
-filter   = $REGEX_FTP
+filter   = vsftpd_virtuel
 logpath  = $VSFTPD_LOG
 maxretry = 6
 [recidive]
