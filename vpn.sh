@@ -584,4 +584,3 @@ else
 	shutdown -r now
 	exit 0
 fi
-exit 0
