@@ -3,8 +3,6 @@
 
 # prochaine maj :
 # - plus de visilbilté dans les jails
-# - améliorer les regex de fail2ban
-# - options supplementaires dans transmission
 # - plus de commentaires
 # - ameliorer les retours d'erreur
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
