@@ -195,6 +195,7 @@ verb 3
 log-append $LOG
 status $STATUS" > "$OPENVPN"
 	if [[ "$PORT_VPN" = "443" ]]; then
+		# force protocole TCP pour https
 		sed -i 's/udp/tcp/' "$OPENVPN"
 			if [[ -e "$NGINX" ]]; then
 				sed -i "s/443/127.0.0.1:9090/" "$NGINX" && reload_nginx
@@ -220,7 +221,7 @@ tls-auth ta.key 1
 cipher AES-128-CBC
 comp-lzo
 verb 3" > "$REP_OPENVPN"/client_model
-	# force proto TCP pour https 
+	# force protocole TCP pour https 
 	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/udp/tcp/" "$REP_OPENVPN"/client_model; fi
 }
 
