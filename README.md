@@ -12,10 +12,10 @@ Lundi 27 juin 11h00
 <code>vpn.sh</code>
 
 #### Installation Seedbox
-<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate</code>
-<code>chmod +x seedbox.sh</code>
-<code>mv -f seedbox.sh /usr/local/bin/seedbox.sh</code>
-<code>seedbox.sh</code>
+######<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate</code>
+######<code>chmod +x seedbox.sh</code>
+######<code>mv -f seedbox.sh /usr/local/bin/seedbox.sh</code>
+######<code>seedbox.sh</code>
 
 
 
