@@ -10,6 +10,8 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
+MON_DOMAINE=$(hostname --fqdn)
+
 # repertoires principaux
 PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' | sed -e '/\/$/ s/.*//')
 REP_SEEDBOX="$PARTITION/seedbox"
@@ -31,8 +33,8 @@ REGEX_FTP="/etc/fail2ban/filter.d/vsftpd-virtuel.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 
 # certificats ssl delivrés par let's encrypt
-# attention 5 certificats max distribués par FQDN par semaine
-# donc si vous depassez la limite de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
+# attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
+# donc si vous depassez les limites de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 LETS_ENCRYTP="/opt/letsencrypt"
 CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
@@ -152,7 +154,7 @@ function letsencrypt(){
 	$CERTBOT &>/dev/null && $CRON_CMD
 	# les certificats letsencrypt sont valables 90 jours
 	# planification automatique dans le cron de la demande de renouvellement
-	( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
+	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then ( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -; fi
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
