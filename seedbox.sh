@@ -88,12 +88,17 @@ function set_infos(){
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
-		read -p "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez ? "
+		read -p "Si oui saisissez-le ou laissez par défaut $(hostname --fqdn): " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		MON_DOMAINE=$(echo $MON_DOMAINE | sed -e 's/www.//')
 		echo ""
 		echo "Vérification"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
+		echo "domaine: $MON_DOMAINE"
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
+		nslookup $MON_DOMAINE &>/dev/null
+			if [[ ${?} -ne 0 ]] || [[ "$MON_DOMAINE" != "$IP" ]]; then echo "Votre domaine n'est pas valide ou ne pointe pas vers ce serveur"
 		clear
 	done
 }
