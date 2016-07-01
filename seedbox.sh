@@ -101,7 +101,7 @@ function set_infos(){
 		nslookup "$MON_DOMAINE" &>/dev/null
 			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
 				echo ""
-				echo "Votre domaine n'est pas valide ou ne pointe pas vers ce serveur"
+				echo "Votre domaine n'est pas valide ou l'IP ne pointe pas vers ce serveur"
 				read -p "Press [enter] pour recommencer" -r
 				REP="N"
 			fi
