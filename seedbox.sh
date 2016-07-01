@@ -10,8 +10,6 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-MON_DOMAINE=$(hostname --fqdn)
-
 # repertoires principaux
 PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' | sed -e '/\/$/ s/.*//')
 REP_SEEDBOX="$PARTITION/seedbox"
@@ -52,6 +50,7 @@ SSHD="/etc/ssh/sshd_config"
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
 ARCH=$(getconf LONG_BIT)
+MON_DOMAINE=$(hostname --fqdn)
 
 MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 USER_LIST="/etc/vsftpd/vsftpd.user_list"
