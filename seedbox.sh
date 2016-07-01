@@ -88,7 +88,7 @@ function set_infos(){
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
 		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez ? "
-		read -p "Si oui saisissez-le ou bien laissez par défaut ${WARN}$(hostname --fqdn)${NC} : " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		read -p "Si oui saisissez-le ou bien laissez par défaut ${WARN}$(hostname --fqdn)${NC}: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
 		echo "${MON_DOMAINE//www./}"
 		echo ""
 		echo "Vérification"
@@ -431,8 +431,7 @@ if [[ -e "$TRANSMISSION" ]]; then
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
 		
-Accès seedbox: $MON_DOMAINE
-Accès ftp: $MON_DOMAINE port 21
+Accès seedbox et ftp: $MON_DOMAINE
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
