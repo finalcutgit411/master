@@ -169,7 +169,7 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
-	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then echo "$CERTBOT_DOMA"; else echo "$CERTBOT_HOST"; fi
+	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then "$CERTBOT_DOMA"; else "$CERTBOT_HOST"; fi
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
 		echo "Let's Encrypt ne vous a pas delivré de certificat"
@@ -192,12 +192,12 @@ add_header X-Content-Type-Options nosniff;
 add_header X-XSS-Protection '1; mode=block';
 server {
 listen 80;
-server_name www.$MON_DOMAINE;
+server_name $MON_DOMAINE;
 return 301 https://\$host\$request_uri;
 }
 server {
 listen 443 ssl;
-server_name www.$MON_DOMAINE;
+server_name $MON_DOMAINE;
 ssl_dhparam $DHPARAMS;
 #ssl_certificate $MON_CERT;
 #ssl_certificate_key $MON_CERT_KEY;
