@@ -174,7 +174,8 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
-	if [[ "$MON_DOMAINE" = "$(hostname --fqdn)" ]]; then $CERTBOT_HOST; else $CERTBOT_DOMA; fi
+	if [[ "$MON_DOMAINE" = "$(hostname --fqdn)" ]]; then "$LETS_ENCRYTP"/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@"$MON_DOMAINE" --domains "$MON_DOMAINE" --agree-tos;
+		else "$LETS_ENCRYTP"/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@"$MON_DOMAINE" --domains "$MON_DOMAINE" --domains www."$MON_DOMAINE" --agree-tos; fi
 	echo ""
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
