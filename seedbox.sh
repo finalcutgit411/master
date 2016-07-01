@@ -90,7 +90,7 @@ function set_infos(){
 		echo ""
 		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez ? "
 		read -p "Si oui saisissez-le ou laissez par défaut $(hostname --fqdn): " -e -i "$MON_DOMAINE" -r MON_DOMAINE
-		MON_DOMAINE=$(echo "$MON_DOMAINE" | sed -e 's/www.//')
+		echo "${MON_DOMAINE//www./}"
 		echo ""
 		echo "Vérification"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
