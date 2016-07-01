@@ -107,7 +107,6 @@ function set_infos(){
 			fi
 		clear
 	done
-read -p "test boucle set_infos terminée " -r
 }
 
 function quitter(){
