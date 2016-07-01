@@ -102,7 +102,7 @@ function set_infos(){
 				echo "${WARN}[Erreur : $MON_DOMAINE]${NC} Le nom de domaine n'est pas valide"
 				read -p "Press [enter] pour recommencer" -r
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
-			elif [[ "$VERIF" != "$IP" ]], then
+			elif [[ "$VERIF" != "$IP" ]]; then
 				echo ""
 				echo "${WARN}[Erreur : $IP]${NC} Le nom de domaine ne redirige pas vers l'IP de ce serveur"
 				read -p "Press [enter] pour recommencer" -r
