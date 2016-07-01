@@ -130,6 +130,7 @@ function seedbox(){
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
+	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > .htpasswd
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
@@ -139,8 +140,7 @@ function seedbox(){
 \"incomplete-dir-enabled\":true,
 \"peer-port\":60000,
 \"pex-enabled\":false,
-\"rpc-password\":\"$MDP_USER\",
-\"rpc-username\":\"$NOM_USER\",
+\"rpc-authentication-required\": false,
 \"umask\":0,
 \"utp-enabled\":false,
 \"watch-dir-enabled\":true,
@@ -221,25 +221,31 @@ enabled  = true
 port     = ssh
 filter   = sshd
 logpath  = /var/log/auth.log
-maxretry = 4
+maxretry = 3
 [ssh-ddos]
 enabled  = true
 port     = ssh
 filter   = sshd-ddos
 logpath  = /var/log/auth.log
-maxretry = 4
+maxretry = 3
 [vsftpd-virtuel]
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
 filter   = vsftpd-virtuel
 logpath  = $VSFTPD_LOG
 maxretry = 6
+[nginx-http-auth]
+enabled = true
+filter  = nginx-http-auth
+port    = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 3
 [recidive]
 enabled  = true
 filter   = recidive
 logpath  = /var/log/fail2ban.log
 action   = iptables-allports[name=recidive]
-# ban 1 semaine
+# Si 3 recidives en 24H alors ban 1 semaine
 bantime  = 604800
 findtime = 86400
 maxretry = 3" > "$JAIL_LOCAL"
@@ -255,8 +261,6 @@ ignoreregex =' > "$REGEX_RECID"
 failregex = .*Client "<HOST>",."530 Permission denied."$
             .*Client "<HOST>",."530 Login incorrect."$          
 ignoreregex =' > "$REGEX_FTP"
-# peut-etre ajouter une regex anti-ddos pour transmission web
-# failregex = ^<HOST> -.*"(GET|POST).*HTTP.*"$
 }
 
 function vsftpd(){
