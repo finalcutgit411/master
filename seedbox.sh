@@ -147,7 +147,7 @@ function seedbox(){
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > "$HTPASSWD"
+	printf "%s" "$NOM_USER:$(openssl passwd -apr1 "$MDP_USER")" > "$HTPASSWD"
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
