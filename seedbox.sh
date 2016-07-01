@@ -95,7 +95,6 @@ function set_infos(){
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
 		echo "domaine: $MON_DOMAINE"
 		echo ""
-		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 		VERIF=$(nslookup "$MON_DOMAINE" | awk '/^Address: / { print $2 }')
 		nslookup "$MON_DOMAINE" &>/dev/null
 			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
@@ -103,6 +102,8 @@ function set_infos(){
 				echo "Soit votre domaine n'est pas valide soit il ne redirige pas vers ce serveur"
 				read -p "Press [enter] pour recommencer" -r
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
+			else 
+				read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 			fi
 		clear
 	done
