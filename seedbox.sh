@@ -20,6 +20,7 @@ VSFTPD="/etc/vsftpd.conf"
 VSFTPD_LOG="/var/log/vsftpd.log"
 TRANSMISSION="/etc/transmission-daemon/settings.json"
 NGINX="/etc/nginx/sites-available/default"
+HTPASSWD="etc/nginx/.htpasswd"
 OPENVPN="/etc/openvpn/vpn.conf"
 MOTD="/etc/motd"
 DHPARAMS="/etc/ssl/private/dhparams.pem"
@@ -36,11 +37,13 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
 # donc si vous depassez les limites de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 LETS_ENCRYTP="/opt/letsencrypt"
-CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
+CERTBOT_HOST="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
+CERTBOT_DOMA="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d www.$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
-FULLCHAIN="/etc/letsencrypt/live/$MON_DOMAINE/fullchain.pem"
-PRIVKEY="/etc/letsencrypt/live/$MON_DOMAINE/privkey.pem"
+LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
+FULLCHAIN="$LIVE/fullchain.pem"
+PRIVKEY="$LIVE/privkey.pem"
 
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
@@ -85,7 +88,7 @@ function set_infos(){
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
-		read -p "Voulez vous utiliser votre nom de domaine: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		read -p "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
 		echo ""
 		echo "Vérification"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
@@ -132,7 +135,7 @@ function seedbox(){
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > .htpasswd
+	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > "$HTPASSWD"
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
@@ -197,7 +200,7 @@ ssl_session_timeout 10m;
 add_header Strict-Transport-Security 'max-age=31622400; includeSubDomains; preload';
 location / {
 auth_basic 'Restricted Content';
-auth_basic_user_file /etc/nginx/.htpasswd;
+auth_basic_user_file $HTPASSWD;
 proxy_pass http://127.0.0.1:9091/;
 }
 }" > "$NGINX"
@@ -210,7 +213,7 @@ proxy_pass http://127.0.0.1:9091/;
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
+	if [[ ! -d "$LIVE" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
 }
 
 function fail2ban(){
@@ -313,7 +316,7 @@ strict_ssl_write_shutdown=YES
 ascii_download_enable=YES
 ascii_upload_enable=YES
 max_clients=10
-max_per_ip=5
+max_per_ip=10
 require_ssl_reuse=NO
 xferlog_enable=YES
 ssl_ciphers=HIGH" > "$VSFTPD"
@@ -321,7 +324,7 @@ ssl_ciphers=HIGH" > "$VSFTPD"
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
+	if [[ ! -d "$LIVE" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
 download_enable=YES
