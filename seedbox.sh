@@ -104,7 +104,7 @@ function set_infos(){
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
 			elif [[ "$VERIF" != "$IP" ]]; then
 				echo ""
-				echo "${WARN}[Erreur : $IP]${NC} Le nom de domaine ne redirige pas vers l'IP de ce serveur"
+				echo "${WARN}[Erreur : $VERIF]${NC} Le nom de domaine $MON_DOMAINE ne redirige pas vers l'IP:$IP de ce serveur"
 				read -p "Press [enter] pour recommencer" -r
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
 			else 
