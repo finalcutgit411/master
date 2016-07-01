@@ -37,6 +37,7 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 LETS_ENCRYTP="/opt/letsencrypt"
 CERTBOT_HOST="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE --domains $MON_DOMAINE --agree-tos"
 CERTBOT_DOMA="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE --domains $MON_DOMAINE ---domains www.$MON_DOMAINE --agree-tos"
+
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
@@ -173,7 +174,8 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
-	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then $CERTBOT_DOMA; else $CERTBOT_HOST; fi
+	if [[ "$MON_DOMAINE" = "$(hostname --fqdn)" ]]; then $CERTBOT_HOST; else $CERTBOT_DOMA; fi
+	echo ""
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
 		echo "Let's Encrypt ne vous a pas delivré de certificat"
