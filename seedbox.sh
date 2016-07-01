@@ -36,11 +36,11 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
 # donc si vous depassez les limites de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 LETS_ENCRYTP="/opt/letsencrypt"
-CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$(hostname --fqdn) -d $(hostname --fqdn) --agree-tos"
+CERTBOT="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
-FULLCHAIN="/etc/letsencrypt/live/$(hostname --fqdn)/fullchain.pem"
-PRIVKEY="/etc/letsencrypt/live/$(hostname --fqdn)/privkey.pem"
+FULLCHAIN="/etc/letsencrypt/live/$MON_DOMAINE/fullchain.pem"
+PRIVKEY="/etc/letsencrypt/live/$MON_DOMAINE/privkey.pem"
 
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
@@ -111,7 +111,7 @@ function installation(){
 	# si vous depassez la limite de let's encrypt; (voir explication vidéo)
 	# création certificat auto signé 
 	openssl genrsa 4096 > "$MON_CERT_KEY"
-	openssl req -subj "/O=mon serveur/OU=personnel/CN=$(hostname --fqdn)" -new -x509 -days 365 -key "$MON_CERT_KEY" -out "$MON_CERT"
+	openssl req -subj "/O=mon serveur/OU=personnel/CN=$MON_DOMAINE" -new -x509 -days 365 -key "$MON_CERT_KEY" -out "$MON_CERT"
 }
 
 function backup(){
@@ -130,7 +130,7 @@ function seedbox(){
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	# ajouter eventuellment une option "recharger tous les .torrents" dans une prochaine maj
+	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
 	echo "\"dht-enabled\":false,
@@ -151,10 +151,19 @@ function seedbox(){
 function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
-	$CERTBOT &>/dev/null && $CRON_CMD
-	# les certificats letsencrypt sont valables 90 jours
-	# planification automatique dans le cron de la demande de renouvellement
-	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then ( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -; fi
+	echo ""
+	$CERTBOT
+	if [[ ${?} -ne 0 ]]; then
+		echo ""
+		echo "Let's Encrypt ne vous a pas delivré de certificat"
+		echo "Votre certificat auto signé est installé; Il est utilisé actuellement sur votre serveur"
+		echo "Vous pouvez copier coller le message d'erreur ci-dessus et le poster sur le forum pour obtenir de l'aide"
+		read -p "Appuyez sur [Enter] pour continuer " -r
+	else
+		# les certificats letsencrypt sont valables 90 jours
+		# planification automatique dans le cron de la demande de renouvellement
+		( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
+	fi
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
@@ -166,12 +175,12 @@ add_header X-Content-Type-Options nosniff;
 add_header X-XSS-Protection '1; mode=block';
 server {
 listen 80;
-server_name $(hostname --fqdn);
+server_name $MON_DOMAINE;
 return 301 https://\$host\$request_uri;
 }
 server {
 listen 443 ssl;
-server_name $(hostname --fqdn);
+server_name $MON_DOMAINE;
 ssl_dhparam $DHPARAMS;
 #ssl_certificate $MON_CERT;
 #ssl_certificate_key $MON_CERT_KEY;
@@ -197,7 +206,7 @@ proxy_pass http://127.0.0.1:9091/;
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
+	if [[ ! -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
 }
 
 function fail2ban(){
@@ -304,7 +313,7 @@ ssl_ciphers=HIGH" > "$VSFTPD"
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
+	if [[ ! -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
 download_enable=YES
@@ -328,8 +337,7 @@ function infos(){
 	cat "$MOTD".bak > "$MOTD"
 	sed -i '/Accès/,$d' /etc/motd
 	echo "
-Accès seedbox: http://$(hostname --fqdn)
-Accès ftps: $(hostname --fqdn) port 21
+Accès Seedbox et FTP : $MON_DOMAINE
 
 Administrer votre VPN: vpn.sh
 Administrer votre Seedbox: seedbox.sh
@@ -337,8 +345,7 @@ Administrer votre Seedbox: seedbox.sh
 }
 
 function recap(){
-	echo "Accès seedbox: http://$(hostname --fqdn)"
-	echo "Accès ftps: $(hostname --fqdn) port 21"
+	echo "Accès Seedbox et FTP : $MON_DOMAINE"
 	echo ""
 	echo "Utilisateur: $NOM_USER = $MDP_USER"
 }
@@ -403,8 +410,8 @@ if [[ -e "$TRANSMISSION" ]]; then
 		REP="0"
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
 		
-Accès seedbox: http://$(hostname --fqdn)
-Accès ftp: $(hostname --fqdn) port 21
+Accès seedbox: $MON_DOMAINE
+Accès ftp: $MON_DOMAINE port 21
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
 2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
@@ -464,14 +471,10 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			echo ""
 			status_services
 			echo ""
-			if [[ ! -d "/etc/letsencrypt/live/$(hostname --fqdn)/" ]]; then 
-				echo "Vos certificats SSL ne sont pas disponibles, attendez encore quelques jours,"
-				echo "let's encrypt ne delivre que 5 certificats max par semaine pour chaque FQDN"
-				echo "Votre certificat auto signé est installé; Il est utilisé actuellement sur votre serveur"
-			else 
+			if [[ -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then 
 				echo "Vos certificats Let's Encrypt sont disponibles et installés sur votre serveur"
 				echo ""
-				tree /etc/letsencrypt/live/"$(hostname --fqdn)"/
+				tree /etc/letsencrypt/live/"$MON_DOMAINE"/
 			fi
 			echo ""
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
