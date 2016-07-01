@@ -85,6 +85,8 @@ function set_infos(){
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
+		read -p "Voulez vous utiliser votre nom de domaine: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		echo ""
 		echo "Vérification"
 		echo "Utilisateur: $NOM_USER = $MDP_USER"
 		echo ""
@@ -175,12 +177,12 @@ add_header X-Content-Type-Options nosniff;
 add_header X-XSS-Protection '1; mode=block';
 server {
 listen 80;
-server_name $MON_DOMAINE;
+server_name www.$MON_DOMAINE;
 return 301 https://\$host\$request_uri;
 }
 server {
 listen 443 ssl;
-server_name $MON_DOMAINE;
+server_name www.$MON_DOMAINE;
 ssl_dhparam $DHPARAMS;
 #ssl_certificate $MON_CERT;
 #ssl_certificate_key $MON_CERT_KEY;
@@ -194,6 +196,8 @@ ssl_session_cache shared:SSL:10m;
 ssl_session_timeout 10m;
 add_header Strict-Transport-Security 'max-age=31622400; includeSubDomains; preload';
 location / {
+auth_basic 'Restricted Content';
+auth_basic_user_file /etc/nginx/.htpasswd;
 proxy_pass http://127.0.0.1:9091/;
 }
 }" > "$NGINX"
