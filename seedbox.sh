@@ -97,8 +97,14 @@ function set_infos(){
 		echo "domaine: $MON_DOMAINE"
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
+		VERIF=$(nslookup $MON_DOMAINE | awk '/^Address: / { print $2 }')
 		nslookup $MON_DOMAINE &>/dev/null
-			if [[ ${?} -ne 0 ]] || [[ "$MON_DOMAINE" != "$IP" ]]; then echo "Votre domaine n'est pas valide ou ne pointe pas vers ce serveur"
+			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
+				echo ""
+				echo "Votre domaine n'est pas valide ou ne pointe pas vers ce serveur"
+				read -p "Press [enter] pour recommencer" -r
+				REP="N"
+			fi
 		clear
 	done
 }
@@ -162,7 +168,7 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
-	$CERTBOT
+	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then echo "$CERTBOT_DOMA"; else echo "$CERTBOT_HOST"; fi
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
 		echo "Let's Encrypt ne vous a pas delivré de certificat"
