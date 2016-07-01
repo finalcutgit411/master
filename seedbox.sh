@@ -147,7 +147,7 @@ function seedbox(){
 	chmod 700 -R "$REP_SEEDBOX"/documents
 	chown -R ftp:ftp "$REP_SEEDBOX"/documents
 	mkdir -p "$REP_SEEDBOX"/{leech,seed,torrents} && chmod 770 -R "$REP_SEEDBOX"/{leech,seed,torrents} && chown -R ftp:ftp "$REP_SEEDBOX"/{leech,seed,torrents}
-	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > "$HTPASSWD"
+	printf "$NOM_USER:$(openssl passwd -apr1 $MDP_USER)" > etc/nginx/.htpasswd
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
@@ -157,7 +157,7 @@ function seedbox(){
 \"incomplete-dir-enabled\":true,
 \"peer-port\":60000,
 \"pex-enabled\":false,
-\"rpc-authentication-required\": false,
+\"rpc-authentication-required\":false,
 \"umask\":0,
 \"utp-enabled\":false,
 \"watch-dir-enabled\":true,
@@ -169,7 +169,7 @@ function letsencrypt(){
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
-	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then "$CERTBOT_DOMA"; else "$CERTBOT_HOST"; fi
+	if [[ "$MON_DOMAINE" != "$(hostname --fqdn)" ]]; then $CERTBOT_DOMA; else $CERTBOT_HOST; fi
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
 		echo "Let's Encrypt ne vous a pas delivré de certificat"
