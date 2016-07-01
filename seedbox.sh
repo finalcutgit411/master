@@ -97,8 +97,8 @@ function set_infos(){
 		echo "domaine: $MON_DOMAINE"
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
-		VERIF=$(nslookup $MON_DOMAINE | awk '/^Address: / { print $2 }')
-		nslookup $MON_DOMAINE &>/dev/null
+		VERIF=$(nslookup "$MON_DOMAINE" | awk '/^Address: / { print $2 }')
+		nslookup "$MON_DOMAINE" &>/dev/null
 			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
 				echo ""
 				echo "Votre domaine n'est pas valide ou ne pointe pas vers ce serveur"
