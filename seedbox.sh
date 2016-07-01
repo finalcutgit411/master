@@ -97,11 +97,14 @@ function set_infos(){
 		echo ""
 		VERIF=$(nslookup "$MON_DOMAINE" | awk '/^Address: / { print $2 }')
 		nslookup "$MON_DOMAINE" &>/dev/null
-			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
+			if [[ ${?} -ne 0 ]]; then
 				echo ""
-				echo "${WARN}[Erreur]${NC}"
-				echo "Soit ce nom de domaine n'est pas valide"
-				echo "soit il ne redirige pas vers l'IP de ce serveur"
+				echo "${WARN}[Erreur : $MON_DOMAINE]${NC} Le nom de domaine n'est pas valide"
+				read -p "Press [enter] pour recommencer" -r
+				MON_DOMAINE=$(hostname --fqdn) && REP="N"
+			elif [[ "$VERIF" != "$IP" ]], then
+				echo ""
+				echo "${WARN}[Erreur : $IP]${NC} Le nom de domaine ne redirige pas vers l'IP de ce serveur"
 				read -p "Press [enter] pour recommencer" -r
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
 			else 
