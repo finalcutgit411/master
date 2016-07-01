@@ -103,7 +103,7 @@ function set_infos(){
 				echo ""
 				echo "Votre domaine n'est pas valide ou l'IP ne pointe pas vers ce serveur"
 				read -p "Press [enter] pour recommencer" -r
-				REP="N"
+				MON_DOMAINE=$(hostname --fqdn) && REP="N"
 			fi
 		clear
 	done
