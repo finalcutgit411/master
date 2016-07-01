@@ -35,8 +35,8 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
 # donc si vous depassez les limites de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 LETS_ENCRYTP="/opt/letsencrypt"
-CERTBOT_HOST="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
-CERTBOT_DOMA="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE -d www.$MON_DOMAINE -d $MON_DOMAINE --agree-tos"
+CERTBOT_HOST="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE --domains $MON_DOMAINE --agree-tos"
+CERTBOT_DOMA="$LETS_ENCRYTP/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@$MON_DOMAINE --domains $MON_DOMAINE ---domains www.$MON_DOMAINE --agree-tos"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
