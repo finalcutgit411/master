@@ -360,8 +360,8 @@ function infos(){
 	echo "
 Accès Seedbox et FTP : $MON_DOMAINE
 
-Administrer votre VPN: vpn.sh
-Administrer votre Seedbox: seedbox.sh
+Lancer gestion VPN: vpn.sh
+Lancer gestion Seedbox: seedbox.sh
 " >> /etc/motd
 }
 
