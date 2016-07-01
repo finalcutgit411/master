@@ -88,7 +88,7 @@ function set_infos(){
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
 		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez ? "
-		read -p "Si oui saisissez-le ou bien laissez par défaut ${WARN}$(hostname --fqdn)${NC}: " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		read -p "Si oui saisissez-le ou bien laissez par défaut $(hostname --fqdn): " -e -i "$MON_DOMAINE" -r MON_DOMAINE
 		echo "${MON_DOMAINE//www./}"
 		echo ""
 		echo "Vérification"
@@ -99,7 +99,9 @@ function set_infos(){
 		nslookup "$MON_DOMAINE" &>/dev/null
 			if [[ ${?} -ne 0 ]] || [[ "$VERIF" != "$IP" ]]; then
 				echo ""
-				echo "Soit votre domaine n'est pas valide soit il ne redirige pas vers ce serveur"
+				echo "${WARN}[Erreur]${NC}"
+				echo "Soit ce nom de domaine n'est pas valide"
+				echo "soit il ne redirige pas vers l'IP de ce serveur"
 				read -p "Press [enter] pour recommencer" -r
 				MON_DOMAINE=$(hostname --fqdn) && REP="N"
 			else 
