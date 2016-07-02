@@ -37,9 +37,6 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 LETS_ENCRYTP="/opt/letsencrypt"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
-LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
-FULLCHAIN="$LIVE/fullchain.pem"
-PRIVKEY="$LIVE/privkey.pem"
 
 # fichiers système
 SSHD="/etc/ssh/sshd_config"
@@ -168,6 +165,9 @@ function seedbox(){
 }
 
 function letsencrypt(){
+	LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
+	FULLCHAIN="$LIVE/fullchain.pem"
+	PRIVKEY="$LIVE/privkey.pem"
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
