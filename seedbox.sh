@@ -84,8 +84,8 @@ function set_infos(){
 		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
 		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
 		echo ""
-		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utilisez ? "
-		read -p "Si oui saisissez-le ou bien laissez par défaut $(hostname --fqdn): " -e -i "$MON_DOMAINE" -r MON_DOMAINE
+		echo "Possédez-vous un nom de domaine et souhaitez-vous l'utiliser ? "
+		read -p "Si oui saisissez-le ou bien utilisez par défaut $(hostname --fqdn): " -e -i "$MON_DOMAINE" -r MON_DOMAINE
 		MON_DOMAINE="${MON_DOMAINE//www./}"
 		echo ""
 		echo "Vérification"
