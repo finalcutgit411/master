@@ -180,6 +180,7 @@ function letsencrypt(){
 		"$LETS_ENCRYTP"/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@"$MON_DOMAINE" --domains "$MON_DOMAINE" --domains www."$MON_DOMAINE" --agree-tos
 	fi
 	if [[ ${?} -ne 0 ]]; then
+		rm "$INFO" &>/dev/null
 		echo ""
 		echo "${WARN}[Erreur]${NC} Let's Encrypt ne vous a pas delivré de certificat (voir video)"
 		echo "Votre certificat auto signé est installé; Il est utilisé actuellement sur votre serveur"
