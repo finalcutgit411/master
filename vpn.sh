@@ -362,7 +362,7 @@ if [[ -e "$OPENVPN" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
 		REP="0" && ADD_VPN="5"
-		read -p "LE VPN EST DEJA INSTALLE SUR CE SERVEUR :
+		read -p "LE VPN EST INSTALLE SUR CE SERVEUR :
 
 1 ) Ajouter des clients
 2 ) Revoquer des clients
