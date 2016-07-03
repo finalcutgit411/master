@@ -24,7 +24,7 @@ MOTD="/etc/motd"
 DHPARAMS="/etc/ssl/private/dhparams.pem"
 MON_CERT_KEY="/etc/ssl/private/services.key"
 MON_CERT="/etc/ssl/private/services.crt"
-if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
+	if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); else PORT_VPN="0"; fi
 
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
@@ -35,6 +35,7 @@ REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
 # donc si vous depassez les limites de let's encrypt; (voir explication vidéo) vous basculez sur un certificat auto signé.
 LETS_ENCRYTP="/opt/letsencrypt"
+INFO="/etc/letsencrypt/info"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 
@@ -43,14 +44,15 @@ SSHD="/etc/ssh/sshd_config"
 
 # infos serveur
 IP=$(wget -qO- ipv4.icanhazip.com)
-if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
+	if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
 ARCH=$(getconf LONG_BIT)
 MON_DOMAINE=$(hostname --fqdn)
+	if [[ -e "$INFO" ]]; then MON_DOMAINE=$(sed q "$INFO"); fi
 
 MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
 USER_LIST="/etc/vsftpd/vsftpd.user_list"
 NOM_USER="lancelot"
-if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
+	if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 
 WARN=$(tput setaf 1)
 NC=$(tput sgr0)
@@ -186,6 +188,7 @@ function letsencrypt(){
 	else
 		# les certificats letsencrypt sont valables 90 jours
 		# planification automatique dans le cron de la demande de renouvellement
+		echo "$MON_DOMAINE" > "$INFO" && chmod 600 "$INFO"
 		( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
 		echo ""
 		echo "Let's Encrypt a validé votre domaine: $MON_DOMAINE"
@@ -297,7 +300,7 @@ ignoreregex =' > "$REGEX_FTP"
 function vsftpd(){
 	mkdir -p /etc/vsftpd/vsftpd_user_conf
 	rm -f /etc/vsftpd/vsftpd_user_conf/*
-	echo "$NOM_USER" > $USER_LIST
+	echo "$NOM_USER" > "$USER_LIST" && chmod 600 "$USER_LIST"
 	echo "$NOM_USER" > /etc/vsftpd/login
 	echo "$MDP_USER" >> /etc/vsftpd/login
 	db_load -T -t hash -f /etc/vsftpd/login /etc/vsftpd/login.db
@@ -344,7 +347,7 @@ max_per_ip=10
 require_ssl_reuse=NO
 xferlog_enable=YES
 ssl_ciphers=HIGH" > "$VSFTPD"
-	if [[ ! -e "$VSFTPD_LOG" ]]; then touch "$VSFTPD_LOG"; fi
+	if [[ ! -e "$VSFTPD_LOG" ]]; then touch "$VSFTPD_LOG" && chmod 600 "$VSFTPD_LOG"; fi
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
