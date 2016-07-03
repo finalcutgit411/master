@@ -19,25 +19,29 @@ DHPARAMS="/etc/ssl/private/dhparams.pem"
 MON_CERT_KEY="/etc/ssl/private/services.key"
 MON_CERT="/etc/ssl/private/services.crt"
 
-# Openvpn
+# Openvpn repertoires
 REP_OPENVPN="/etc/openvpn"
 REP_RSA="$REP_OPENVPN/easy-rsa"
 REP_KEY="$REP_RSA/keys"
+# Openvpn scripts
 VARS="$REP_RSA/vars"
 CLEAN="$REP_RSA/clean-all"
 BUILD="$REP_RSA/build-dh"
 PKITOOL="$REP_RSA/pkitool"
 REVOKE="$REP_RSA/revoke-full"
+# Openvpn config
 INDEX="$REP_KEY/index.txt"
 OPENVPN="$REP_OPENVPN/vpn.conf"
 STATUS="$REP_OPENVPN/status.log"
 LOG="$REP_OPENVPN/openvpn.log"
+# Openvpn certificat
 CERT_PAYS="Fr"
 CERT_PROV="French"
 CERT_VILLE="Paris"
 CERT_DESC="Prive"
 CERT_NAME=$(uname -n)
 CERT_MAIL="admin@$(hostname --fqdn)"
+# Openvpn pré-config
 ADD_VPN="5"
 PORT_VPN="1194"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
@@ -57,6 +61,8 @@ NOM_USER="lancelot"
 	if [[ -e "$USER_LIST" ]]; then NOM_USER=$(sed q "$USER_LIST"); fi
 NGINX="/etc/nginx/sites-available/default"
 HTPASSWD="/etc/nginx/.htpasswd"
+
+# Fail2ban
 JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
 REGEX_FTP="/etc/fail2ban/filter.d/vsftpd-virtuel.conf"
@@ -72,7 +78,7 @@ INFO="/etc/letsencrypt/info"
 CRON_CMD="$LETS_ENCRYTP/letsencrypt-auto renew --non-interactive"
 CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 
-# Serveur
+# Infos serveur
 IP=$(wget -qO- ipv4.icanhazip.com)
 if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
 ARCH=$(getconf LONG_BIT)
