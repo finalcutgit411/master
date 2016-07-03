@@ -166,7 +166,7 @@ function revoke_cert_client(){
 	cp "$REP_KEY"/crl.pem "$REP_OPENVPN"
 	rm "$REP_KEY"/client"$DEL_VPN".* &>/dev/null
 	if [[ ${?} -eq 0 ]]; then echo "[ SUCCES ] Revoking certificat client $DEL_VPN"; else echo "${WARN}[ ECHEC ]${NC} Revoking certificat client $DEL_VPN"; fi
-	if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn reload &>/dev/null; else systemctl reload openvpn.service &>/dev/null; fi
+	#if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn reload &>/dev/null; else systemctl reload openvpn.service &>/dev/null; fi
 }
 
 function conf_serveur(){
