@@ -34,14 +34,13 @@ INDEX="$REP_KEY/index.txt"
 OPENVPN="$REP_OPENVPN/vpn.conf"
 STATUS="$REP_OPENVPN/status.log"
 LOG="$REP_OPENVPN/openvpn.log"
-# Openvpn certificat
+# Openvpn pré-saisi
 CERT_PAYS="Fr"
 CERT_PROV="French"
 CERT_VILLE="Paris"
 CERT_DESC="Prive"
 CERT_NAME=$(uname -n)
 CERT_MAIL="admin@$(hostname --fqdn)"
-# Openvpn pré-config
 ADD_VPN="5"
 PORT_VPN="1194"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
