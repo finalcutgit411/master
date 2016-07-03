@@ -2,7 +2,7 @@
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 
 # prochaine maj :
-# - interface gestion des jails de fail2ban
+# - ajouter interface gestion des jails de fail2ban
 # - plus de commentaires
 # - ameliorer les retours d'erreur
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
