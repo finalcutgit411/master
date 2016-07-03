@@ -13,7 +13,7 @@ INCLUDES="/usr/local/bin/includes"
 source "$INCLUDES"/variables.sh
 source "$INCLUDES"/functions.sh
 
-verification
+prerequis_vpn
 OS_DESC=$(lsb_release -ds)
 clear
 if [[ -e "$OPENVPN" ]]; then
@@ -131,14 +131,14 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
 					clear
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
-					show_infos
+					show_infos_vpn
 					echo ""
-					set_infos
+					set_infos_vpn
 					clear
 					echo "INSTALLATION SERVEUR VPN"
 					echo "$OS_DESC"
 					echo ""
-					installation
+					installation_vpn
 					if [[ "$PORT_VPN" = "443" ]]; then stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; else stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; fi
 					stop_openvpn
 					vpn
@@ -153,7 +153,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					nat
 					clear
 					echo "INSTALLATION VPN TERMINEE"
-					recap_install
+					recap_install_vpn
 					echo ""
 					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 					shutdown -r now
@@ -219,16 +219,16 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 else
 	clear
 	echo "EXEMPLE INFORMATIONS A SAISIR :"
-	show_infos
+	show_infos_vpn
 	echo ""
-	set_infos
+	set_infos_vpn
 	clear
 	echo "INSTALLATION SERVEUR VPN"
 	echo "$OS_DESC"
 	echo ""
-	installation
+	installation_vpn
 	stop_openvpn
-	backup
+	backup_vpn
 	vpn
 	clear
 	echo "Création des certificats VPN"
@@ -241,7 +241,7 @@ else
 	nat
 	clear
 	echo "INSTALLATION VPN TERMINEE"
-	recap_install
+	recap_install_vpn
 	echo ""
 	read -p "Appuyez sur [Enter] pour continuer ... " -r 
 	if [[ ! -e "$TRANSMISSION" ]]; then
@@ -249,18 +249,17 @@ else
 			clear
 			read -p "Voulez vous installer votre seedbox ? [Y/N] " -r REP
 			if [[ "$REP" = "Y" ]]; then
-				wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate
-				chmod +x seedbox.sh
-				rm -f /usr/local/bin/seedbox.sh
-				mv seedbox.sh /usr/local/bin/seedbox.sh
-				seedbox.sh
-				REP="N"
+				$SCRIPT_SEEDBOX
+				echo ""
+				echo "A bientôt"
+				echo ""
+				exit 0
 			fi
 		done
 	fi
 	clear
 	echo "INSTALLATION VPN TERMINEE"
-	recap_install
+	recap_install_vpn
 	echo ""
 	echo "Installation terminée sauvegardez vos informations"
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
