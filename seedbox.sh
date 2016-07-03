@@ -447,50 +447,18 @@ if [[ -e "$TRANSMISSION" ]]; then
 		
 Accès seedbox et ftp: $MON_DOMAINE
 
-1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
-
 les données upload et download du FTP sont toujours conservées
-2 ) Réinitialiser la configuration de la seedbox (renouveler certificat let's encrypt)
-3 ) Supprimer installation
+1 ) Réinitialiser la configuration de la seedbox (renouveler certificat let's encrypt)
+2 ) Supprimer installation
 
-4 ) Redémarrer les services seedbox
-5 ) Redémarrer le serveur
+3 ) Redémarrer les services seedbox
+4 ) Redémarrer le serveur
 
 Q ) Taper Q pour quitter
 
 Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
-			echo ""
-			stop_seedbox
-			clear
-			cat "$TRANSMISSION".bak > "$TRANSMISSION"
-			NOM_USER="lancelot"
-			MDP_USER=$(</dev/urandom tr -dc 'a-zA-Z0-9-@!' | fold -w 12 | head -n 1)
-			while [[ "$REP" != "Y" ]]; do
-				echo "MODIFIER NOM ET MOT DE PASSE UTILISATEUR SEEDBOX"
-				echo ""
-				echo "Personnalisation"
-				read -p "Nouvel utilisateur : " -e -i "$NOM_USER" -r NOM_USER
-				read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
-				echo ""
-				echo "Vérification"
-				echo "Nouvel utilisateur : $NOM_USER = $MDP_USER"
-				echo ""
-				read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
-			done
-			seedbox
-			vsftpd
-			echo ""
-			start_seedbox
-			echo ""
-			recap
-			echo ""
-			echo "Modifications enregistrées, sauvegardez vos informations"
-			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
-			;;
-
-			2)
 			while [[ "$REP" != "Q" ]]; do
 				clear
 				echo "REINITIALISER CONFIGURATION SEEDBOX"
@@ -523,8 +491,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				fi
 			done
 			;;
-
-			3)
+			2)
 			while [[ "$REP" != "Q" ]]; do
 				clear
 				echo "SUPPRIMER INSTALLATION SEEDBOX"
@@ -539,7 +506,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$VSFTPD".bak > "$VSFTPD"
 					cat "$NGINX".bak > "$NGINX"
-					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$REGEX_RECID","$REGEX_RECID".bak,"$REGEX_FTP"}
+					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL", "$HTPASSWD","$REGEX_RECID","$REGEX_RECID".bak,"$REGEX_FTP","$DHPARAMS","$MON_CERT_KEY","$MON_CERT"}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
 					sed -i '/Accès/,$d' /etc/motd
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
@@ -552,8 +519,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				fi
 			done
 			;;
-
-			4)
+			3)
 			echo ""
 			stop_seedbox
 			echo ""
@@ -563,12 +529,13 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			echo ""
 			read -p "Appuyez sur [Enter] " -r
 			;;
-			
-			5)
+			4)
 			shutdown -r now
+			echo ""
+			echo "A bientôt"
+			echo ""
 			exit 0
 			;;
-
 			Q)
 			echo ""
 			echo "A bientôt"
@@ -628,5 +595,8 @@ else
 	echo "Installation terminée sauvegardez vos informations"
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
+	echo ""
+	echo "A bientôt"
+	echo ""
 	exit 0
 fi
