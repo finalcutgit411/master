@@ -297,3 +297,14 @@ function start_seedbox(){
 function reload_nginx(){
                 if [[ "$OS" = "wheezy" ]]; then service nginx reload &>/dev/null; else systemctl reload nginx.service &>/dev/null; fi
 }
+
+function titre(){
+	echo "	
+___________ .___   _______       _____    .____      _________    ____ ___  ___________
+\_   _____/ |   |  \      \     /  _  \   |    |     \_   ___ \  |    |   \ \__    ___/
+ |    __)   |   |  /   |   \   /  /_\  \  |    |     /    \  \/  |    |   /   |    |   
+ |     \    |   | /    |    \ /    |    \ |    |___  \     \____ |    |  /    |    |   
+ \___  /    |___| \____|__  / \____|__  / |_______ \  \______  / |______/     |____|   
+     \/                   \/          \/          \/         \/   		
+"
+}
