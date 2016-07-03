@@ -166,12 +166,8 @@ function revoke_cert_client(){
 	cp "$REP_KEY"/crl.pem "$REP_OPENVPN"
 	rm "$REP_KEY"/client"$DEL_VPN".* &>/dev/null
 	if [[ ${?} -eq 0 ]]; then echo "[ SUCCES ] Revoking certificat client $DEL_VPN"; else echo "${WARN}[ ECHEC ]${NC} Revoking certificat client $DEL_VPN"; fi
-	if [[ "$PORT_VPN" = "443" ]]; then
-		stop_seedbox && stop_openvpn
-		start_openvpn && start_seedbox
-	else
-		if [[ "$OS" = "wheezy" ]]; then service openvpn reload &>/dev/null; else systemctl reload openvpn.service &>/dev/null; fi
-	fi
+	echo ""
+	if [[ "$PORT_VPN" = "443" ]]; then stop_seedbox && stop_openvpn && start_openvpn && start_seedbox; else stop_openvpn && start_openvpn; fi
 }
 
 function conf_serveur(){
