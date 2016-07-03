@@ -509,7 +509,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					cat "$VSFTPD".bak > "$VSFTPD"
 					cat "$NGINX".bak > "$NGINX"
-					rm -f { "$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL", "$HTPASSWD","$REGEX_RECID","$REGEX_RECID".bak,"$REGEX_FTP","$DHPARAMS","$MON_CERT_KEY","$MON_CERT","$INFO" }
+					rm {"$TRANSMISSION".bak,"$NGINX".bak,"$VSFTPD".bak,"$VSFTPD_LOG","$JAIL_LOCAL","$HTPASSWD","$REGEX_RECID","$REGEX_RECID".bak,"$REGEX_FTP","$DHPARAMS","$MON_CERT_KEY","$MON_CERT","$INFO"}
 					rm /var/www/html/index.nginx-debian.html &>/dev/null
 					sed -i '/Accès/,$d' /etc/motd
 					apt-get purge -y minissdpd transmission-cli transmission-common transmission-daemon nginx-common nginx vsftpd fail2ban
