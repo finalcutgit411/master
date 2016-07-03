@@ -195,7 +195,6 @@ function letsencrypt(){
 		echo "Vous possedez un authentique certificat SSL; il est installé et utilisé sur ce serveur "
 		read -p "Appuyez sur [Enter] pour continuer " -r
 	fi
-	set_infos
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
