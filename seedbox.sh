@@ -30,6 +30,7 @@ JAIL_CONF="/etc/fail2ban/jail.conf"
 JAIL_LOCAL="/etc/fail2ban/jail.local"
 REGEX_FTP="/etc/fail2ban/filter.d/vsftpd-virtuel.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
+REGEX_NGINX="/etc/fail2ban/filter.d/nginx-http-auth.conf"
 
 # certificats ssl delivrés par let's encrypt
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
@@ -141,7 +142,6 @@ function backup(){
         if [[ ! -e "$VSFTPD".bak ]]; then cp "$VSFTPD" "$VSFTPD".bak; fi
         if [[ ! -e "$NGINX".bak ]]; then cp "$NGINX" "$NGINX".bak; fi
         if [[ ! -e "$JAIL_CONF".bak ]]; then cp "$JAIL_CONF" "$JAIL_CONF".bak; fi
-        if [[ ! -e "$REGEX_RECID".bak ]]; then cp "$REGEX_RECID" "$REGEX_RECID".bak &>/dev/null; fi
 }
 
 function seedbox(){
@@ -293,6 +293,9 @@ _jailname = recidive
 failregex = ^(%(__prefix_line)s|,\d{3} fail2ban.actions%(__pid_re)s?:\s+)WARNING\s+\[(?!%(_jailname)s\])(?:.*)\]\s+Ban\s+<HOST>\s*$
 ignoreregex =' > "$REGEX_RECID"
 	fi
+	if [[ ! -e "$REGEX_NGINX" ]]; then echo '[Definition]
+failregex = ^ \[error\] \d+#\d+: \*\d+ user "\S+":? (password mismatch|was not found in ".*"), client: <HOST>, server: \S+, request: "\S+ \S+ HTTP/\d+\.\d+", host: "\S+"\s*$
+ignoreregex =' > "$REGEX_NGINX"
 	echo '[Definition]
 failregex = .*Client "<HOST>",."530 Permission denied."$
             .*Client "<HOST>",."530 Login incorrect."$          
