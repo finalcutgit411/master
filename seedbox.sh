@@ -125,6 +125,7 @@ function installation(){
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git
+	echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
 	if [[ ! -e "$DHPARAMS" ]]; then openssl dhparam 2048 > "$DHPARAMS";
 	elif [[ -e "$DHPARAMS" ]]; then openssl dhparam -in "$DHPARAMS" &>/dev/null;
 		if [[ ${?} -ne 0 ]]; then openssl dhparam 2048 > "$DHPARAMS"; fi
