@@ -254,13 +254,13 @@ enabled  = true
 port     = ssh
 filter   = sshd
 logpath  = /var/log/auth.log
-maxretry = 3
+maxretry = 4
 [ssh-ddos]
 enabled  = true
 port     = ssh
 filter   = sshd-ddos
 logpath  = /var/log/auth.log
-maxretry = 3
+maxretry = 4
 [vsftpd-virtuel]
 enabled  = true
 port     = ftp,ftp-data,ftps,ftps-data
@@ -272,7 +272,7 @@ enabled = true
 filter  = nginx-http-auth
 port    = http,https
 logpath = /var/log/nginx/error.log
-maxretry = 3
+maxretry = 4
 [recidive]
 enabled  = true
 filter   = recidive
@@ -344,6 +344,7 @@ ascii_upload_enable=YES
 max_clients=10
 max_per_ip=10
 require_ssl_reuse=NO
+log_ftp_protocol=YES
 xferlog_enable=YES
 ssl_ciphers=HIGH" > "$VSFTPD"
 	if [[ ! -e "$VSFTPD_LOG" ]]; then touch "$VSFTPD_LOG" && chmod 600 "$VSFTPD_LOG"; fi
