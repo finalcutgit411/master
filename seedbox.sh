@@ -296,6 +296,7 @@ ignoreregex =' > "$REGEX_RECID"
 	if [[ ! -e "$REGEX_NGINX" ]]; then echo '[Definition]
 failregex = ^ \[error\] \d+#\d+: \*\d+ user "\S+":? (password mismatch|was not found in ".*"), client: <HOST>, server: \S+, request: "\S+ \S+ HTTP/\d+\.\d+", host: "\S+"\s*$
 ignoreregex =' > "$REGEX_NGINX"
+	fi
 	echo '[Definition]
 failregex = .*Client "<HOST>",."530 Permission denied."$
             .*Client "<HOST>",."530 Login incorrect."$          
