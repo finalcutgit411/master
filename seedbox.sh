@@ -552,7 +552,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 else
 	clear
 	clear
-	echo "INSTALLATION SERVEUR VPN ET SEEDBOX"
+	echo "INSTALLATION SERVEUR SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
 	set_infos
