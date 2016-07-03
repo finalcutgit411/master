@@ -371,7 +371,7 @@ account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/log
 	fi
 }
 
-function infos(){
+function motd(){
 	cat "$MOTD".bak > "$MOTD"
 	sed -i '/Accès/,$d' /etc/motd
 	echo "
@@ -438,7 +438,6 @@ function status_services(){
 # début du script
 ####################################################
 verification
-infos
 OS_DESC=$(lsb_release -ds)
 clear
 if [[ -e "$TRANSMISSION" ]]; then
@@ -490,7 +489,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
 					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
-					infos
+					motd
 					REP="Q"
 				fi
 			done
@@ -571,7 +570,7 @@ else
 	vsftpd
 	fail2ban
 	start_seedbox
-	infos
+	motd
 	clear
 	status_services
 	echo ""
