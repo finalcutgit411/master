@@ -480,6 +480,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					echo "$OS_DESC"
 					echo ""
 					installation
+					if [[ "$PORT_VPN" = "443" ]]; then stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; else stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; fi
 					stop_openvpn
 					vpn
 					clear
@@ -511,6 +512,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 				echo "Taper Q pour quitter"
 				read -p "Voulez vous vraiment supprimer vos services ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
+					if [[ "$PORT_VPN" = "443" ]]; then stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; fi
 					stop_openvpn
 					cat "$SYSCTL".bak > "$SYSCTL"
 					cat "$RC".bak > "$RC"
