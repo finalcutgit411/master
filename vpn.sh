@@ -486,7 +486,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					vpn
 					clear
 					echo "Création des certificats VPN"
-					echo "cette étape peut-etre longue"
+					echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
 					create_cert_serveur
 					create_cert_clients
 					conf_serveur
@@ -574,7 +574,7 @@ else
 	vpn
 	clear
 	echo "Création des certificats VPN"
-	echo "cette étape peut-etre longue"
+	echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
 	create_cert_serveur
 	create_cert_clients
 	conf_serveur
