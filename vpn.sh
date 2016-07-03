@@ -321,9 +321,9 @@ function start_openvpn(){
 
 function status_openvpn(){
 	if [[ "$OS" = "wheezy" ]]; then service openvpn status &>/dev/null;
-		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn is running $PORT_VPN"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
+		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn:$PORT_VPN is running"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
 	else systemctl status openvpn.service &>/dev/null;
-		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn is running $PORT_VPN"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
+		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn:$PORT_VPN is running $PORT_VPN"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
 	fi
 }
 
@@ -494,7 +494,6 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					create_rep_clients
 					nat
 					clear
-					status_openvpn
 					echo "INSTALLATION VPN TERMINEE"
 					recap_install
 					echo ""
@@ -583,7 +582,6 @@ else
 	create_rep_clients
 	nat
 	clear
-	status_openvpn
 	echo "INSTALLATION VPN TERMINEE"
 	recap_install
 	echo ""
@@ -603,7 +601,6 @@ else
 		done
 	fi
 	clear
-	status_openvpn
 	echo "INSTALLATION VPN TERMINEE"
 	recap_install
 	echo ""
