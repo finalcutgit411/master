@@ -166,7 +166,12 @@ function revoke_cert_client(){
 	cp "$REP_KEY"/crl.pem "$REP_OPENVPN"
 	rm "$REP_KEY"/client"$DEL_VPN".* &>/dev/null
 	if [[ ${?} -eq 0 ]]; then echo "[ SUCCES ] Revoking certificat client $DEL_VPN"; else echo "${WARN}[ ECHEC ]${NC} Revoking certificat client $DEL_VPN"; fi
-	#if [[ "$OS" = "wheezy" ]] || [[ "$OS" = "trusty" ]]; then service openvpn reload &>/dev/null; else systemctl reload openvpn.service &>/dev/null; fi
+	if [[ "$PORT_VPN" = "443" ]]; then
+		stop_seedbox && stop_openvpn
+		start_openvpn && start_seedbox
+	else
+		if [[ "$OS" = "wheezy" ]]; then service openvpn reload &>/dev/null; else systemctl reload openvpn.service &>/dev/null; fi
+	fi
 }
 
 function conf_serveur(){
@@ -323,6 +328,26 @@ function status_openvpn(){
 	else systemctl status openvpn.service &>/dev/null;
 		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn is running"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
 	fi
+}
+
+function stop_seedbox(){
+        for i in "transmission-daemon" "vsftpd" "nginx" "fail2ban"; do
+                if [[ "$OS" = "wheezy" ]]; then service $i stop &>/dev/null;
+                        if [[ ${?} -eq 0 ]]; then echo "[ ok ] $i Stopping"; fi
+                else systemctl stop $i.service &>/dev/null;
+                        if [[ ${?} -eq 0 ]]; then echo "[ ok ] $i Stopping"; fi
+                fi
+        done
+}
+
+function start_seedbox(){
+        for i in "transmission-daemon" "vsftpd" "nginx" "fail2ban"; do
+                if [[ "$OS" = "wheezy" ]]; then service $i start &>/dev/null;
+                        if [[ ${?} -eq 0 ]]; then echo "[ ok ] $i Starting"; else echo "${WARN}[ FAIL ]${NC} $i is not Starting"; fi
+                else systemctl start $i.service &>/dev/null;
+                        if [[ ${?} -eq 0 ]]; then echo "[ ok ] $i Starting"; else echo "${WARN}[ FAIL ]${NC} $i is not Starting"; fi
+                fi
+        done
 }
 
 function reload_nginx(){
