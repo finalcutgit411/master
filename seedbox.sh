@@ -476,8 +476,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
 					echo "$OS_DESC"
 					echo ""
-					set_infos
 					installation
+					set_infos
 					seedbox
 					letsencrypt
 					nginx
@@ -557,8 +557,8 @@ else
 	echo "INSTALLATION SERVEUR SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
-	set_infos
 	installation
+	set_infos
 	echo ""
 	stop_seedbox
 	backup
