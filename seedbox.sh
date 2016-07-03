@@ -192,6 +192,7 @@ function letsencrypt(){
 		echo "Vous possedez un authentique certificat SSL; il est installé et utilisé sur ce serveur "
 		read -p "Appuyez sur [Enter] pour continuer " -r
 	fi
+	set_infos
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
 
@@ -489,7 +490,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
-			3)
+			2)
 			while [[ "$REP" != "Q" ]]; do
 				clear
 				echo "REINITIALISER CONFIGURATION SEEDBOX"
@@ -499,8 +500,6 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				if [[ "$REP" = "Y" ]]; then
 					echo ""
 					stop_seedbox
-					clear
-					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
 					echo "$OS_DESC"
@@ -519,12 +518,13 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
 					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
+					set_infos
 					REP="Q"
 				fi
 			done
 			;;
 
-			4)
+			3)
 			while [[ "$REP" != "Q" ]]; do
 				clear
 				echo "SUPPRIMER INSTALLATION SEEDBOX"
@@ -553,7 +553,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			done
 			;;
 
-			5)
+			4)
 			echo ""
 			stop_seedbox
 			echo ""
@@ -564,7 +564,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			read -p "Appuyez sur [Enter] " -r
 			;;
 			
-			6)
+			5)
 			shutdown -r now
 			exit 0
 			;;
@@ -578,7 +578,6 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 	done
 else
 	clear
-	set_infos
 	clear
 	echo "INSTALLATION SERVEUR VPN ET SEEDBOX"
 	echo "$OS_DESC"
