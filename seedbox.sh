@@ -172,8 +172,8 @@ function letsencrypt(){
 	FULLCHAIN="$LIVE/fullchain.pem"
 	PRIVKEY="$LIVE/privkey.pem"
 	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
-	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	echo ""
+	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	if [[ "$MON_DOMAINE" = "$(hostname --fqdn)" ]]; then 
 		"$LETS_ENCRYTP"/certbot-auto certonly --rsa-key-size 4096 --non-interactive --standalone --email admin@"$MON_DOMAINE" --domains "$MON_DOMAINE" --agree-tos
 	else 
@@ -564,6 +564,7 @@ else
 	clear
 	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt"
 	echo "patientez quelques minutes"
+	echo ""
 	letsencrypt
 	clear
 	nginx
