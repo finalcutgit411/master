@@ -10,6 +10,7 @@ apt-get update -y && apt-get upgrade -y
 
 ```
 apt-get install git-core -y
+cd /tmp
 git clone https://github.com/finalcutgit411/master
 cd master
 chmod a+x manage.sh && ./manage.sh
