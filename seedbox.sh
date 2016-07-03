@@ -242,7 +242,7 @@ proxy_pass http://127.0.0.1:9091/;
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "$LIVE" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
+	if [[ ! -d "$INFO" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
 }
 
 function fail2ban(){
@@ -358,7 +358,7 @@ ssl_ciphers=HIGH" > "$VSFTPD"
 	if [[ "$OS" = "wheezy" ]]; then sed -i '/seccomp_sandbox=NO/d' "$VSFTPD"; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
-	if [[ ! -d "$LIVE" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
+	if [[ ! -d "$INFO ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$VSFTPD"; fi
 	echo "anon_world_readable_only=NO
 write_enable=YES
 download_enable=YES
