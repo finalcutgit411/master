@@ -181,7 +181,7 @@ function letsencrypt(){
 	fi
 	if [[ ${?} -ne 0 ]]; then
 		echo ""
-		echo "Let's Encrypt ne vous a pas delivré de certificat"
+		echo "${WARN}[Erreur]${NC} Let's Encrypt ne vous a pas delivré de certificat (voir video)"
 		echo "Votre certificat auto signé est installé; Il est utilisé actuellement sur votre serveur"
 		echo "Vous pouvez copier coller le message d'erreur ci-dessus et le poster sur le forum pour obtenir de l'aide"
 		read -p "Appuyez sur [Enter] pour continuer " -r
@@ -191,7 +191,7 @@ function letsencrypt(){
 		echo "$MON_DOMAINE" > "$INFO" && chmod 600 "$INFO"
 		( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
 		echo ""
-		echo "Let's Encrypt a validé votre domaine: $MON_DOMAINE"
+		echo "Let's Encrypt a validé votre domaine : $MON_DOMAINE"
 		echo "Vous possedez un authentique certificat SSL; il est installé et utilisé sur ce serveur "
 		read -p "Appuyez sur [Enter] pour continuer " -r
 	fi
@@ -449,8 +449,8 @@ if [[ -e "$TRANSMISSION" ]]; then
 		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
 		
 Accès seedbox et ftp: $MON_DOMAINE
+Les données upload et download du FTP sont toujours conservées
 
-les données upload et download du FTP sont toujours conservées
 1 ) Réinitialiser la configuration de la seedbox (renouveler certificat let's encrypt)
 2 ) Supprimer installation
 
@@ -475,6 +475,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
 					echo "$OS_DESC"
 					echo ""
+					set_infos
 					installation
 					seedbox
 					letsencrypt
@@ -489,7 +490,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					echo "Réinitialisation seedbox terminée sauvegardez vos informations"
 					read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
-					set_infos
+					infos
 					REP="Q"
 				fi
 			done
@@ -555,6 +556,7 @@ else
 	echo "INSTALLATION SERVEUR VPN ET SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
+	set_infos
 	installation
 	echo ""
 	stop_seedbox
@@ -569,6 +571,7 @@ else
 	vsftpd
 	fail2ban
 	start_seedbox
+	infos
 	clear
 	status_services
 	echo ""
