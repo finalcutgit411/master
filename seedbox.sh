@@ -2,7 +2,7 @@
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 
 # prochaine maj :
-# - plus de visilbilté dans les jails
+# - interface gestion des jails de fail2ban
 # - plus de commentaires
 # - ameliorer les retours d'erreur
 # - éventuellement creer ou adatper le script pour du multi-users avec mise en place d'une politique de quota (pas grand chose à modifier, faut juste abandonner les users virtuels)
@@ -149,6 +149,7 @@ function seedbox(){
 	printf "%s" "$NOM_USER:$(openssl passwd -apr1 "$MDP_USER")" > "$HTPASSWD"
 	# ajouter eventuellment une option "recharger tous les .torrents"
 	# rename 's/\.added$//' "$REP_SEEDBOX"/torrents
+	cat "$TRANSMISSION".bak > "$TRANSMISSION"
 	sed -i 's/ //g; /dht-enabled\|incomplete\|download-dir\|peer-port"\|pex-enabled\|rpc-password\|rpc-username\|umask\|utp-enabled\|}/d' "$TRANSMISSION"
 	echo "\"dht-enabled\":false,
 \"download-dir\":\"$REP_SEEDBOX/seed\",
@@ -186,6 +187,10 @@ function letsencrypt(){
 		# les certificats letsencrypt sont valables 90 jours
 		# planification automatique dans le cron de la demande de renouvellement
 		( crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" ) | crontab -
+		echo ""
+		echo "Let's Encrypt a validé votre domaine: $MON_DOMAINE"
+		echo "Vous possedez un authentique certificat SSL; il est installé et utilisé sur ce serveur "
+		read -p "Appuyez sur [Enter] pour continuer " -r
 	fi
 	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
 }
@@ -442,14 +447,13 @@ if [[ -e "$TRANSMISSION" ]]; then
 Accès seedbox et ftp: $MON_DOMAINE
 
 1 ) Modifier le nom et le mot de passe de l'utilisateur seedbox
-2 ) Demander ou renouveler un certificat let's encrypt (explication dans la video)
 
 les données upload et download du FTP sont toujours conservées
-3 ) Réinitialiser la configuration de la seedbox
-4 ) Supprimer installation
+2 ) Réinitialiser la configuration de la seedbox (renouveler certificat let's encrypt)
+3 ) Supprimer installation
 
-5 ) Redémarrer les services seedbox
-6 ) Redémarrer le serveur
+4 ) Redémarrer les services seedbox
+5 ) Redémarrer le serveur
 
 Q ) Taper Q pour quitter
 
@@ -485,29 +489,6 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r
 			;;
 
-			2)
-			echo ""
-			stop_seedbox
-			clear
-			echo "DEMANDE DE CERTIFICAT SSL AUPRES DE LET'S ENCRYPT"
-			echo ""
-			letsencrypt
-			nginx
-			vsftpd
-			echo ""
-			start_seedbox
-			echo ""
-			status_services
-			echo ""
-			if [[ -d "/etc/letsencrypt/live/$MON_DOMAINE/" ]]; then 
-				echo "Vos certificats Let's Encrypt sont disponibles et installés sur votre serveur"
-				echo ""
-				tree /etc/letsencrypt/live/"$MON_DOMAINE"/
-			fi
-			echo ""
-			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
-			;;
-
 			3)
 			while [[ "$REP" != "Q" ]]; do
 				clear
@@ -519,7 +500,6 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo ""
 					stop_seedbox
 					clear
-					cat "$TRANSMISSION".bak > "$TRANSMISSION"
 					set_infos
 					clear
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
