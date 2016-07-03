@@ -445,7 +445,7 @@ if [[ -e "$TRANSMISSION" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
 		REP="0"
-		read -p "LA SEEDBOX EST DEJA INSTALLEE SUR CE SERVEUR :
+		read -p "LA SEEDBOX EST INSTALLEE SUR CE SERVEUR :
 		
 Accès seedbox et ftp: $MON_DOMAINE
 Les données upload et download du FTP sont toujours conservées
