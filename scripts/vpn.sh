@@ -9,9 +9,9 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-INCLUDES="includes"
-. "$INCLUDES"/variables.sh
-. "$INCLUDES"/functions.sh
+INCLUDES="/usr/local/bin/includes"
+source "$INCLUDES"/variables.sh
+source "$INCLUDES"/functions.sh
 
 verification
 OS_DESC=$(lsb_release -ds)
