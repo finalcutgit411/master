@@ -8,10 +8,10 @@ Lundi 27 juin 11h00
 
 
 ```
-<code>apt-get install git-core -y
+apt-get install git-core -y
 git clone https://github.com/finalcutgit411/master
 cd master
-chmod a+x manage.sh && ./manage.sh</code>
+chmod a+x manage.sh && ./manage.sh
 ```
 
 #### Installation VPN
