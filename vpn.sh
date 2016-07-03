@@ -368,7 +368,7 @@ if [[ -e "$OPENVPN" ]]; then
 2 ) Revoquer des clients
 3 ) Renvoyer les clients dans le dossier /tmp/clients
 
-4 ) Réinitialiser tous les certificats vpn
+4 ) Réinitialiser la configuration du vpn
 5 ) Supprimer l'installation du vpn
 
 6 ) Voir les clients connectés au vpn
