@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#scripts
+SCRIPT_VPN="/usr/local/bin/vpn.sh"
+SCRIPT_SEEDBOX="/usr/local/bin/seedbox.sh"
+
 # repertoires openvpn
 REP_OPENVPN="/etc/openvpn"
 REP_RSA="$REP_OPENVPN/easy-rsa"
