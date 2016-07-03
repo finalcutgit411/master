@@ -193,7 +193,7 @@ persist-key
 persist-tun
 verb 3
 log-append $LOG
-status $STATUS" > "$OPENVPN"
+status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
 	if [[ "$PORT_VPN" = "443" ]]; then
 		# force protocole TCP pour https
 		sed -i 's/udp/tcp/' "$OPENVPN"
