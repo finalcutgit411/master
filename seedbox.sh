@@ -384,7 +384,8 @@ Lancer gestion Seedbox: seedbox.sh
 function recap(){
 	echo "Accès Seedbox et FTP : $MON_DOMAINE"
 	echo ""
-	echo "Utilisateur: $NOM_USER = $MDP_USER"
+	echo "utilisateur: $NOM_USER"
+	echo "password: $MDP_USER"
 }
 
 function stop_openvpn(){
