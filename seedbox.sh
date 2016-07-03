@@ -77,6 +77,8 @@ fi
 
 function set_infos(){
 	REP="0"
+	apt-get update -y && apt-get install -y dnsutils
+	clear
 	while [[ "$REP" != "Y" ]]; do
 		echo "CREATION UTILISATEUR VIRTUEL SEEDBOX"
 		echo ""
@@ -121,7 +123,7 @@ function quitter(){
 function installation(){
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
-	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git dnsutils
+	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git
 	if [[ ! -e "$DHPARAMS" ]]; then openssl dhparam 2048 > "$DHPARAMS";
 	elif [[ -e "$DHPARAMS" ]]; then openssl dhparam -in "$DHPARAMS" &>/dev/null;
 		if [[ ${?} -ne 0 ]]; then openssl dhparam 2048 > "$DHPARAMS"; fi
@@ -476,8 +478,8 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
 					echo "$OS_DESC"
 					echo ""
-					installation
 					set_infos
+					installation
 					seedbox
 					letsencrypt
 					nginx
@@ -557,8 +559,8 @@ else
 	echo "INSTALLATION SERVEUR SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
-	installation
 	set_infos
+	installation
 	echo ""
 	stop_seedbox
 	backup
