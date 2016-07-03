@@ -493,8 +493,8 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					conf_client
 					create_rep_clients
 					nat
-					start_openvpn
 					clear
+					status_openvpn
 					echo "INSTALLATION VPN TERMINEE"
 					recap_install
 					echo ""
@@ -582,8 +582,8 @@ else
 	conf_client
 	create_rep_clients
 	nat
-	start_openvpn
 	clear
+	status_openvpn
 	echo "INSTALLATION VPN TERMINEE"
 	recap_install
 	echo ""
@@ -603,6 +603,7 @@ else
 		done
 	fi
 	clear
+	status_openvpn
 	echo "INSTALLATION VPN TERMINEE"
 	recap_install
 	echo ""
