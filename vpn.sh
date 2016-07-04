@@ -9,9 +9,8 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-INCLUDES="/usr/local/bin/includes"
-source "$INCLUDES"/variables.sh
-source "$INCLUDES"/functions.sh
+source variables.sh
+source functions.sh
 
 prerequis_vpn
 OS_DESC=$(lsb_release -ds)
