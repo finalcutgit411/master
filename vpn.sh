@@ -67,7 +67,9 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					echo "Liste client(s) VPN actif(s) :"
 					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 					echo ""	
+					echo "Infos : "
 					echo "Vous devez redémarrer le serveur pour activer les règles NAT des clients VPN"
+					echo ""	
 					read -p "Appuyez sur [Enter] pour revenir au menu précedent ... " -r
 					REP="Q"
 				fi
