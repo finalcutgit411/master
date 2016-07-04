@@ -14,12 +14,11 @@ source functions.sh
 
 prerequis_vpn
 OS_DESC=$(lsb_release -ds)
-clear
+clear && titre
 if [[ -e "$OPENVPN" ]]; then
 	OPTIONS="0"
 	while [[ "$OPTIONS" != "Q" ]]; do
-		clear
-		titre
+		clear && titre
 		REP="0" && ADD_VPN="5"
 		read -p "LE VPN EST INSTALLE SUR CE SERVEUR :
 
@@ -45,8 +44,7 @@ Que voulez vous faire ? [1-8]: " -r OPTIONS
 				VALID=$(grep 'V' "$INDEX" | grep -c 'client')
 				REVOK=$(grep 'R' "$INDEX" | grep -c 'client')
 				DISPO=$((62-LIST_VPN))
-				clear
-				titre
+				clear && titre
 				read -p "AJOUTER DES CLIENTS VPN
 
 Vous avez $LIST_VPN client(s) VPN installé(s) sur votre serveur.
@@ -66,8 +64,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					create_cert_clients
 					create_rep_clients
 					nat
-					clear
-					titre
+					clear && titre
 					echo "Liste client(s) VPN actif(s) :"
 					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 					echo ""	
@@ -82,8 +79,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			while [[ "$REP" != "Q" ]]; do
 				VALID=$(grep 'V' "$INDEX" | grep -c 'client')
 				VERIF=$(grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F 'client' '{print $2}')
-				clear
-				titre
+				clear && titre
 				echo "REVOQUER DES CLIENTS VPN"
 				echo ""
 				echo "$VALID client(s) vpn actif(s) sur le serveur"
@@ -112,8 +108,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			;;
 
 			3)
-			clear
-			titre
+			clear && titre
 			create_rep_clients
 			tree -vd /tmp/clients
 			echo ""
@@ -129,21 +124,18 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 
 			4)
 			while [[ "$REP" != "Q" ]]; do
-			clear
-			titre
+			clear && titre
 				read -p "REINITIALISER CERTIFICATS SERVEUR VPN
 
 Taper Q pour quitter
 Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 				if [[ "$REP" = "Y" ]]; then
-					clear
-					titre
+					clear && titre
 					echo "EXEMPLE INFORMATIONS A SAISIR :"
 					show_infos_vpn
 					echo ""
 					set_infos_vpn
-					clear
-					titre
+					clear && titre
 					echo "INSTALLATION SERVEUR VPN"
 					echo "$OS_DESC"
 					echo ""
@@ -151,8 +143,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					if [[ "$PORT_VPN" = "443" ]]; then stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; else stop_seedbox && sed -i "s/127.0.0.1:9090/443/" "$NGINX"; fi
 					stop_openvpn
 					vpn
-					clear
-					titre
+					clear && titre
 					echo "Création des certificats VPN"
 					echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
 					create_cert_serveur
@@ -161,8 +152,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					conf_client
 					create_rep_clients
 					nat
-					clear
-					titre
+					clear && titre
 					echo "INSTALLATION VPN TERMINEE"
 					recap_install_vpn
 					echo ""
@@ -175,8 +165,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 
 			5)
 			while [[ "$REP" != "Q" ]]; do
-				clear
-				titre
+				clear && titre
 				echo "SUPPRIMER INSTALLATION VPN"
 				echo ""
 				echo "Taper Q pour quitter"
@@ -191,8 +180,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					apt-get purge -y openvpn
 					apt-get autoremove -y
 					apt-get update -y
-					clear
-					titre
+					clear && titre
 					read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r
 					shutdown -r now
 					exit 0
@@ -201,8 +189,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 			;;
 
 			6)
-			clear
-			titre
+			clear && titre
 			echo "Les clients connectés au vpn"
 			echo ""
 			cat $STATUS
@@ -232,14 +219,12 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 		esac
 	done
 else
-	clear
-	titre
+	clear && titre
 	echo "EXEMPLE INFORMATIONS A SAISIR :"
 	show_infos_vpn
 	echo ""
 	set_infos_vpn
-	clear
-	titre
+	clear && titre
 	echo "INSTALLATION SERVEUR VPN"
 	echo "$OS_DESC"
 	echo ""
@@ -247,8 +232,7 @@ else
 	stop_openvpn
 	backup_vpn
 	vpn
-	clear
-	titre
+	clear && titre
 	echo "Création des certificats VPN"
 	echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
 	create_cert_serveur
@@ -257,8 +241,7 @@ else
 	conf_client
 	create_rep_clients
 	nat
-	clear
-	titre
+	clear && titre
 	echo "INSTALLATION VPN TERMINEE"
 	echo ""
 	echo "Installation terminée sauvegardez vos informations"
