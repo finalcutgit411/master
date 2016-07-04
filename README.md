@@ -12,7 +12,7 @@ apt-get update -y && apt-get upgrade -y
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/finalcut.sh --no-check-certificate
 chmod 700 finalcut.sh
 rm /usr/local/bin/finalcut.sh
-mv finalcut.sh /usr/local/bin/finalcut.sh
+mv finalcut.sh /usr/local/bin/
 finalcut.sh
 ```
 
