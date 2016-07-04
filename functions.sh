@@ -572,7 +572,6 @@ account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/log
 }
 
 function recap_install_vpn(){
-	status_openvpn
 	echo ""
 	echo "Ouverture automatique d'un port pour chaque client VPN"
 	echo ""
