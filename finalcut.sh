@@ -11,7 +11,7 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-INCLUDES="/usr/local/bin/includes"
+INCLUDES="../includes"
 source "$INCLUDES"/variables.sh
 source "$INCLUDES"/functions.sh
 
