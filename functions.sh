@@ -112,6 +112,7 @@ function set_infos_seedbox(){
 }
 
 function set_password(){
+	stop_seedbox
 	REP="0"
 	clear && titre
 	while [[ "$REP" != "Y" ]]; do
@@ -126,6 +127,12 @@ function set_password(){
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 	done
+	printf "%s" "$NOM_USER:$(openssl passwd -apr1 "$MDP_USER")" > "$HTPASSWD"
+	vsftpd
+	echo ""
+	start_seedbox
+	echo ""
+	status_seedbox
 }
 
 function quitter(){
