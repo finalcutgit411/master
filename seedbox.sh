@@ -55,6 +55,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			set_password
 			echo "Modification terminée sauvegardez vos informations"
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
+			;;
 			2)
 			while [[ "$REP" != "Q" ]]; do
 				clear && titre
