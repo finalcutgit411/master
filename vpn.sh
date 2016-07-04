@@ -65,7 +65,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					nat
 					clear && titre
 					echo "LISTE CLIENTS VPN ACTIFS :"
-					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
+					grep 'V' "$INDEX" | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 					echo ""	
 					echo "Infos : "
 					echo "Vous devez redémarrer le serveur pour activer les règles NAT des clients VPN"
@@ -79,14 +79,14 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			2)
 			while [[ "$REP" != "Q" ]]; do
 				VALID=$(grep 'V' "$INDEX" | grep -c 'client')
-				VERIF=$(grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F 'client' '{print $2}')
+				VERIF=$(grep 'V' "$INDEX" | grep -o 'client[0-9]*' | awk -F 'client' '{print $2}')
 				clear && titre
 				echo "REVOQUER DES CLIENTS VPN"
 				echo ""
 				echo "$VALID clients VPN actifs sur le serveur"
 				echo ""
 				echo "Liste clients VPN actifs :"
-				grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
+				grep 'V' "$INDEX" | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 				echo ""
 				echo "Taper Q pour quitter"
 				read -p "Taper le numéro du client à révoquer : " -r REP
@@ -196,7 +196,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 			clear && titre
 			echo "CLIENTS ACTUELLEMENT CONNECTES"
 			echo ""
-			cat $STATUS
+			cat "$STATUS"
 			echo ""
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
 			;;
