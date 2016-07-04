@@ -191,7 +191,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 
 			6)
 			clear && titre
-			echo "Les clients connectés au vpn"
+			echo "CLIENTS ACTUELLEMENT CONNECTES"
 			echo ""
 			cat $STATUS
 			echo ""
