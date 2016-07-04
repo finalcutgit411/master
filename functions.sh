@@ -111,6 +111,23 @@ function set_infos_seedbox(){
 	done
 }
 
+function set_password(){
+	REP="0"
+	clear && titre
+	while [[ "$REP" != "Y" ]]; do
+		echo "MODIFICATION PASSWORD UTILISATEUR SEEDBOX"
+		echo ""
+		echo "Personnalisation"
+		read -p "Utilisateur: " -e -i "$NOM_USER" -r NOM_USER
+		read -p "Mot de passe: " -e -i "$MDP_USER" -r MDP_USER
+		echo ""
+		echo "Vérification"
+		echo "Utilisateur: $NOM_USER = $MDP_USER"
+		echo ""
+		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
+	done
+}
+
 function quitter(){
         clear && titre
         echo "$MESSAGE"
