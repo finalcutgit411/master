@@ -1,7 +1,6 @@
 #!/bin/bash
 
 function prerequis_vpn(){
-	titre
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
                 quitter
@@ -24,7 +23,6 @@ fi
 }
 
 function prerequis_seedbox(){
-	titre
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
                 quitter
