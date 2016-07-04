@@ -1,4 +1,5 @@
 #!/bin/bash
+
 _prerequis_vpn(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
