@@ -54,6 +54,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
 			set_password
+			echo ""
 			echo "Modification terminée sauvegardez vos informations"
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
 			;;
