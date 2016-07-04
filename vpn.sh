@@ -15,11 +15,11 @@ source functions.sh
 prerequis_vpn
 OS_DESC=$(lsb_release -ds)
 clear
-titre
 if [[ -e "$OPENVPN" ]]; then
 	OPTIONS="0"
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
+		titre
 		REP="0" && ADD_VPN="5"
 		read -p "LE VPN EST INSTALLE SUR CE SERVEUR :
 
