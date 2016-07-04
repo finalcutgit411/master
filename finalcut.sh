@@ -20,13 +20,10 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 while [[ "$OPTIONS" != "Q" ]]; do
-	clear
-	titre
-	echo "
-1 ) Installation et gestion de votre VPN
-2 ) Installation et gestion de votre Seedbox
-
-3 ) Redémarrer le serveur
+	clear && titre
+	if [[ -e "$OPENVPN" ]]; then echo "1 ) Gestion de votre VPN"; else echo "1 ) Installation de votre VPN"; fi
+	if [[ -e "$TRANSMISSION" ]]; then echo "2 ) Gestion de votre Seedbox"; else echo "2 ) Installation de votre Seedbox"; fi
+	echo "3 ) Redémarrer le serveur"
 
 Q ) Taper Q pour quitter"
 
