@@ -20,8 +20,7 @@ if [[ -e "$OPENVPN" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear && titre
 		REP="0" && ADD_VPN="5"
-		read -p "LE VPN EST INSTALLE SUR CE SERVEUR :
-
+		read -p "
 1 ) Ajouter des clients
 2 ) Revoquer des clients
 3 ) Renvoyer les clients dans le dossier /tmp/clients
