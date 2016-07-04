@@ -1,4 +1,5 @@
 #!/bin/bash
+# variables
 
 # Scripts
 SCRIPT_VPN="/usr/local/bin/vpn.sh"
