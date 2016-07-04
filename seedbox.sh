@@ -37,8 +37,7 @@ if [[ -e "$TRANSMISSION" ]]; then
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear && titre
 		REP="0"
-		read -p "LA SEEDBOX EST INSTALLEE SUR CE SERVEUR :
-		
+		read -p "
 Accès seedbox et ftp: $MON_DOMAINE
 Les données upload et download du FTP sont toujours conservées
 
