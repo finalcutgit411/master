@@ -112,6 +112,9 @@ function set_infos_seedbox(){
 }
 
 function set_password(){
+	LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
+	FULLCHAIN="$LIVE/fullchain.pem"
+	PRIVKEY="$LIVE/privkey.pem"
 	stop_seedbox
 	REP="0"
 	clear && titre
