@@ -11,9 +11,9 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-INCLUDES="includes"
-. "$INCLUDES"/variables.sh
-. "$INCLUDES"/functions.sh
+INCLUDES="/usr/local/bin/includes"
+source "$INCLUDES"/variables.sh
+source "$INCLUDES"/functions.sh
 
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Seul l'utilisateur root peut executer ce script"
