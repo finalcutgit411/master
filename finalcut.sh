@@ -11,7 +11,7 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-INCLUDES="../includes"
+INCLUDES="/usr/local/bin/includes"
 source "$INCLUDES"/variables.sh
 source "$INCLUDES"/functions.sh
 
@@ -20,7 +20,7 @@ if [[ "$EUID" -ne 0 ]]; then
 	read -p "Appuyez sur [Enter] pour quitter " -r
 	exit
 else
-	mkdir -p /usr/local/bin/includes
+	mkdir -p /usr/local/bin/"$INCLUDES"
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
 	chmod 700 vpn.sh
 	mv -f vpn.sh /usr/local/bin/
@@ -32,10 +32,6 @@ else
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/functions.sh --no-check-certificate
 	chmod 700 functions.sh
 	mv -f functions.sh /usr/local/bin/includes/
-
-	wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/variables.sh --no-check-certificate
-	chmod 700 variables.sh
-	mv -f variables.sh /usr/local/bin/includes/
 fi
 
 while [[ "$OPTIONS" != "Q" ]]; do
