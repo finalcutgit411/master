@@ -244,7 +244,6 @@ else
 	echo "INSTALLATION VPN TERMINEE"
 	recap_install_vpn
 	echo ""
-	echo "Installation terminée sauvegardez vos informations"
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
 	shutdown -r now
 	exit 0
