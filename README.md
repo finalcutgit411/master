@@ -9,18 +9,14 @@ apt-get update -y && apt-get upgrade -y
 ```
 
 ```
-apt-get install git-core -y
-cd /tmp
-git clone https://github.com/finalcutgit411/master
-cd master
-chmod a+x finalcut.sh && ./finalcut.sh
+wget https://raw.githubusercontent.com/finalcutgit411/master/master/finalcut.sh --no-check-certificate
+chmod 700 finalcut.sh
+rm /usr/local/bin/finalcut.sh
+mv finalcut.sh /usr/local/bin/finalcut.sh
+finalcut.sh
 ```
 
-#### Installation VPN
-<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/vpn.sh --no-check-certificate && chmod +x vpn.sh && rm -f /usr/local/bin/vpn.sh && mv vpn.sh /usr/local/bin/vpn.sh && vpn.sh</code>
 
-#### Installation Seedbox
-<code>wget https://raw.githubusercontent.com/finalcutgit411/master/master/seedbox.sh --no-check-certificate && chmod +x seedbox.sh && rm -f /usr/local/bin/seedbox.sh && mv seedbox.sh /usr/local/bin/seedbox.sh && seedbox.sh</code>
 
 
 
