@@ -424,6 +424,8 @@ location / {
 auth_basic 'Restricted Content';
 auth_basic_user_file $HTPASSWD;
 proxy_pass http://127.0.0.1:9091/;
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
 }
 }" > "$NGINX"
 	if [[ "$PORT_VPN" = "443" ]]; then 
