@@ -41,17 +41,21 @@ if [[ -e "$TRANSMISSION" ]]; then
 Accès seedbox et ftp: $MON_DOMAINE
 Les données upload et download du FTP sont toujours conservées
 
-1 ) Réinitialiser la configuration de la seedbox (renouveler certificat let's encrypt)
-2 ) Supprimer installation
+1 ) Modifier nom et password de l'utilisateur Seedbox
+2 ) Réinitialiser la configuration de la Seedbox (renouveler certificat let's encrypt)
+3 ) Supprimer installation
 
-3 ) Redémarrer les services seedbox
-4 ) Redémarrer le serveur
+4 ) Redémarrer les services seedbox
 
 Q ) Taper Q pour quitter
 
 Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
+			set_password
+			echo "Modification terminée sauvegardez vos informations"
+			read -p "Appuyez sur [Enter] pour revenir au menu précedent  ... " -r
+			2)
 			while [[ "$REP" != "Q" ]]; do
 				clear && titre
 				echo "REINITIALISER CONFIGURATION SEEDBOX"
@@ -86,7 +90,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				fi
 			done
 			;;
-			2)
+			3)
 			while [[ "$REP" != "Q" ]]; do
 				clear && titre
 				echo "SUPPRIMER INSTALLATION SEEDBOX"
@@ -117,7 +121,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				fi
 			done
 			;;
-			3)
+			4)
 			echo ""
 			stop_seedbox
 			echo ""
@@ -127,7 +131,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			echo ""
 			read -p "Appuyez sur [Enter] " -r
 			;;
-			4)
+			5)
 			shutdown -r now
 			echo ""
 			echo "A bientôt"
