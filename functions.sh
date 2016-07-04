@@ -66,7 +66,7 @@ function set_infos_vpn(){
 		read -p "IP serveur : " -e -i "$IP" -r IP
 		clear && titre
 		echo "VERIFICATION :"
-		show_infos
+		show_infos_vpn
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 		clear && titre
