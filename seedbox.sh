@@ -29,15 +29,13 @@ source functions.sh
 ####################################################
 # début du script
 ####################################################
-titre
 prerequis_seedbox
 OS_DESC=$(lsb_release -ds)
-clear
+clear && titre
 if [[ -e "$TRANSMISSION" ]]; then
 	OPTIONS="0"
 	while [[ "$OPTIONS" != "Q" ]]; do
-		clear
-		titre
+		clear && titre
 		REP="0"
 		read -p "LA SEEDBOX EST INSTALLEE SUR CE SERVEUR :
 		
@@ -56,7 +54,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 		case "$OPTIONS" in
 			1)
 			while [[ "$REP" != "Q" ]]; do
-				clear
+				clear && titre
 				echo "REINITIALISER CONFIGURATION SEEDBOX"
 				echo ""
 				echo "Taper Q pour quitter"
@@ -64,7 +62,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 				if [[ "$REP" = "Y" ]]; then
 					echo ""
 					stop_seedbox
-					clear
+					clear && titre
 					echo "REINITIALISER CONFIGURATION SEEDBOX"
 					echo "$OS_DESC"
 					echo ""
@@ -76,7 +74,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					vsftpd
 					fail2ban
 					start_seedbox
-					clear
+					clear && titre
 					status_seedbox
 					echo ""
 					recap_install_seedbox
@@ -89,7 +87,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 			;;
 			2)
 			while [[ "$REP" != "Q" ]]; do
-				clear
+				clear && titre
 				echo "SUPPRIMER INSTALLATION SEEDBOX"
 				echo ""
 				echo "Taper Q pour quitter"
@@ -109,7 +107,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					rm -rf /etc/vsftpd
 					apt-get autoremove -y
 					apt-get update -y
-					clear
+					clear && titre
 					read -p "Désinstallation seedbox terminée appuyez sur [Enter] pour quitter... " -r
 					echo ""
 					echo "A bientôt"
@@ -143,8 +141,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 		esac
 	done
 else
-	clear
-	titre
+	clear && titre
 	echo "INSTALLATION SERVEUR SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
@@ -154,18 +151,17 @@ else
 	stop_seedbox
 	backup_seedbox
 	seedbox
-	clear
+	clear && titre
 	echo "Requete pour obtenir un certificat SSL delivré par let's encrypt"
 	echo "patientez quelques minutes"
 	echo ""
 	letsencrypt
-	clear
+	clear && titre
 	nginx
 	vsftpd
 	fail2ban
 	start_seedbox
-	clear
-	titre
+	clear && titre
 	status_seedbox
 	echo ""
 	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
