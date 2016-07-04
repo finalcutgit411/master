@@ -26,6 +26,8 @@ while [[ "$OPTIONS" != "Q" ]]; do
 1 ) Installation et gestion de votre VPN
 2 ) Installation et gestion de votre Seedbox
 
+3 ) Redémarrer le serveur
+
 Q ) Taper Q pour quitter"
 
 		read -p "Que voulez vous faire ? [1-2]: " -r OPTIONS
@@ -33,6 +35,13 @@ Q ) Taper Q pour quitter"
 			1) $SCRIPT_VPN
 			;;
 			2) $SCRIPT_SEEDBOX
+			;;
+			3)
+			shutdown -r now
+			echo ""
+			echo "A bientôt"
+			echo ""
+			exit 0
 			;;
 			Q)
 			echo ""
