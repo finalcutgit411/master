@@ -116,6 +116,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 			echo "Infos :"
 			echo "Si vous etes sur Windows, utilisez winscp (voir video)"
 			echo "Si vous etes sur Linux ou Mac copier dans votre terminal la commande scp suivante :"
+			echo ""
 			echo "scp -P 22 -r root@$IP:/tmp/clients ./"
 			echo ""
 			read -p "Appuyez sur [Enter] pour revenir au menu précedent " -r 
