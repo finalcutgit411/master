@@ -67,6 +67,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					create_rep_clients
 					nat
 					clear
+					titre
 					echo "Liste client(s) VPN actif(s) :"
 					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 					echo ""	
