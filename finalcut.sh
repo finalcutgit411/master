@@ -47,4 +47,3 @@ while [[ "$OPTIONS" != "Q" ]]; do
 			exit 0
 		esac
 done
-
