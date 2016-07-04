@@ -24,23 +24,19 @@ else
 	mkdir -p /usr/local/bin/includes
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
 	chmod 700 vpn.sh
-	rm -f /usr/local/bin/vpn.sh
-	mv vpn.sh /usr/local/bin/
+	mv -f vpn.sh /usr/local/bin/
 
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/seedbox.sh --no-check-certificate
 	chmod 700 seedbox.sh
-	rm -f /usr/local/bin/seedbox.sh
-	mv seedbox.sh /usr/local/bin/
+	mv -f seedbox.sh /usr/local/bin/
 
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/functions.sh --no-check-certificate
 	chmod 700 functions.sh
-	rm -f /usr/local/bin/includes/functions.sh
-	mv functions.sh /usr/local/bin/includes/
+	mv -f functions.sh /usr/local/bin/includes/
 
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/variables.sh --no-check-certificate
 	chmod 700 variables.sh
-	rm -f /usr/local/bin/includes/variables.sh
-	mv variables.sh /usr/local/bin/includes/
+	mv -f variables.sh /usr/local/bin/includes/
 fi
 
 while [[ "$OPTIONS" != "Q" ]]; do
