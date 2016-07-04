@@ -23,6 +23,7 @@ while [[ "$OPTIONS" != "Q" ]]; do
 	clear && titre
 	if [[ -e "$OPENVPN" ]]; then echo "1 ) Gestion de votre VPN"; else echo "1 ) Installation de votre VPN"; fi
 	if [[ -e "$TRANSMISSION" ]]; then echo "2 ) Gestion de votre Seedbox"; else echo "2 ) Installation de votre Seedbox"; fi
+	echo ""
 	echo "3 ) Redémarrer le serveur"
 	echo ""
 	echo "Q ) Taper Q pour quitter"
