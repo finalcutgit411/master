@@ -64,7 +64,7 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 					create_rep_clients
 					nat
 					clear && titre
-					echo "Liste client(s) VPN actif(s) :"
+					echo "LISTE CLIENTS VPN ACTIFS :"
 					grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 					echo ""	
 					echo "Infos : "
@@ -83,8 +83,9 @@ Combien de client(s) voulez-vous ajouter ? " -r REP
 				clear && titre
 				echo "REVOQUER DES CLIENTS VPN"
 				echo ""
-				echo "$VALID client(s) vpn actif(s) sur le serveur"
-				echo "Liste client(s) VPN actif(s) :"
+				echo "$VALID clients VPN actifs sur le serveur"
+				echo ""
+				echo "Liste clients VPN actifs :"
 				grep 'V' $INDEX | grep -o 'client[0-9]*' | awk -F "client" '{print "client : " $2}'
 				echo ""
 				echo "Taper Q pour quitter"
