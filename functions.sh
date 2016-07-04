@@ -232,8 +232,6 @@ status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
 			fi
 	fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
-	start_openvpn
-	read -p "Appuyez sur [Enter] pour continuer " -r
 }
 
 function conf_client(){
