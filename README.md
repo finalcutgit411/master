@@ -6,13 +6,12 @@ Lundi 27 juin 11h00
 ###### A executer suite à une clean install de votre serveur
 ```
 apt-get update -y && apt-get upgrade -y
+apt-get install git-core -y
 ```
 
 ```
-wget https://raw.githubusercontent.com/finalcutgit411/master/master/finalcut.sh --no-check-certificate
-chmod 700 finalcut.sh
-mv -f finalcut.sh /usr/local/bin/
-finalcut.sh
+git clone https://github.com/finalcutgit411/master/ /tmp/finalcut/
+chmod 700 /tmp/finalcut/finalcut.sh && /tmp/finalcut/finalcut.sh
 ```
 
 
