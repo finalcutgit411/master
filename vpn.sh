@@ -146,6 +146,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					clear && titre
 					echo "Création des certificats VPN"
 					echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
+					echo ""
 					create_cert_serveur
 					create_cert_clients
 					conf_serveur
@@ -235,6 +236,7 @@ else
 	clear && titre
 	echo "Création des certificats VPN"
 	echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
+	echo ""
 	create_cert_serveur
 	create_cert_clients
 	conf_serveur
