@@ -30,7 +30,7 @@ while [[ "$OPTIONS" != "Q" ]]; do
 
 Q ) Taper Q pour quitter"
 
-		read -p "Que voulez vous faire ? [1-2]: " -r OPTIONS
+		read -p "Que voulez vous faire ? [1-3]: " -r OPTIONS
 		case "$OPTIONS" in
 			1) $SCRIPT_VPN
 			;;
