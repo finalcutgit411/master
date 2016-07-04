@@ -1,4 +1,7 @@
 #!/bin/bash
+include="/usr/local/bin/"
+$include variables.sh
+$include functions.sh
 # script auto install seedbox (transmission-daemon + nginx + vsftpd + fail2ban + let's encrypt)
 
 # prochaine maj :
@@ -10,8 +13,8 @@
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-source variables.sh
-source functions.sh
+#source variables.sh
+#source functions.sh
 
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Seul l'utilisateur root peut executer ce script"
