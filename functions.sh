@@ -41,7 +41,6 @@ fi
 }
 
 function show_infos_vpn(){
-	titre
 	echo "Pays: $CERT_PAYS
 Province: $CERT_PROV
 Ville: $CERT_VILLE
@@ -55,7 +54,6 @@ IP serveur: $IP"
 function set_infos_vpn(){
 	REP="0"
 	while [[ "$REP" != "Y" ]]; do
-		titre
 		echo "PERSONNALISATION (ou laisser par defaut) :"
 		read -p "Pays : " -e -i "$CERT_PAYS" -r CERT_PAYS
 		read -p "Province : " -e -i "$CERT_PROV" -r CERT_PROV
@@ -66,23 +64,20 @@ function set_infos_vpn(){
 		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
 		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
 		read -p "IP serveur : " -e -i "$IP" -r IP
-		clear
-		titre
+		clear && titre
 		echo "VERIFICATION :"
 		show_infos
 		echo ""
 		read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
-		clear
+		clear && titre
 	done
 }
 
 function set_infos_seedbox(){
 	REP="0"
-	titre
 	apt-get update -y && apt-get install -y dnsutils
-	clear
+	clear && titre
 	while [[ "$REP" != "Y" ]]; do
-		titre
 		echo "CREATION UTILISATEUR VIRTUEL SEEDBOX"
 		echo ""
 		echo "Personnalisation"
@@ -112,20 +107,18 @@ function set_infos_seedbox(){
 			else 
 				read -p "Etes-vous satisfait ? Press [Y/N] " -r REP
 			fi
-		clear
+		clear && titre
 	done
 }
 
 function quitter(){
-        clear
-        titre
+        clear && titre
         echo "$MESSAGE"
         read -p "Le script ne peut pas continuer, [Enter] pour quitter ..." -r
         exit
 }
 
 function installation_vpn(){
-	titre
 	apt-get update -y
 	apt-get install -y openvpn openssl iptables tree nano dnsutils
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
@@ -134,7 +127,6 @@ function installation_vpn(){
 }
 
 function installation_seedbox(){
-	titre
 	apt-get update -y
 	echo "Europe/Paris" > /etc/timezone && dpkg-reconfigure -f noninteractive tzdata
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git
@@ -342,7 +334,6 @@ function seedbox(){
 }
 
 function letsencrypt(){
-	titre
 	LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
 	FULLCHAIN="$LIVE/fullchain.pem"
 	PRIVKEY="$LIVE/privkey.pem"
@@ -552,7 +543,6 @@ account required /lib/x86_64-linux-gnu/security/pam_userdb.so db=/etc/vsftpd/log
 }
 
 function recap_install_vpn(){
-	titre
 	status_openvpn
 	echo ""
 	echo "Ouverture automatique d'un port pour chaque client VPN"
@@ -576,7 +566,6 @@ function recap_install_vpn(){
 }
 
 function recap_install_seedbox(){
-	titre
 	echo "Accès Seedbox et FTP : $MON_DOMAINE"
 	echo ""
 	echo "utilisateur: $NOM_USER"
