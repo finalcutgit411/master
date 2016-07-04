@@ -10,6 +10,8 @@ apt-get update -y && apt-get upgrade -y
 
 ```
 wget -P /usr/local/bin/ -N https://raw.githubusercontent.com/finalcutgit411/master/master/{vpn.sh,seedbox.sh,finalcut.sh,functions.sh,variables.sh}
+chmod a+x /usr/local/bin/finalcut.sh 
+finalcut.sh
 ```
 
 
