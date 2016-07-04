@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2034
 
 # Scripts
 SCRIPT_VPN="/usr/local/bin/vpn.sh"
