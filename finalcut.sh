@@ -20,7 +20,6 @@ if [[ "$EUID" -ne 0 ]]; then
 	read -p "Appuyez sur [Enter] pour quitter " -r
 	exit
 else
-	cd ~/ || exit
 	mkdir -p /usr/local/bin/includes
 	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
 	chmod 700 vpn.sh
