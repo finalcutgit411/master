@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Scripts
-SCRIPT_VPN="/usr/local/bin/vpn.sh"
-SCRIPT_SEEDBOX="/usr/local/bin/seedbox.sh"
+SCRIPT_VPN="/usr/local/bin/scripts/vpn.sh"
+SCRIPT_SEEDBOX="/usr/local/bin/scripts/seedbox.sh"
 
 # Seedbox
 PARTITION=$(df -l | awk '{print $2 " " $6}' | sort -nr | awk 'NR==1{print $2}' | sed -e '/\/$/ s/.*//')
