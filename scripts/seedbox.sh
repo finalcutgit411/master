@@ -29,6 +29,7 @@ source "$INCLUDES"/functions.sh
 ####################################################
 # début du script
 ####################################################
+titre
 prerequis_seedbox
 OS_DESC=$(lsb_release -ds)
 clear
@@ -36,6 +37,7 @@ if [[ -e "$TRANSMISSION" ]]; then
 	OPTIONS="0"
 	while [[ "$OPTIONS" != "Q" ]]; do
 		clear
+		titre
 		REP="0"
 		read -p "LA SEEDBOX EST INSTALLEE SUR CE SERVEUR :
 		
@@ -142,7 +144,7 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 	done
 else
 	clear
-	clear
+	titre
 	echo "INSTALLATION SERVEUR SEEDBOX"
 	echo "$OS_DESC"
 	echo ""
@@ -163,27 +165,7 @@ else
 	fail2ban
 	start_seedbox
 	clear
-	status_seedbox
-	echo ""
-	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
-	echo ""
-	recap_install_seedbox
-	echo ""
-	read -p "Appuyez sur [Enter] pour continuer ... " -r
-	if [[ ! -e "$OPENVPN" ]]; then
-		while [[ "$REP" != "N" ]]; do
-			clear
-			read -p "Voulez vous installer votre VPN ? [Y/N] " -r REP
-			if [[ "$REP" = "Y" ]]; then 
-				$SCRIPT_VPN
-				echo ""
-				echo "A bientôt"
-				echo ""
-				exit 0
-			fi
-		done
-	fi
-	clear
+	titre
 	status_seedbox
 	echo ""
 	echo "RECAPITULATIF INSTALLATION SEEDBOX :"
