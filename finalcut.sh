@@ -16,12 +16,15 @@ mkdir -p /usr/local/bin/"$INCLUDES"
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/seedbox.sh --no-check-certificate
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/functions.sh --no-check-certificate
+wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/variables.sh.sh --no-check-certificate
 chmod 700 vpn.sh
 chmod 700 seedbox.sh
 chmod 700 functions.sh
+chmod 700 variables.sh
 mv -f vpn.sh /usr/local/bin/
 mv -f seedbox.sh /usr/local/bin/
 mv -f functions.sh /usr/local/bin/includes/
+mv -f variables.sh /usr/local/bin/includes/
 
 source "$INCLUDES"/variables.sh
 source "$INCLUDES"/functions.sh
