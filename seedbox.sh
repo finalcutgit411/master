@@ -46,6 +46,7 @@ Les données upload et download du FTP sont toujours conservées
 3 ) Supprimer installation
 
 4 ) Redémarrer les services seedbox
+5 ) Redémarrer le serveur
 
 Q ) Taper Q pour quitter
 
