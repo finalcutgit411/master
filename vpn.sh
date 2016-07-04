@@ -14,7 +14,7 @@ $include functions.sh
 #source variables.sh
 #source functions.sh
 
-prerequis_vpn
+_prerequis_vpn
 OS_DESC=$(lsb_release -ds)
 clear && titre
 if [[ -e "$OPENVPN" ]]; then
