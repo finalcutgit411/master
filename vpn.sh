@@ -1,9 +1,7 @@
 #!/bin/bash
-# shellcheck source=/dev/null
+
 # script auto install VPN
-include="/usr/local/bin/"
-$include variables.sh
-$include functions.sh
+
 # prochaine maj :
 # - porter compatibilté chroot vpn + pid
 # - si netfilter actif ajouter règles iptables 
@@ -11,8 +9,8 @@ $include functions.sh
 # compatible :
 # - debian 7 wheezy / debian 8 jessie
 
-#source variables.sh
-#source functions.sh
+source variables.sh
+source functions.sh
 
 _prerequis_vpn
 OS_DESC=$(lsb_release -ds)
