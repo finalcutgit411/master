@@ -583,7 +583,7 @@ function stop_openvpn(){
 function start_openvpn(){
         if [[ "$OS" = "wheezy" ]]; then service openvpn start &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Starting"; else echo "${WARN}[ FAIL ]${NC} openvpn is not Starting"; fi
-        else systemctl start openvpn.service &>/dev/null;
+        else systemctl start openvpn@vpn.service &>/dev/null;
                 if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn Starting"; else echo "${WARN}[ FAIL ]${NC} openvpn is not Starting"; fi
         fi
 }
@@ -591,7 +591,7 @@ function start_openvpn(){
 function status_openvpn(){
 	if [[ "$OS" = "wheezy" ]]; then service openvpn status &>/dev/null;
 		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn:$PORT_VPN is running"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
-	else systemctl status openvpn.service &>/dev/null;
+	else systemctl status openvpn@vpn.service &>/dev/null;
 		if [[ ${?} -eq 0 ]]; then echo "[ ok ] openvpn:$PORT_VPN is running $PORT_VPN"; else echo "${WARN}[ FAIL ]${NC} openvpn is not running"; fi
 	fi
 }
