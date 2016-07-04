@@ -12,6 +12,8 @@
 # - debian 7 wheezy / debian 8 jessie
 
 INCLUDES="/usr/local/bin/includes"
+source "$INCLUDES"/variables.sh
+source "$INCLUDES"/functions.sh
 mkdir -p /usr/local/bin/"$INCLUDES"
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
 wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/seedbox.sh --no-check-certificate
@@ -25,9 +27,6 @@ mv -f vpn.sh /usr/local/bin/
 mv -f seedbox.sh /usr/local/bin/
 mv -f functions.sh /usr/local/bin/includes/
 mv -f variables.sh /usr/local/bin/includes/
-
-source "$INCLUDES"/variables.sh
-source "$INCLUDES"/functions.sh
 
 if [[ "$EUID" -ne 0 ]]; then
 	echo "Seul l'utilisateur root peut executer ce script"
