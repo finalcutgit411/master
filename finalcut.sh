@@ -12,6 +12,17 @@
 # - debian 7 wheezy / debian 8 jessie
 
 INCLUDES="/usr/local/bin/includes"
+mkdir -p /usr/local/bin/"$INCLUDES"
+wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
+wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/seedbox.sh --no-check-certificate
+wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/functions.sh --no-check-certificate
+chmod 700 vpn.sh
+chmod 700 seedbox.sh
+chmod 700 functions.sh
+mv -f vpn.sh /usr/local/bin/
+mv -f seedbox.sh /usr/local/bin/
+mv -f functions.sh /usr/local/bin/includes/
+
 source "$INCLUDES"/variables.sh
 source "$INCLUDES"/functions.sh
 
@@ -19,21 +30,7 @@ if [[ "$EUID" -ne 0 ]]; then
 	echo "Seul l'utilisateur root peut executer ce script"
 	read -p "Appuyez sur [Enter] pour quitter " -r
 	exit
-else
-	mkdir -p /usr/local/bin/"$INCLUDES"
-	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/vpn.sh --no-check-certificate
-	chmod 700 vpn.sh
-	mv -f vpn.sh /usr/local/bin/
-
-	wget https://raw.githubusercontent.com/finalcutgit411/master/master/scripts/seedbox.sh --no-check-certificate
-	chmod 700 seedbox.sh
-	mv -f seedbox.sh /usr/local/bin/
-
-	wget https://raw.githubusercontent.com/finalcutgit411/master/master/includes/functions.sh --no-check-certificate
-	chmod 700 functions.sh
-	mv -f functions.sh /usr/local/bin/includes/
 fi
-
 while [[ "$OPTIONS" != "Q" ]]; do
 	clear
 	titre
