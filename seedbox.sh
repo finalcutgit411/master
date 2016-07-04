@@ -68,10 +68,12 @@ Que voulez vous faire ? [1-6]: " -r OPTIONS
 					set_infos_seedbox
 					installation_seedbox
 					seedbox
+					clear && titre
 					letsencrypt
 					nginx
 					vsftpd
 					fail2ban
+					clear && titre
 					start_seedbox
 					clear && titre
 					status_seedbox
