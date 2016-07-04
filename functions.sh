@@ -1,6 +1,6 @@
 #!/bin/bash
-
-function prerequis_vpn(){
+# shellcheck source=/dev/null
+_prerequis_vpn(){
         if [[ "$EUID" -ne 0 ]]; then
                 MESSAGE="Seul l'utilisateur root peut executer ce script"
                 quitter
@@ -184,7 +184,8 @@ function backup_seedbox(){
 
 function vpn(){
 	sed -i '/^$\|#\|COUNTRY\|SIZE\|PROVINCE\|CITY\|ORG\|EMAI\|OU\|NAME\|EASY_RSA=/d' "$VARS"
-	sed -i '1iexport EASY_RSA="'$REP_RSA'"' "$VARS"
+	#sed -i '1iexport EASY_RSA="'$REP_RSA'"' "$VARS"
+	sed -i "1iexport EASY_RSA='$REP_RSA'" "$VARS"
 	echo "export KEY_SIZE=2048
 export KEY_COUNTRY=$CERT_PAYS 
 export KEY_PROVINCE=$CERT_PROV 
@@ -356,7 +357,7 @@ function seedbox(){
 \"utp-enabled\":false,
 \"watch-dir-enabled\":true,
 \"watch-dir\":\"$REP_SEEDBOX/torrents\"
-}" >> $TRANSMISSION
+}" >> "$TRANSMISSION"
 }
 
 function letsencrypt(){
