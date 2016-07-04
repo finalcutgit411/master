@@ -16,6 +16,7 @@ source "$INCLUDES"/functions.sh
 prerequis_vpn
 OS_DESC=$(lsb_release -ds)
 clear
+titre
 if [[ -e "$OPENVPN" ]]; then
 	OPTIONS="0"
 	while [[ "$OPTIONS" != "Q" ]]; do
@@ -152,6 +153,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 					create_rep_clients
 					nat
 					clear
+					titre
 					echo "INSTALLATION VPN TERMINEE"
 					recap_install_vpn
 					echo ""
@@ -218,6 +220,7 @@ Voulez vous vraiment réinitialiser les certificats du serveur ? [Y/Q] " -r REP
 	done
 else
 	clear
+	titre
 	echo "EXEMPLE INFORMATIONS A SAISIR :"
 	show_infos_vpn
 	echo ""
@@ -240,26 +243,8 @@ else
 	create_rep_clients
 	nat
 	clear
+	titre
 	echo "INSTALLATION VPN TERMINEE"
-	recap_install_vpn
-	echo ""
-	read -p "Appuyez sur [Enter] pour continuer ... " -r 
-	if [[ ! -e "$TRANSMISSION" ]]; then
-		while [[ "$REP" != "N" ]]; do
-			clear
-			read -p "Voulez vous installer votre seedbox ? [Y/N] " -r REP
-			if [[ "$REP" = "Y" ]]; then
-				$SCRIPT_SEEDBOX
-				echo ""
-				echo "A bientôt"
-				echo ""
-				exit 0
-			fi
-		done
-	fi
-	clear
-	echo "INSTALLATION VPN TERMINEE"
-	recap_install_vpn
 	echo ""
 	echo "Installation terminée sauvegardez vos informations"
 	read -p "Appuyez sur [Enter] pour redemarrer le serveur... " -r 
