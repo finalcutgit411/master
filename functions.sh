@@ -160,6 +160,7 @@ function installation_seedbox(){
 	apt-get install -y transmission-daemon nginx vsftpd fail2ban iptables db-util tree nano git
 	clear && titre
 	echo "Info : Sur un serveur dédié cette étape peut-etre très longue"
+	echo ""
 	if [[ ! -e "$DHPARAMS" ]]; then openssl dhparam 2048 > "$DHPARAMS";
 	elif [[ -e "$DHPARAMS" ]]; then openssl dhparam -in "$DHPARAMS" &>/dev/null;
 		if [[ ${?} -ne 0 ]]; then openssl dhparam 2048 > "$DHPARAMS"; fi
