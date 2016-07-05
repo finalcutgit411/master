@@ -63,6 +63,7 @@ function set_infos_vpn(){
 		read -p "Port VPN : " -e -i "$PORT_VPN" -r PORT_VPN
 			if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
 		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
+			if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; fi
 		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
 		read -p "IP serveur : " -e -i "$IP" -r IP
 		clear && titre
