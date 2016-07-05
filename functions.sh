@@ -61,7 +61,7 @@ function set_infos_vpn(){
 		read -p "Ville : " -e -i "$CERT_VILLE" -r CERT_VILLE
 		read -p "Description : " -e -i "$CERT_DESC" -r CERT_DESC
 		read -p "Port VPN : " -e -i "$PORT_VPN" -r PORT_VPN
-			if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
+			if [[ "$PORT_VPN" = "443" ]] || [[ "$PORT_VPN" = "4432" ]]; then PROTO_VPN="tcp" && PORT_VPN="443"; else PROTO_VPN="udp"; fi
 		read -p "Protocol VPN (udp/tcp) : " -e -i "$PROTO_VPN" -r PROTO_VPN
 			if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; fi
 		read -p "Nombre de client VPN : " -e -i "$ADD_VPN" -r ADD_VPN
@@ -145,15 +145,6 @@ function quitter(){
         echo "$MESSAGE"
         read -p "Le script ne peut pas continuer, [Enter] pour quitter ..." -r
         exit
-}
-
-function installation_sslh(){
-	DEBIAN_FRONTEND='noninteractive' command apt-get install sslh -y
-	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
-	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
-	sed -i 's/port .*$/port 4432/' /etc/openvpn/vpn.conf
-	sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default
-	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
 }
 
 function installation_vpn(){
@@ -264,16 +255,18 @@ persist-tun
 verb 3
 log-append $LOG
 status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
-	if [[ "$PORT_VPN" = "443" ]]; then
-		# force protocole TCP pour https
-		sed -i 's/443/4432/' "$OPENVPN"
-		sed -i 's/udp/tcp/' "$OPENVPN"
-			if [[ -e "$NGINX" ]]; then
-				sed -i "s/443/4433/" "$NGINX" && reload_nginx
-			fi
-	fi
+	if [[ "$PORT_VPN" = "443" ]]; then _sslh_vpn; fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
 	systemctl enable openvpn@vpn.service
+}
+
+_sslh_vpn(){
+	DEBIAN_FRONTEND='noninteractive' command apt-get install -y sslh 
+	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
+	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
+	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
+	sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' /etc/openvpn/vpn.conf
+	if [[ -e "$NGINX" ]]; then sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default; fi
 }
 
 function conf_client(){
@@ -292,8 +285,6 @@ tls-auth ta.key 1
 cipher AES-128-CBC
 comp-lzo
 verb 3" > "$REP_OPENVPN"/client_model
-	# force protocole TCP pour https 
-	if [[ "$PORT_VPN" = "443" ]]; then sed -i "s/udp/tcp/" "$REP_OPENVPN"/client_model; fi
 }
 
 function create_rep_clients(){
@@ -378,7 +369,7 @@ function letsencrypt(){
 	LIVE="/etc/letsencrypt/live/$MON_DOMAINE"
 	FULLCHAIN="$LIVE/fullchain.pem"
 	PRIVKEY="$LIVE/privkey.pem"
-	if [[ "$PORT_VPN" = "443" ]]; then stop_openvpn; fi
+	if [[ "$PORT_VPN" = "443" ]]; then systemctl stop sslh.service; fi
 	echo ""
 	rm -rf "$LETS_ENCRYTP" && git clone https://github.com/letsencrypt/letsencrypt "$LETS_ENCRYTP"
 	if [[ "$MON_DOMAINE" = "$(hostname --fqdn)" ]]; then 
@@ -403,7 +394,7 @@ function letsencrypt(){
 		echo "Vous possedez un authentique certificat SSL; il est installé et utilisé sur ce serveur "
 		read -p "Appuyez sur [Enter] pour continuer " -r
 	fi
-	if [[ "$PORT_VPN" = "443" ]]; then start_openvpn; fi
+	if [[ "$PORT_VPN" = "443" ]]; then systemctl stop sslh.service; fi
 }
 
 function nginx(){
@@ -443,15 +434,19 @@ server {
 		proxy_pass http://127.0.0.1:9091/;
 	}
 }' > "$NGINX"
-	if [[ "$PORT_VPN" = "443" ]]; then 
-		sed -i "s/443/4433/" "$NGINX"
-		stop_openvpn
-		sed -i "s/443/4432/" "$OPENVPN"
-		start_openvpn
-	fi
+	if [[ "$PORT_VPN" = "443" ]]; then _sslh_nginx; fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
 	# on bascule sur le certificat auto signé (voir vidéo pour explications)
 	if [[ ! -e "$INFO" ]]; then sed -i 's/#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/#/d' "$NGINX"; fi
+}
+
+_sslh_nginx(){
+	DEBIAN_FRONTEND='noninteractive' command apt-get install -y sslh 
+	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
+	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
+	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
+	if [[ -e "$OPENVPN" ]]; then sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' /etc/openvpn/vpn.conf
+	sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default
 }
 
 function fail2ban(){
