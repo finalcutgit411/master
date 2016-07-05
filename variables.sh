@@ -45,7 +45,7 @@ CERT_MAIL="admin@$(hostname --fqdn)"
 ADD_VPN="5"
 PORT_VPN="1194"
 if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
-if [[ "$PORT_VPN" = "443" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
+if [[ "$PORT_VPN" = "443" ]] || [[ "$PORT_VPN" = "4432" ]]; then PROTO_VPN="tcp"; else PROTO_VPN="udp"; fi
 
 # Transimsion
 TRANSMISSION="/etc/transmission-daemon/settings.json"
