@@ -402,7 +402,7 @@ add_header X-XSS-Protection '"1; mode=block"';
 
 server {
 	listen 80;
-	server_name $MON_DOMAINE;
+	server_name '"$MON_DOMAINE"';
 	return 301 https://$host$request_uri;
 }
 
