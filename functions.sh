@@ -257,8 +257,8 @@ status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
 		# force protocole TCP pour https
 		sed -i 's/udp/tcp/' "$OPENVPN"
 			if [[ -e "$NGINX" ]]; then
-				sed -i "s/443/9090/" "$NGINX" && reload_nginx
-				sed -i '/port-share/d' "$OPENVPN" && echo "port-share $IP 9090" >> "$OPENVPN"	
+				sed -i "s/443/127.0.0.1:9090/" "$NGINX" && reload_nginx
+				sed -i '/port-share/d' "$OPENVPN" && echo "port-share 127.0.0.1 9090" >> "$OPENVPN"	
 			fi
 	fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
