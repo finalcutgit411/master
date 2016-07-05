@@ -483,7 +483,6 @@ action   = iptables-allports[name=recidive]
 bantime  = 604800
 findtime = 86400
 maxretry = 3" > "$JAIL_LOCAL"
-	if [[ "$PORT_VPN" = "443" ]]; then sed -i 's/https/https,9090/' "$JAIL_LOCAL"; fi
 	if [[ ! -e "$REGEX_RECID" ]]; then echo '[INCLUDES]
 before = common.conf
 [Definition]
