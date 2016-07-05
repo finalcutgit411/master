@@ -432,10 +432,10 @@ server {
 	}
 }' > "$NGINX"
 	if [[ "$PORT_VPN" = "443" ]]; then 
-		sed -i "s/443/9090/" "$NGINX"
+		sed -i "s/443/127.0.0.1:9090/" "$NGINX"
 		stop_openvpn
 		sed -i '/port-share/d' "$OPENVPN"
-		echo "port-share $IP 9090" >> "$OPENVPN"
+		echo "port-share 127.0.0.1 9090" >> "$OPENVPN"
 		start_openvpn
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
