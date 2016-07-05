@@ -445,7 +445,7 @@ _sslh_nginx(){
 	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
 	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
 	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
-	if [[ -e "$OPENVPN" ]]; then sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' /etc/openvpn/vpn.conf
+	if [[ -e "$OPENVPN" ]]; then sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' /etc/openvpn/vpn.conf; fi
 	sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default
 }
 
