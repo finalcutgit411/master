@@ -69,6 +69,9 @@ REGEX_FTP="/etc/fail2ban/filter.d/vsftpd-virtuel.conf"
 REGEX_RECID="/etc/fail2ban/filter.d/recidive.conf"
 REGEX_NGINX="/etc/fail2ban/filter.d/nginx-http-auth.conf"
 
+# Sslh
+SSLH="/etc/default/sslh"
+
 # Let's Encrypt
 # certificats ssl delivrés par let's encrypt
 # attention 5 certificats max distribués par semaine pour le même FQDN ou 20 pour le même domaine 
