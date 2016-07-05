@@ -395,8 +395,56 @@ function letsencrypt(){
 }
 
 function nginx(){
-	echo "
-server_tokens off;
+	echo 'server_tokens off;
+add_header X-Frame-Options SAMEORIGIN;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection '"1; mode=block"';
+
+server {
+	listen 80;
+	server_name $MON_DOMAINE;
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443 ssl;
+	server_name '"$MON_DOMAINE"';
+
+	add_header Strict-Transport-Security '"max-age=31622400; includeSubDomains; preload"';
+
+	auth_basic '"Restricted Content"';
+	auth_basic_user_file '$HTPASSWD';
+
+	#ssl_certificate '$MON_CERT';
+	#ssl_certificate_key '$MON_CERT_KEY';
+	ssl_certificate '$FULLCHAIN';
+	ssl_certificate_key '$PRIVKEY';
+	ssl_dhparam '$DHPARAMS';
+	ssl_prefer_server_ciphers on;
+	ssl_protocols TLSv1.2;
+	ssl_ecdh_curve secp384r1;
+	ssl_ciphers EECDH+AESGCM:EECDH+AES;
+	ssl_session_cache shared:SSL:10m;
+	ssl_session_timeout 10m;
+	
+	location / {
+		proxy_pass http://127.0.0.1:9091/;
+	}
+}' > "$NGINX"
+	if [[ "$PORT_VPN" = "443" ]]; then 
+		sed -i "s/443/127.0.0.1:9090/" "$NGINX"
+		stop_openvpn
+		sed -i '/port-share/d' "$OPENVPN"
+		echo "port-share 127.0.0.1 9090" >> "$OPENVPN"
+		start_openvpn
+	fi
+	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
+	# on bascule sur le certificat auto signé (voir vidéo pour explications)
+	if [[ ! -e "$INFO" ]]; then sed -i 's/^#//g; /fullchain\|privkey/d' "$NGINX"; else sed -i '/^#/d' "$NGINX";fi
+}
+
+function nginxsave(){
+	echo "server_tokens off;
 add_header X-Frame-Options SAMEORIGIN;
 add_header X-Content-Type-Options nosniff;
 add_header X-XSS-Protection '1; mode=block';
