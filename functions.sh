@@ -262,11 +262,12 @@ status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
 
 _sslh_vpn(){
 	DEBIAN_FRONTEND='noninteractive' command apt-get install -y sslh 
-	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
-	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
-	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
-	sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' /etc/openvpn/vpn.conf
-	if [[ -e "$NGINX" ]]; then sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default; fi
+	if [[ ! -e "$SSLH".bak ]]; then cp "$SSLH" "$SSLH".bak; fi
+	cat "$SSLH".bak > "$SSLH"
+	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' "$SSLH"
+	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> "$SSLH"
+	sed -i 's/Port .*$/Port 4431/' "$SSHD"
+	sed -i 's/port .*$/port 4432/; s/proto .*$/proto tcp/' "$OPENVPN"
 }
 
 function conf_client(){
