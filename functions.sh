@@ -147,6 +147,15 @@ function quitter(){
         exit
 }
 
+function installation_sslh(){
+	DEBIAN_FRONTEND='noninteractive' command apt-get install sslh -y
+	sed -i 's/RUN=.*$/RUN=yes/; /DAEMON_OPTS/d' /etc/default/sslh
+	sed -i 's/Port .*$/Port 4431/' /etc/ssh/sshd_config
+	sed -i 's/port .*$/port 4432/' /etc/openvpn/vpn.conf
+	sed -i 's/listen 443.*$/listen 4433 ssl;/' /etc/nginx/sites-available/default
+	echo "DAEMON_OPTS=\"--user sslh --transparent --on-timeout ssl --listen $IP:443 --ssh $IP:4431 --openvpn $IP:4432 --ssl $IP:4433 --pidfile /var/run/sslh/sslh.pid\"" >> /etc/default/sslh
+}
+
 function installation_vpn(){
 	apt-get update -y
 	apt-get install -y openvpn openssl iptables tree nano dnsutils
@@ -257,13 +266,14 @@ log-append $LOG
 status $STATUS" > "$OPENVPN" && chmod 600 "$OPENVPN"
 	if [[ "$PORT_VPN" = "443" ]]; then
 		# force protocole TCP pour https
+		sed -i 's/443/4432/' "$OPENVPN"
 		sed -i 's/udp/tcp/' "$OPENVPN"
 			if [[ -e "$NGINX" ]]; then
-				sed -i "s/443/127.0.0.1:9090/" "$NGINX" && reload_nginx
-				sed -i '/port-share/d' "$OPENVPN" && echo "port-share 127.0.0.1 9090" >> "$OPENVPN"	
+				sed -i "s/443/4433/" "$NGINX" && reload_nginx
 			fi
 	fi
 	sed -i 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' "$SYSCTL"
+	systemctl enable openvpn@vpn.service
 }
 
 function conf_client(){
@@ -434,10 +444,9 @@ server {
 	}
 }' > "$NGINX"
 	if [[ "$PORT_VPN" = "443" ]]; then 
-		sed -i "s/443/127.0.0.1:9090/" "$NGINX"
+		sed -i "s/443/4433/" "$NGINX"
 		stop_openvpn
-		sed -i '/port-share/d' "$OPENVPN"
-		echo "port-share 127.0.0.1 9090" >> "$OPENVPN"
+		sed -i "s/443/4432/" "$OPENVPN"
 		start_openvpn
 	fi
 	# si vous avez réinstallé plus de 5 fois votre serveur dans la semaine 
