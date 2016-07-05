@@ -412,7 +412,7 @@ server {
 
 	add_header Strict-Transport-Security '"'max-age=31622400; includeSubDomains; preload'"';
 
-	auth_basic '"'Restricted Content'"';
+	auth_basic '"'Accès Seedbox'"';
 	auth_basic_user_file '$HTPASSWD';
 
 	#ssl_certificate '$MON_CERT';
