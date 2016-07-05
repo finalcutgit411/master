@@ -398,7 +398,7 @@ function nginx(){
 	echo 'server_tokens off;
 add_header X-Frame-Options SAMEORIGIN;
 add_header X-Content-Type-Options nosniff;
-add_header X-XSS-Protection "'1; mode=block'";
+add_header X-XSS-Protection '"'1; mode=block'"';
 
 server {
 	listen 80;
@@ -410,9 +410,9 @@ server {
 	listen 443 ssl;
 	server_name '"$MON_DOMAINE"';
 
-	add_header Strict-Transport-Security "'max-age=31622400; includeSubDomains; preload'";
+	add_header Strict-Transport-Security '"'max-age=31622400; includeSubDomains; preload'"';
 
-	auth_basic "'Restricted Content'";
+	auth_basic '"'Restricted Content'"';
 	auth_basic_user_file '$HTPASSWD';
 
 	#ssl_certificate '$MON_CERT';
