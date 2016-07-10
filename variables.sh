@@ -44,8 +44,8 @@ CERT_NAME=$(uname -n)
 CERT_MAIL="admin@$(hostname --fqdn)"
 ADD_VPN="5"
 PORT_VPN="1194"
-if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
-if [[ "$PORT_VPN" = "443" ]] || [[ "$PORT_VPN" = "4432" ]]; then PROTO_VPN="tcp" && PORT_VPN="443"; else PROTO_VPN="udp"; fi
+	if [[ -e "$OPENVPN" ]]; then PORT_VPN=$(awk 'NR==1{print $2}' "$OPENVPN"); fi
+	if [[ "$PORT_VPN" = "443" ]] || [[ "$PORT_VPN" = "4432" ]]; then PROTO_VPN="tcp" && PORT_VPN="443"; else PROTO_VPN="udp"; fi
 
 # Transimsion
 TRANSMISSION="/etc/transmission-daemon/settings.json"
@@ -83,11 +83,19 @@ CRON_JOB="00 00 * * * $CRON_CMD &>/dev/null"
 
 # Infos serveur
 IP=$(wget -qO- ipv4.icanhazip.com)
-if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
+	if [[ -z "$IP" ]]; then IP=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -o -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1); fi
+NIC=$(ip -4 route show default | awk '{print $5}')
 ARCH=$(getconf LONG_BIT)
 MON_DOMAINE=$(hostname --fqdn)
 	if [[ -e "$INFO" ]]; then MON_DOMAINE=$(sed q "$INFO"); fi
 	
-# Warning
-WARN=$(tput setaf 1)
-NC=$(tput sgr0)
+# Couleur
+int=$'\e[3m'
+red=$'\e[1;31m'
+grn=$'\e[1;32m'
+yel=$'\e[1;33m'
+blu=$'\e[1;34m'
+mag=$'\e[1;35m'
+cyn=$'\e[1;36m'
+blc=$'\e[1;37m'
+end=$'\e[0m'
