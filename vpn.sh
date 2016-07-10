@@ -71,7 +71,6 @@ if [[ -e "$OPENVPN" ]]; then
 				fi
 			done
 			;;
-
 			3)
 			_titre
 			_create_rep_clients
@@ -115,7 +114,6 @@ if [[ -e "$OPENVPN" ]]; then
 				fi
 			done
 			;;
-
 			5)
 			while [[ "$REP" != "Q" ]]; do
 				_titre
@@ -138,7 +136,6 @@ if [[ -e "$OPENVPN" ]]; then
 				fi
 			done
 			;;
-
 			6)
 			_titre
 			printf "%s\n" "CLIENTS ACTUELLEMENT CONNECTES" ""
@@ -155,12 +152,10 @@ if [[ -e "$OPENVPN" ]]; then
 			printf "\n"
 			read -p "Appuyez sur [Enter] " -r
 			;;
-			
 			8)
 			shutdown -r now
 			exit 0
 			;;
-
 			Q)
 			printf "%s\n" "" "A bientôt" ""
 			exit 0
