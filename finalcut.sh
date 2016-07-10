@@ -14,13 +14,13 @@ source variables.sh
 source functions.sh
 
 if [[ "$EUID" -ne 0 ]]; then
+	_titre
 	printf "%s\n" "Seul l'utilisateur root peut executer ce script"
 	read -p "Appuyez sur [Enter] pour quitter " -r
 	exit
 fi
 
 while [[ "$OPTIONS" != "Q" ]]; do
-	clear
 	_titre
 	if [[ -e "$OPENVPN" ]]; then printf "%s\n" "1 ) Gestion de votre VPN"; else printf "%s\n" "1 ) Installation de votre VPN"; fi
 	if [[ -e "$TRANSMISSION" ]]; then printf "%s\n" "2 ) Gestion de votre Seedbox"; else printf "%s\n" "2 ) Installation de votre Seedbox"; fi
