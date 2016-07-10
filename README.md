@@ -8,7 +8,7 @@ Lundi 27 juin 11h00
 apt-get update -y && apt-get upgrade -y
 ```
 ```
-wget -P /usr/local/bin/ -N https://raw.githubusercontent.com/finalcutgit411/master/master/{vpn.sh,seedbox.sh,finalcut.sh,functions.sh,variables.sh}
+wget -P /usr/local/bin/ -N https://raw.githubusercontent.com/finalcutgit411/master/master/{vpn.sh,seedbox.sh,finalcut.sh,functions.sh,variables.sh} --no-check-certificate
 chmod 700 /usr/local/bin/{finalcut.sh,vpn.sh,seedbox.sh} && finalcut.sh
 ```
 
