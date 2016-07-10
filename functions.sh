@@ -539,7 +539,7 @@ _recap_install_vpn(){
 	printf "%s\n" "" "Ouverture automatique d'un port pour chaque client VPN"
 	a=1 && b=60000
         n=$(grep -c "client" "$INDEX")
-        for (( i=1 ; i<="$n" ; i++ )); do a=$((a+4)) && b=$((b+1)) && printf "%s\n" "Client vpn $i \"10.8.0.$a\" ouverture du port $b"; done
+        for (( i=1 ; i<="$n" ; i++ )); do a=$((a+4)) && b=$((b+1)) && printf "%s\n" "Client vpn $i \"10.8.0.$a\" ouverture du port $b" ""; done
 	tree -vd /tmp/clients
 	printf "%s\n" "" "Vos dossiers de clients VPN sont dans /tmp/clients/" "Récupérez-les puis rédemarrez votre serveur pour activer les règles NAT" "" "${int}Infos :" "Si vous etes sur Windows, utilisez winscp (voir video)" "Si vous etes sur Linux ou Mac copier dans votre terminal la commande scp suivante :${end}" "" "scp -P 22 -r root@$IP:/tmp/clients ./"
 }
