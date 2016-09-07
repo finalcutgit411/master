@@ -303,7 +303,7 @@ _create_rep_clients(){
 		if [[ -e "$REP_KEY"/client"$i".crt ]]; then
 			mkdir -p "$REP_OPENVPN"/clients/client"$i"
 		        cp "$REP_OPENVPN"/client_model "$REP_OPENVPN"/clients/client"$i".ovpn
-			printf "%s\n" "<ca>" "$(cat "$REP_KEY"/ca.crt)" "</ca>" "<cert>" "$(cat "$REP_KEY"/client$i.key)" "</cert>" "<key>" "$(cat "$REP_KEY"/client$i.key)" "</key>" "<tls-auth>" "$(cat "$REP_KEY"/ta.key)" "</tls-auth>" >> "$REP_OPENVPN"/clients/client"$i".ovpn
+			printf "%s\n" "<ca>" "$(cat "$REP_KEY"/ca.crt)" "</ca>" "<cert>" "$(cat "$REP_KEY"/client$i.crt)" "</cert>" "<key>" "$(cat "$REP_KEY"/client$i.key)" "</key>" "<tls-auth>" "$(cat "$REP_KEY"/ta.key)" "</tls-auth>" >> "$REP_OPENVPN"/clients/client"$i".ovpn
 			cp "$REP_KEY"/{ca.crt,client$i.crt,client$i.key,ta.key} "$REP_OPENVPN"/clients/client"$i"/
 			cp "$REP_OPENVPN"/clients/client"$i".ovpn "$REP_OPENVPN"/clients/client"$i"/
                         sed -i "s/mon_client/client$i/" "$REP_OPENVPN"/clients/client"$i"/client"$i".ovpn
