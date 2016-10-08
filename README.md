@@ -24,7 +24,3 @@ chmod 700 /usr/local/bin/{finalcut.sh,vpn.sh,seedbox.sh} && finalcut.sh
 #### Compatibilité serveur Debian 32 ou 64 bits (recommandé debian 8 jessie 64)
  * debian 8  jessie 
  * debian 7  wheezy
-
-#### Support
-<code>https://www.t411.ch/forum.php#/discussion/69408/tuto-video-debutant-script-installation-vpn-et-seedbox</code>
-###### (penser à activer adblock avant d'aller sur le tracker t411.ch)
