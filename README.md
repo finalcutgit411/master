@@ -1,246 +1,281 @@
-# finalcut — VPN WireGuard + seedbox sécurisée
+# seedtunnel — WireGuard VPN + secure seedbox
 
-Script en bash, lisible de haut en bas, qui transforme un serveur Debian fraîchement installé en :
+*[Version française](README.fr.md)*
 
-- **VPN WireGuard** : un QR code par client pour les téléphones, un port ouvert par client (pratique pour un logiciel torrent à la maison derrière le VPN) ;
-- **seedbox** : Transmission derrière nginx en HTTPS (Let's Encrypt renouvelé automatiquement), fichiers en SFTP (mot de passe ou clés SSH), fail2ban.
+A bash script, readable from top to bottom, that turns a freshly installed Debian server into:
 
-On l'utilise par un **menu** pour débuter, ou par des **commandes** et un **fichier de configuration** pour automatiser. Les deux parties sont indépendantes.
+- a **WireGuard VPN**: a QR code per client for phones, and one open port per client (handy for a torrent program at home, behind the VPN);
+- a **seedbox**: Transmission behind nginx over HTTPS (Let's Encrypt, renewed automatically), files over SFTP (password or SSH keys), fail2ban.
 
-[![CI](https://github.com/finalcutgit411/finalcut/actions/workflows/ci.yml/badge.svg)](https://github.com/finalcutgit411/finalcut/actions/workflows/ci.yml)
+Use the **menu** to get started, or the **commands** and a **configuration file** to automate. The two parts are independent. Messages are in **English or French**.
 
-## Compatibilité
+[![CI](https://github.com/finalcutgit411/seedtunnel/actions/workflows/ci.yml/badge.svg)](https://github.com/finalcutgit411/seedtunnel/actions/workflows/ci.yml)
 
-- Debian **12 (bookworm)** et **13 (trixie)** — testées automatiquement à chaque modification ;
-- VPS KVM ou serveur dédié. Les VPS en conteneur (OpenVZ, LXC) n'ont souvent pas WireGuard : le script le détecte et le signale.
+## Requirements
+
+- Debian **12 (bookworm)** or **13 (trixie)**, both tested automatically at every change;
+- a KVM virtual server or a dedicated server. Container-based servers (OpenVZ, LXC) often lack WireGuard: the script detects it and tells you.
 
 ## Installation
 
-Sur une Debian fraîchement installée, en root.
+On a freshly installed Debian, as root.
 
-### Version publiée (recommandé)
+### Published version (recommended)
 
-On télécharge une version publiée et on vérifie son empreinte avant de la lancer. Les commandes sont enchaînées par `&&` : à la moindre erreur, tout s'arrête avec un message clair.
+Download a published version and check its fingerprint before running it. The commands are chained with `&&`: at the first error, everything stops with a clear message.
 
 ```bash
 apt update && apt full-upgrade -y
-V=2.2.2
+V=1.0.0
 cd "$(mktemp -d)"
-curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/finalcut-$V.tar.gz \
-  && curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/SHA256SUMS \
+curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
+  && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
   && sha256sum -c SHA256SUMS \
-  && tar -xzf finalcut-$V.tar.gz \
-  && mv finalcut-$V /opt/finalcut \
-  && /opt/finalcut/finalcut.sh
+  && tar -xzf seedtunnel-$V.tar.gz \
+  && mv seedtunnel-$V /opt/seedtunnel \
+  && /opt/seedtunnel/seedtunnel.sh
 ```
 
-Les versions disponibles sont listées sur la page [Releases](https://github.com/finalcutgit411/finalcut/releases).
+The available versions are listed on the [Releases](https://github.com/finalcutgit411/seedtunnel/releases) page.
 
-### Avec git
+### With git
 
-Pour suivre le développement, ou si vous préférez git :
+To follow the development, or if you prefer git:
 
 ```bash
 apt update && apt full-upgrade -y && apt install -y git
-git clone https://github.com/finalcutgit411/finalcut.git /opt/finalcut
-/opt/finalcut/finalcut.sh
+git clone https://github.com/finalcutgit411/seedtunnel.git /opt/seedtunnel
+/opt/seedtunnel/seedtunnel.sh
 ```
 
-Dans ce cas, `finalcut update` passe à la dernière version publiée (étiquette `vX.Y.Z`).
+In that case, `seedtunnel update` moves to the latest published version (tag `vX.Y.Z`).
 
-Le code est fait pour être lu : n'hésitez pas à parcourir `finalcut.sh` et `lib/` avant de le lancer.
+The code is meant to be read: feel free to look through `seedtunnel.sh` and `lib/` before running it.
 
-Ensuite, la commande `finalcut` relance le menu. `finalcut update` passe à la version suivante en vérifiant son empreinte, puis réapplique la configuration pour que ses corrections prennent effet.
+After that, the `seedtunnel` command opens the menu again. `seedtunnel update` moves to the next version after checking its fingerprint, then applies the configuration again so that its fixes take effect.
 
-## Utilisation
+## Usage
 
 ### Menu
 
-`finalcut` sans argument donne accès à tout : VPN, seedbox, pare-feu, diagnostic, sauvegarde, mise à jour.
+`seedtunnel` without arguments gives access to everything: VPN, seedbox, firewall, diagnostics, backups, update. The state of the server is shown at the top: connected VPN clients, free disk space, stopped services.
 
-### Commandes
+### Commands
 
 ```text
-finalcut vpn install [--config FICHIER]     finalcut seedbox install [--config FICHIER] [--staging]
-finalcut vpn add telephone [--qr]           finalcut seedbox password [--user NOM]
-finalcut vpn remove telephone --yes         finalcut seedbox domain mon.domaine.fr [--staging]
-finalcut vpn list                           finalcut seedbox sftp-config [filezilla]
-finalcut vpn show telephone                 finalcut seedbox sftp-key add ma-cle.pub
-finalcut vpn share pc-bureau                finalcut seedbox sftp-password off
-                                            finalcut seedbox bans | unban IP
-finalcut firewall enable|disable|status     finalcut doctor
-finalcut backup [--output F] [--passphrase-file F]
-finalcut restore FICHIER [--passphrase-file F]
-finalcut update                             finalcut apply
+seedtunnel vpn install [--config FILE]      seedtunnel seedbox install [--config FILE] [--staging]
+seedtunnel vpn add phone [--qr]             seedtunnel seedbox password [--user NAME]
+seedtunnel vpn remove phone --yes           seedtunnel seedbox domain my.domain.com [--staging]
+seedtunnel vpn list                         seedtunnel seedbox sftp-config [filezilla]
+seedtunnel vpn show phone                   seedtunnel seedbox sftp-key add my-key.pub
+seedtunnel vpn share laptop                 seedtunnel seedbox sftp-password off
+                                            seedtunnel seedbox bans | unban IP
+seedtunnel firewall enable|disable|status   seedtunnel doctor
+seedtunnel backup [--passphrase-file F]     seedtunnel backup list | share
+seedtunnel backup auto on|off|status        seedtunnel restore FILE [--passphrase-file F]
+seedtunnel update                           seedtunnel apply
+seedtunnel language en|fr
 ```
 
-`finalcut help` donne le détail.
+`seedtunnel help` gives the details.
 
-Hors terminal (dans un script), les actions destructrices demandent `--yes`. Le mot de passe se passe alors sur l'entrée standard :
+Without a terminal (in a script), destructive actions require `--yes`. The password is then given on the standard input:
 
 ```bash
-printf '%s\n' "$NOUVEAU_MDP" | finalcut seedbox password
+printf '%s\n' "$NEW_PASSWORD" | seedtunnel seedbox password
 ```
 
-### Fichier de configuration
+### Configuration file
 
-Tout ce que le menu demande peut être écrit dans un fichier. Le modèle commenté est dans `examples/finalcut.conf`.
+Everything the menu asks can be written in a file. The commented template is `examples/seedtunnel.conf`.
 
 ```bash
-cp /opt/finalcut/examples/finalcut.conf /root/serveur.conf && chmod 600 /root/serveur.conf
-nano /root/serveur.conf
-finalcut vpn install --config /root/serveur.conf
-finalcut seedbox install --config /root/serveur.conf
+cp /opt/seedtunnel/examples/seedtunnel.conf /root/server.conf && chmod 600 /root/server.conf
+nano /root/server.conf
+seedtunnel vpn install --config /root/server.conf
+seedtunnel seedbox install --config /root/server.conf
 ```
 
-L'installation est **idempotente** : relancée avec le même fichier, elle ne change rien et ne redémarre aucun service. Si quelque chose a été modifié à la main, elle remet tout en ordre.
+The installation is **idempotent**: run again with the same file, it changes nothing and restarts no service. If something was changed by hand, it puts everything back in order.
 
-Le fichier n'est jamais exécuté : il est seulement lu ligne par ligne, et les clés inconnues sont refusées.
+The file is never executed: it is only read line by line, and unknown keys are refused.
 
-## Ce que fait le script
+### Language
+
+The first time the menu opens, it asks for the language: English or French. To change it later: `seedtunnel language fr` (or `en`), or `L` in the menu. The `LANGUAGE` key of the configuration file does the same, and `SEEDTUNNEL_LANG=fr` in the environment changes it for one command only.
+
+## What the script does
 
 ### VPN
 
 | | |
 |---|---|
-| Réseau | 10.8.0.0/24, serveur en 10.8.0.1 |
-| Port | 51820/UDP par défaut |
-| Clients | jusqu'à 253, nommés, révocables, appliqués à chaud |
-| Port ouvert | le client n°N reçoit le port 60000+N en TCP et UDP |
-| Fuites | tout le trafic IPv4 et IPv6 du client passe par le tunnel |
-| Récupération | QR code pour les téléphones, ou lien de téléchargement à usage unique pour les ordinateurs |
+| Network | 10.8.0.0/24, server at 10.8.0.1 |
+| Port | 51820/UDP by default |
+| Clients | up to 253, named, can be revoked, applied without restarting |
+| Open port | client number N gets port 60000+N, TCP and UDP |
+| Leaks | all the IPv4 and IPv6 traffic of the client goes through the tunnel |
+| Getting the configuration | QR code for phones, or a one-time download link for computers |
 
 ### Seedbox
 
 | | |
 |---|---|
-| Interface web | `https://votre-domaine/` (identifiant + mot de passe) |
-| Fichiers | SFTP (FileZilla, WinSCP, Cyberduck), mot de passe et/ou clés SSH ; réglages prêts à importer avec `finalcut seedbox sftp-config` |
-| Certificat | Let's Encrypt, ou auto-signé si aucun nom de domaine ne pointe sur le serveur |
-| Dossiers | `watch/` (déposez un .torrent), `incomplete/`, `complete/`, `documents/` |
-| Protection | fail2ban sur SSH/SFTP, le mot de passe web et les récidivistes |
+| Web interface | `https://your-domain/` (user name + password) |
+| Files | SFTP (WinSCP, FileZilla, Cyberduck), password and/or SSH keys; settings ready to import with `seedtunnel seedbox sftp-config` |
+| Certificate | Let's Encrypt, or self-signed if no domain name points to the server |
+| Folders | `watch/` (drop a .torrent here), `incomplete/`, `complete/`, `documents/` |
+| Protection | fail2ban on SSH/SFTP, the web password and repeat offenders |
+| Full disk | under 3 GB free, Transmission is stopped cleanly; it starts again by itself above 5 GB |
 
-Pas de nom de domaine ? La plupart des hébergeurs en fournissent un (par exemple `vps-1234abcd.vps.ovh.net`). Le script le propose s'il pointe bien sur le serveur.
+No domain name? Most providers give one (for example `vps-1234abcd.vps.ovh.net`). The script suggests it if it points to the server.
 
-Pour vos essais, `--staging` utilise les serveurs de test de Let's Encrypt. Ils n'ont pas de limite, mais leur certificat n'est pas reconnu par les navigateurs.
+For your tests, `--staging` uses the test servers of Let's Encrypt. They have no limit, but browsers do not trust their certificates.
 
-### Liens de téléchargement
+### One-time download links
 
-Plus besoin de `scp` pour récupérer un fichier sur son ordinateur :
+No need for `scp` to get a file onto your computer:
 
-- `finalcut vpn share pc-bureau` donne un lien vers la configuration WireGuard du client ;
-- `finalcut seedbox sftp-config` donne une adresse à coller dans WinSCP, qui contient l'empreinte du serveur : WinSCP vérifie tout seul que c'est le bon serveur, sans question à la première connexion. Avec `filezilla`, elle crée en plus un lien vers un fichier à importer dans FileZilla.
+- `seedtunnel vpn share laptop` gives a link to the WireGuard configuration of the client;
+- `seedtunnel backup share` gives a link to the latest backup;
+- `seedtunnel seedbox sftp-config` gives an address to paste into WinSCP, with the fingerprint of the server inside: WinSCP checks by itself that it is the right server, without a question at the first connection. With `filezilla`, it also gives a link to a file to import into FileZilla.
 
-Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire impossible à deviner, ne fonctionne **qu'une fois** et expire au bout de **10 minutes**. Ouvrir la page ne compte pas : seul le téléchargement du fichier « consomme » le lien. Un aperçu automatique dans une messagerie ne le gâche donc pas.
+The link goes through the HTTPS site of the seedbox. It holds a random token that cannot be guessed, works **only once** and expires after **10 minutes**. The file is deleted as soon as it is opened: another form of the address or a partial download cannot get it a second time. Opening the page does not count, only downloading the file does, so an automatic link preview in a messaging app does not waste it.
 
-### Pare-feu
+### Firewall
 
-`finalcut firewall enable` refuse tout ce qui arrive sur le serveur, sauf :
-- SSH, sur le port réellement utilisé ;
-- le VPN et la seedbox s'ils sont installés ;
-- l'ICMP indispensable à IPv6.
+`seedtunnel firewall enable` refuses everything that reaches the server, except:
+- SSH, on the port actually used;
+- the VPN and the seedbox, if installed;
+- the ICMP that IPv6 needs.
 
-Dans un terminal, l'activation est **provisoire** : sans confirmation depuis une nouvelle connexion SSH, tout est annulé au bout de 2 minutes. Impossible de se retrouver enfermé dehors.
+In a terminal, turning it on is **temporary**: without a confirmation from a new SSH connection, everything is undone after 2 minutes. You cannot lock yourself out.
 
-### Diagnostic
+### Diagnostics
 
-`finalcut doctor` vérifie, avec pour chaque problème la commande qui le corrige :
-- les services ;
-- le DNS ;
-- l'expiration du certificat et son renouvellement ;
-- les ports et le pare-feu, dont le port SSH : un port changé sans mettre le pare-feu à jour vous enfermerait dehors ;
-- l'espace disque et l'horloge.
+`seedtunnel doctor` checks, giving for every problem the command that fixes it:
+- the services;
+- the DNS;
+- the expiry of the certificate and its renewal;
+- the ports and the firewall, including the SSH port: a port changed without updating the firewall would lock you out;
+- the disk space, the full disk protection and the clock;
+- the backups (see below).
 
-Il renvoie le code 1 s'il trouve un problème : il peut tourner dans une tâche planifiée.
+It exits with status 1 when it finds a problem, so it can run in a scheduled task.
 
-### Sauvegarde et restauration
+### Backups
 
-`finalcut backup` crée une archive chiffrée (AES-256) contenant :
-- les clés et clients du VPN ;
-- les réglages et empreintes des mots de passe de la seedbox ;
-- les certificats ;
-- les clés SSH du SFTP ;
-- le pare-feu.
+`seedtunnel backup` creates an encrypted archive (AES-256) in `/var/backups/seedtunnel`, with:
+- the keys and clients of the VPN;
+- the settings and password hashes of the seedbox;
+- the certificates and the SSH keys of SFTP;
+- the firewall;
+- the state of Transmission: list of torrents, progress, settings.
 
-Sur un serveur neuf, `finalcut restore` remet tout en place. Les clients VPN se reconnectent sans rien changer si `VPN_ENDPOINT` est un nom de domaine qui pointe vers le nouveau serveur.
+`seedtunnel backup auto on` makes an encrypted backup **every week** and keeps the last 4. Its passphrase is saved on the server (readable by root only) so that it can run alone: write it down somewhere else too.
 
-Les fichiers téléchargés ne sont pas dans la sauvegarde : copiez-les avec `rsync`.
+A backup that stays on the server disappears with it: `seedtunnel backup share` gives a one-time link to download the latest one onto your computer. `seedtunnel doctor` reminds you when the weekly backup is off or fails, and when no backup was downloaded for a month.
 
-## Sécurité
+On a new server, `seedtunnel restore FILE` puts everything back. The VPN clients connect again without any change if `VPN_PUBLIC_ADDRESS` is a domain name pointing to the new server.
 
-- Transmission n'écoute que sur `127.0.0.1`. Seul nginx est exposé, et le mot de passe est vérifié deux fois : par nginx, puis par Transmission.
-- Transmission est **enfermé par systemd** (`ProtectSystem=strict`…) : il ne peut écrire que dans ses dossiers.
-- Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seules leurs empreintes sont gardées.
-- L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel.
-- fail2ban bannit les attaquants de SSH de **tous les ports**, quel que soit le port de SSH.
-- Réglages réseau du noyau durcis (`/etc/sysctl.d/90-finalcut-reseau.conf`) : redirections ICMP ignorées, routage par la source refusé.
-- La configuration SSH est vérifiée (`sshd -t`) avant d'être rechargée. En cas d'erreur, la version précédente est remise.
-- TLS 1.2/1.3 uniquement. HSTS n'est activé qu'avec un vrai certificat.
-- Mises à jour de sécurité Debian automatiques (`unattended-upgrades`).
-- `/etc/finalcut` est lisible par root uniquement.
+Downloaded files are not in the backup: copy them with `rsync`.
 
-## Développement
+## Security
 
-### Organisation
+- Transmission only listens on `127.0.0.1`. Only nginx is exposed, and the password is checked twice: by nginx, then by Transmission.
+- Transmission is **locked down by systemd** (`ProtectSystem=strict`…): it can only write to its own folders.
+- Passwords are **never written in clear**, nor given as an argument to a command. Only their hashes are kept.
+- The SFTP user is locked inside the data folder: no shell, no tunnel.
+- fail2ban bans attackers of SSH from **every port**, whatever the port of SSH.
+- Hardened kernel network settings (`/etc/sysctl.d/90-seedtunnel-network.conf`): ICMP redirects ignored, source routing refused.
+- The SSH configuration is checked (`sshd -t`) before being reloaded. On error, the previous version is put back.
+- TLS 1.2/1.3 only. HSTS is only turned on with a real certificate.
+- Automatic Debian security updates (`unattended-upgrades`).
+- `/etc/seedtunnel` and the backups are readable by root only.
 
-| Fichier | Rôle |
+## Development
+
+### Files
+
+| File | Role |
 |---|---|
-| `finalcut.sh` | point d'entrée : options, commandes, menu principal |
-| `lib/common.sh` | affichage, saisie, journal, fichier de configuration, apt |
+| `seedtunnel.sh` | entry point: options, commands, main menu |
+| `lib/common.sh` | output, input, log, configuration file, apt |
+| `lib/i18n.sh` | translations |
 | `lib/vpn.sh` | WireGuard |
 | `lib/seedbox.sh` | Transmission, nginx, Let's Encrypt, SFTP, fail2ban |
-| `lib/firewall.sh` | pare-feu nftables |
-| `lib/doctor.sh` | diagnostic |
-| `lib/maintenance.sh` | sauvegarde, restauration, mise à jour, réapplication |
-| `lib/share.sh` | liens de téléchargement à usage unique |
-| `tests/` | image Debian de test et tests d'intégration |
+| `lib/firewall.sh` | nftables firewall |
+| `lib/share.sh` | one-time download links |
+| `lib/diskguard.sh` | full disk protection |
+| `lib/backup.sh` | backups and restore |
+| `lib/update.sh` | update, applying the configuration again |
+| `lib/doctor.sh` | diagnostics |
+| `lang/` | French messages (`fr.txt`) and long texts (`en.sh`, `fr.sh`) |
+| `tests/` | unit tests, translation check, Debian test image, integration tests |
 
-Chaque module suit le même principe :
-1. lire l'état voulu dans `/etc/finalcut` ;
-2. générer les fichiers de configuration ;
-3. ne remplacer que ceux qui ont changé (`write_if_changed`) ;
-4. ne redémarrer que les services concernés.
+Every module follows the same principle:
+1. read the wanted state in `/etc/seedtunnel`;
+2. generate the configuration files;
+3. only replace the ones that changed (`write_if_changed`);
+4. only restart the services concerned.
 
-`finalcut apply` refait ces étapes pour tout ce qui est installé. `finalcut update` le lance après chaque mise à jour.
+`seedtunnel apply` runs these steps again for everything installed. `seedtunnel update` runs it after every update.
 
-### Tests automatiques
+### Translations
 
-À chaque envoi sur GitHub, `.github/workflows/ci.yml` :
+Messages are written in English, right in the code, as `printf` formats:
 
-1. analyse le code avec **shellcheck** et vérifie la mise en forme avec **shfmt** ;
-2. lance une Debian 12 et une Debian 13 vierges (conteneurs avec systemd), puis y exécute `tests/integration.sh`, qui :
-   - installe le VPN et la seedbox pour de vrai ;
-   - ouvre un **vrai tunnel WireGuard** ;
-   - se connecte en **SFTP** par mot de passe puis par clé, et vérifie l'enfermement ;
-   - teste l'interface web et vérifie l'**idempotence** ;
-   - vérifie qu'un **lien de téléchargement** ne sert qu'une fois ;
-   - teste le **pare-feu depuis l'extérieur** ;
-   - fait une **sauvegarde**, désinstalle tout, **restaure** et vérifie que l'ancien client VPN se reconnecte.
+```bash
+ok 'Client "%s" created.' "$name"
+```
 
-En local : `make check` (il faut `shellcheck` et `shfmt`), `make fmt` pour remettre le code en forme.
+In French, each format is looked up in `lang/fr.txt`, a plain text file where every English line (`en: …`) is followed by its translation (`fr: …`). A missing translation simply shows the English text. Longer texts (help, summaries) are functions in `lang/en.sh` and `lang/fr.sh`.
 
-### Publier une version
+`make i18n` checks that every message has its translation, with the same `%s`; `python3 tests/i18n_check.py --missing` prints the missing ones, ready to fill in.
 
-1. Mettez à jour `FC_VERSION` dans `lib/common.sh`, par exemple `2.3.0`.
-2. Ajoutez une section `## [2.3.0]` dans `CHANGELOG.md`.
-3. Envoyez sur `master`.
+### Automatic tests
 
-`.github/workflows/release.yml` voit qu'une nouvelle version n'est pas encore publiée. Il relance tous les tests, puis crée l'étiquette `v2.3.0` et publie sur GitHub l'archive et `SHA256SUMS`. C'est là que `finalcut update` va chercher les nouvelles versions. Envoyer soi-même une étiquette `v2.3.0` fonctionne aussi.
+At every push to GitHub, `.github/workflows/ci.yml`:
 
-Le dépôt interrogé par `finalcut update` est défini par `FC_REPO` dans `lib/common.sh`. En cas de renommage du dépôt ou de copie (fork), adaptez-le, ainsi que les liens de ce README.
+1. analyzes the code with **shellcheck**, checks the formatting with **shfmt** and the translations, then runs the **unit tests** (`tests/unit.sh`: bugs found in the past, so that they never come back);
+2. starts a fresh Debian 12 and a fresh Debian 13 (containers with systemd), then runs `tests/integration.sh`, which:
+   - really installs the VPN and the seedbox, and checks the **idempotence**;
+   - opens a **real WireGuard tunnel**;
+   - connects over **SFTP** with a password then with a key, and checks the lock-down;
+   - tests the web interface, adds a **torrent** through the `watch/` folder;
+   - checks that a **download link** only works once, even with another form of the address;
+   - checks that fail2ban bans from every port, and the **full disk protection**;
+   - tests the **firewall from the outside**;
+   - makes **backups**, including weekly ones, downloads one, removes everything, **restores**, and checks that the old VPN client connects again and the torrents are back.
 
-## Limites connues
+Locally: `make check` (needs `shellcheck`, `shfmt`, `python3` and `inotify-tools`), and `make fmt` to format the code.
 
-- **WireGuard ne fonctionne qu'en UDP.** Sur un réseau qui bloque l'UDP, essayez le port 443 en UDP : il est souvent ouvert, car HTTP/3 l'utilise.
-- **Le VPN est en IPv4 uniquement.** L'IPv6 des clients est bloqué dans le tunnel plutôt que de fuiter.
-- **La seedbox est mono-utilisateur.**
+### Publishing a version
 
-## Désinstallation
+1. Update `APP_VERSION` in `lib/common.sh`, for example `1.1.0`.
+2. Add a `## [1.1.0]` section to `CHANGELOG.md`.
+3. Push to `master`.
 
-`finalcut seedbox uninstall`, `finalcut vpn uninstall`, `finalcut firewall disable`, ou les options du menu.
+`.github/workflows/release.yml` sees that a new version is not published yet. It runs all the tests again, then creates the tag `v1.1.0` and publishes the archive and `SHA256SUMS` on GitHub. That is where `seedtunnel update` looks for new versions. Pushing a `v1.1.0` tag yourself works too. Development versions (with a dash, such as `1.1.0-dev`) are never published.
 
-Les données téléchargées sont conservées, sauf avec `--purge-data`.
+The repository used by `seedtunnel update` is set by `APP_REPO` in `lib/common.sh`. If you rename the repository or make a copy (fork), change it, as well as the links of this README.
 
-## Licence
+## Known limits
 
-[MIT](LICENSE) : vous pouvez utiliser, modifier et redistribuer ce script librement, à condition de conserver la mention de l'auteur. Il est fourni sans aucune garantie.
+- **WireGuard only works over UDP.** On a network that blocks UDP, try UDP port 443: it is often open, since HTTP/3 uses it.
+- **The VPN is IPv4 only.** The IPv6 of the clients is blocked in the tunnel rather than leaking.
+- **The seedbox has a single user.**
+
+## Uninstalling
+
+`seedtunnel seedbox uninstall`, `seedtunnel vpn uninstall`, `seedtunnel firewall disable`, or the options of the menu.
+
+The downloaded data is kept, unless `--purge-data` is given. The backups stay in `/var/backups/seedtunnel`.
+
+## History
+
+seedtunnel started in 2016 as **finalcut**, a French script for Debian 7/8 (OpenVPN, vsftpd). It was rewritten for Debian 12/13 in 2026, then renamed seedtunnel and translated into English for version 1.0.0. See [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE): you can use, change and share this script freely, as long as you keep the name of the author. It comes without any warranty.

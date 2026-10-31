@@ -1,87 +1,89 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  finalcut — module VPN (WireGuard)
+#  seedtunnel — VPN module (WireGuard)
 #
-#  Réseau 10.8.0.0/24 : le serveur est 10.8.0.1, le client n°N reçoit
-#  10.8.0.(N+1) et le port public 60000+N, redirigé vers lui en TCP et UDP
-#  (pratique pour un client torrent à la maison derrière le VPN).
+#  Network 10.8.0.0/24: the server is 10.8.0.1, client number N gets
+#  10.8.0.(N+1) and the public port 60000+N, forwarded to it in TCP and UDP
+#  (handy for a torrent client at home behind the VPN).
 #
-#  Tout est régénéré à partir de /etc/finalcut/vpn/ (« vpn_apply ») :
-#    server.key / server.pub      clés du serveur
-#    clients/<nom>.env            numéro et clés d'un client
-#    clients/<nom>.conf           fichier à importer dans l'application WireGuard
-#    nat.nft                      règles NAT, chargées au démarrage de wg0
-#  vpn_apply ne modifie que ce qui a changé : on peut le relancer sans risque.
+#  Everything is generated again from /etc/seedtunnel/vpn/ (« vpn_apply »):
+#    server.key / server.pub      keys of the server
+#    clients/<name>.env           number and keys of a client
+#    clients/<name>.conf          file to import into the WireGuard app
+#    nat.nft                      NAT rules, loaded when wg0 starts
+#  vpn_apply only changes what needs to change: it can safely run again.
 # =============================================================================
 
-VPN_IF="wg0"
-VPN_NET="10.8.0"
+VPN_INTERFACE="wg0"
+VPN_SUBNET="10.8.0"
 # 10.8.0.2 → 10.8.0.254
-VPN_MAX=253
-# le client n°N reçoit le port 60000+N
-VPN_PORT_BASE=60000
-VPN_DIR="$FC_ETC/vpn"
-VPN_CONF="$FC_ETC/vpn.conf"
-VPN_CLIENTS="$VPN_DIR/clients"
-VPN_NFT="$VPN_DIR/nat.nft"
-VPN_SYSCTL="/etc/sysctl.d/90-finalcut-vpn.conf"
-WG_CONF="/etc/wireguard/$VPN_IF.conf"
+VPN_MAX_CLIENTS=253
+# client number N gets the port 60000+N
+VPN_FORWARDED_PORT_BASE=60000
+VPN_STATE_DIR="$APP_STATE_DIR/vpn"
+VPN_CONF_FILE="$APP_STATE_DIR/vpn.conf"
+VPN_CLIENTS_DIR="$VPN_STATE_DIR/clients"
+VPN_NAT_RULES="$VPN_STATE_DIR/nat.nft"
+VPN_SYSCTL_FILE="/etc/sysctl.d/90-seedtunnel-vpn.conf"
+WIREGUARD_CONF="/etc/wireguard/$VPN_INTERFACE.conf"
 
 vpn_load() {
     VPN_PORT=51820
-    VPN_ENDPOINT=""
+    VPN_PUBLIC_ADDRESS=""
     VPN_DNS="9.9.9.9, 149.112.112.112"
-    VPN_NIC=""
-    conf_read "$VPN_CONF"
+    VPN_OUT_INTERFACE=""
+    state_read "$VPN_CONF_FILE"
 }
 
-vpn_save() { conf_write "$VPN_CONF" VPN_PORT VPN_ENDPOINT VPN_DNS VPN_NIC; }
+vpn_save() { state_write "$VPN_CONF_FILE" VPN_PORT VPN_PUBLIC_ADDRESS VPN_DNS VPN_OUT_INTERFACE; }
 
-vpn_installed() { [[ -f $VPN_CONF ]]; }
+vpn_installed() { [[ -f $VPN_CONF_FILE ]]; }
 
 vpn_require_installed() {
-    vpn_installed || die "Le VPN n'est pas installé :  finalcut vpn install"
+    vpn_installed || die 'The VPN is not installed:  seedtunnel vpn install'
 }
 
 vpn_client_names() {
-    local f
-    for f in "$VPN_CLIENTS"/*.env; do
-        [[ -e $f ]] || continue
-        f=${f##*/}
-        printf '%s\n' "${f%.env}"
+    local file
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        [[ -e $file ]] || continue
+        file=${file##*/}
+        printf '%s\n' "${file%.env}"
     done
 }
 
 vpn_count_clients() {
-    local n=0 f
-    for f in "$VPN_CLIENTS"/*.env; do
-        if [[ -e $f ]]; then n=$((n + 1)); fi
+    local count=0 file
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        if [[ -e $file ]]; then count=$((count + 1)); fi
     done
-    printf '%s' "$n"
+    printf '%s' "$count"
 }
 
-# Clients connectés : dernière « poignée de main » il y a moins de 3 minutes
-# (WireGuard la renouvelle toutes les 2 minutes tant que le tunnel sert)
+# Connected clients: last handshake less than 3 minutes ago (WireGuard
+# renews it every 2 minutes while the tunnel is in use)
 vpn_connected_count() {
-    local now n=0 _pk h
-    if systemctl is-active --quiet "wg-quick@$VPN_IF"; then
+    local now count=0 _key handshake
+    if systemctl is-active --quiet "wg-quick@$VPN_INTERFACE"; then
         now=$(date +%s)
-        while read -r _pk h; do
-            if [[ $h =~ ^[0-9]+$ ]] && ((h > 0 && now - h < 180)); then n=$((n + 1)); fi
-        done < <(wg show "$VPN_IF" latest-handshakes 2>/dev/null || true)
+        while read -r _key handshake; do
+            if [[ $handshake =~ ^[0-9]+$ ]] && ((handshake > 0 && now - handshake < 180)); then
+                count=$((count + 1))
+            fi
+        done < <(wg show "$VPN_INTERFACE" latest-handshakes 2>/dev/null || true)
     fi
-    printf '%s' "$n"
+    printf '%s' "$count"
 }
 
-# 15 caractères max : sous Linux, le nom du fichier devient celui de l'interface
-vpn_valid_name() { [[ $1 =~ ^[A-Za-z0-9_-]{1,15}$ ]]; }
+# 15 characters at most: on Linux the file name becomes the interface name
+vpn_is_valid_client_name() { [[ $1 =~ ^[A-Za-z0-9_-]{1,15}$ ]]; }
 
 vpn_require_client() {
-    vpn_valid_name "$1" || die "Nom de client invalide : « $1 »."
-    [[ -e $VPN_CLIENTS/$1.env ]] || die "Client « $1 » introuvable (finalcut vpn list)."
+    vpn_is_valid_client_name "$1" || die 'Invalid client name: "%s".' "$1"
+    [[ -e $VPN_CLIENTS_DIR/$1.env ]] || die 'Client "%s" not found (seedtunnel vpn list).' "$1"
 }
 
-# quad9 | cloudflare | adresses IP séparées par des virgules
+# quad9 | cloudflare | IP addresses separated by commas
 vpn_dns_value() {
     case ${1,,} in
         quad9 | "") printf '9.9.9.9, 149.112.112.112' ;;
@@ -90,352 +92,349 @@ vpn_dns_value() {
     esac
 }
 
-vpn_valid_dns() { [[ $1 =~ ^[0-9A-Fa-f:.,\ ]+$ ]]; }
+vpn_is_valid_dns() { [[ $1 =~ ^[0-9A-Fa-f:.,\ ]+$ ]]; }
 
-vpn_valid_endpoint() { [[ $1 =~ ^[A-Za-z0-9.:-]+$ ]]; }
+vpn_is_valid_address() { [[ $1 =~ ^[A-Za-z0-9.:-]+$ ]]; }
 
-# Le port UDP est-il libre (ou déjà le nôtre) ?
-vpn_port_free() {
-    local cur
-    cur=$(wg show "$VPN_IF" listen-port 2>/dev/null || true)
-    [[ $1 == "$cur" ]] && return 0
+# Is the UDP port free (or already ours)?
+vpn_port_is_free() {
+    local current
+    current=$(wg show "$VPN_INTERFACE" listen-port 2>/dev/null || true)
+    [[ $1 == "$current" ]] && return 0
     ! port_in_use udp "$1"
 }
 
-# Le noyau sait-il créer une interface WireGuard ? (échoue dans certains
-# conteneurs OpenVZ/LXC, comme le module TUN/TAP à l'époque)
+# Can the kernel create a WireGuard interface? (fails in some OpenVZ/LXC
+# containers, like the TUN/TAP module used to)
 vpn_check_kernel() {
-    if ip link show "$VPN_IF" &>/dev/null; then return 0; fi
-    if ! ip link add dev fc-wgtest type wireguard 2>/dev/null; then
-        die "Le noyau ne permet pas de créer une interface WireGuard.
-  Sur un VPS en conteneur (OpenVZ, LXC), demandez à l'hébergeur d'activer
-  WireGuard, ou choisissez une offre KVM."
+    if ip link show "$VPN_INTERFACE" &>/dev/null; then return 0; fi
+    if ! ip link add dev st-wgtest type wireguard 2>/dev/null; then
+        die 'The kernel cannot create a WireGuard interface.\n  On a container VPS (OpenVZ, LXC), ask the provider to enable WireGuard,\n  or choose a KVM plan.'
     fi
-    ip link del dev fc-wgtest
+    ip link del dev st-wgtest
 }
 
-# --- Génération des fichiers (sur la sortie standard) -----------------------
+# --- File generation (on standard output) -----------------------------------------
 
-vpn_gen_client() {
-    local name=$1 ID PUB PSK PRIV ep
+vpn_generate_client_conf() {
+    local name=$1 CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY address
     # shellcheck source=/dev/null
-    . "$VPN_CLIENTS/$name.env"
-    ep=$VPN_ENDPOINT
-    # adresse IPv6 → entre crochets
-    if [[ $ep == *:* ]]; then ep="[$ep]"; fi
+    . "$VPN_CLIENTS_DIR/$name.env"
+    address=$VPN_PUBLIC_ADDRESS
+    # IPv6 address → between brackets
+    if [[ $address == *:* ]]; then address="[$address]"; fi
     cat <<EOF
-# finalcut — client « $name » — IP $VPN_NET.$((ID + 1)) — port ouvert $((VPN_PORT_BASE + ID))
+# seedtunnel — client "$name" — IP $VPN_SUBNET.$((CLIENT_NUMBER + 1)) — open port $((VPN_FORWARDED_PORT_BASE + CLIENT_NUMBER))
 [Interface]
-PrivateKey = $PRIV
-Address = $VPN_NET.$((ID + 1))/32
+PrivateKey = $CLIENT_PRIVATE_KEY
+Address = $VPN_SUBNET.$((CLIENT_NUMBER + 1))/32
 DNS = $VPN_DNS
 
 [Peer]
-PublicKey = $(<"$VPN_DIR/server.pub")
-PresharedKey = $PSK
-Endpoint = $ep:$VPN_PORT
-# ::/0 envoie aussi l'IPv6 dans le tunnel (où il est bloqué) : pas de fuite IPv6
+PublicKey = $(<"$VPN_STATE_DIR/server.pub")
+PresharedKey = $CLIENT_PRESHARED_KEY
+Endpoint = $address:$VPN_PORT
+# ::/0 also sends IPv6 into the tunnel (where it is blocked): no IPv6 leak
 AllowedIPs = 0.0.0.0/0, ::/0
-# Garde le tunnel ouvert derrière une box : indispensable pour le port ouvert
+# Keeps the tunnel open behind a home router: needed for the open port
 PersistentKeepalive = 25
 EOF
 }
 
-vpn_gen_server() {
-    local f name ID PUB PSK PRIV
+vpn_generate_server_conf() {
+    local file name CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY
     cat <<EOF
-# Généré par finalcut — utilisez le menu plutôt que de modifier ce fichier.
+# Written by seedtunnel — use the menu rather than editing this file.
 [Interface]
-Address = $VPN_NET.1/24
+Address = $VPN_SUBNET.1/24
 ListenPort = $VPN_PORT
-PrivateKey = $(<"$VPN_DIR/server.key")
-PostUp = nft -f $VPN_NFT
-PostDown = nft delete table ip finalcut
+PrivateKey = $(<"$VPN_STATE_DIR/server.key")
+PostUp = nft -f $VPN_NAT_RULES
+PostDown = nft delete table ip seedtunnel
 EOF
-    for f in "$VPN_CLIENTS"/*.env; do
-        [[ -e $f ]] || continue
-        name=${f##*/}
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        [[ -e $file ]] || continue
+        name=${file##*/}
         name=${name%.env}
         # shellcheck source=/dev/null
-        . "$f"
-        cat <<EOF
+        . "$file"
+        cat <<EOF || return 1
 
-# client : $name
+# client: $name
 [Peer]
-PublicKey = $PUB
-PresharedKey = $PSK
-AllowedIPs = $VPN_NET.$((ID + 1))/32
+PublicKey = $CLIENT_PUBLIC_KEY
+PresharedKey = $CLIENT_PRESHARED_KEY
+AllowedIPs = $VPN_SUBNET.$((CLIENT_NUMBER + 1))/32
 EOF
     done
 }
 
-# « table / delete / table » : remplace la table d'un seul coup, qu'elle
-# existe déjà ou non, sans toucher aux autres règles du système.
-vpn_gen_nat() {
-    local f name ID PUB PSK PRIV
+# « table / delete / table » replaces the table in one go, whether it exists or
+# not, without touching the other rules of the system.
+vpn_generate_nat_rules() {
+    local file name CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY
     cat <<EOF
 #!/usr/sbin/nft -f
-# Généré par finalcut — NAT du VPN, chargé au démarrage de $VPN_IF.
-table ip finalcut
-delete table ip finalcut
-table ip finalcut {
+# Written by seedtunnel — NAT of the VPN, loaded when $VPN_INTERFACE starts.
+table ip seedtunnel
+delete table ip seedtunnel
+table ip seedtunnel {
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
 EOF
-    for f in "$VPN_CLIENTS"/*.env; do
-        [[ -e $f ]] || continue
-        name=${f##*/}
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        [[ -e $file ]] || continue
+        name=${file##*/}
         name=${name%.env}
         # shellcheck source=/dev/null
-        . "$f"
-        printf '        # client « %s »\n' "$name"
+        . "$file"
+        printf '        # client "%s"\n' "$name"
         printf '        iifname "%s" meta l4proto { tcp, udp } th dport %s dnat to %s\n' \
-            "$VPN_NIC" "$((VPN_PORT_BASE + ID))" "$VPN_NET.$((ID + 1))"
+            "$VPN_OUT_INTERFACE" "$((VPN_FORWARDED_PORT_BASE + CLIENT_NUMBER))" "$VPN_SUBNET.$((CLIENT_NUMBER + 1))" || return 1
     done
     cat <<EOF
     }
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
-        # les clients sortent sur Internet avec l'IP du serveur
-        ip saddr $VPN_NET.0/24 oifname "$VPN_NIC" masquerade
+        # clients go out to the Internet with the IP of the server
+        ip saddr $VPN_SUBNET.0/24 oifname "$VPN_OUT_INTERFACE" masquerade
     }
 }
 EOF
 }
 
-# --- Application -------------------------------------------------------------------
+# --- Applying ----------------------------------------------------------------------
 
-# Applique la configuration à chaud, sans couper les clients connectés
+# Applies the configuration live, without disconnecting the clients. Each step
+# is checked: if WireGuard refuses the configuration, « run » shows « failed »
+# with the error, instead of « ok ».
 vpn_sync() {
-    wg syncconf "$VPN_IF" <(wg-quick strip "$VPN_IF")
-    nft -f "$VPN_NFT"
+    local stripped
+    stripped=$(wg-quick strip "$VPN_INTERFACE") || return 1
+    wg syncconf "$VPN_INTERFACE" <(printf '%s\n' "$stripped") || return 1
+    nft -f "$VPN_NAT_RULES" || return 1
 }
 
-# Met le serveur dans l'état décrit par /etc/finalcut (idempotent)
+# Puts the server in the state described in /etc/seedtunnel (idempotent)
 vpn_apply() {
-    local nic name changed=0 cur_port
+    local interface name changed=0 current_port
     apt_install wireguard-tools qrencode
-    install -d -m 700 "$VPN_DIR" "$VPN_CLIENTS" /etc/wireguard
-    if [[ ! -s $VPN_DIR/server.key ]]; then
-        (umask 077 && wg genkey >"$VPN_DIR/server.key")
+    install -d -m 700 "$VPN_STATE_DIR" "$VPN_CLIENTS_DIR" /etc/wireguard
+    if [[ ! -s $VPN_STATE_DIR/server.key ]]; then
+        (umask 077 && wg genkey >"$VPN_STATE_DIR/server.key")
     fi
-    write_if_changed "$VPN_DIR/server.pub" 600 < <(wg pubkey <"$VPN_DIR/server.key") || true
+    write_if_changed "$VPN_STATE_DIR/server.pub" 600 root:root wg pubkey <"$VPN_STATE_DIR/server.key" || true
 
-    # l'interface réseau peut changer (restauration sur un autre serveur)
-    nic=$(default_iface)
-    if [[ -n $nic ]]; then VPN_NIC=$nic; fi
-    [[ -n $VPN_NIC ]] || die "Interface réseau principale introuvable (pas de route par défaut ?)."
+    # the network interface may change (restore on another server)
+    interface=$(default_interface)
+    if [[ -n $interface ]]; then VPN_OUT_INTERFACE=$interface; fi
+    [[ -n $VPN_OUT_INTERFACE ]] || die 'Main network interface not found (no default route?).'
     vpn_save
-    # port du VPN ouvert dans le pare-feu avant le démarrage
-    fw_refresh
+    # the port of the VPN is opened in the firewall before starting
+    firewall_refresh
 
-    # le serveur doit faire suivre les paquets des clients vers Internet
-    if write_if_changed "$VPN_SYSCTL" 644 < <(printf '# Généré par finalcut : routage des clients du VPN\nnet.ipv4.ip_forward = 1\n') \
+    # the server must forward the packets of the clients to the Internet
+    if write_if_changed "$VPN_SYSCTL_FILE" 644 root:root \
+        printf '%s\n' '# Written by seedtunnel: routing for the VPN clients' 'net.ipv4.ip_forward = 1' \
         || [[ $(sysctl -n net.ipv4.ip_forward 2>/dev/null) != 1 ]]; then
-        run "Activation du routage IPv4" sysctl -q -p "$VPN_SYSCTL"
+        run 'Enabling IPv4 routing' sysctl -q -p "$VPN_SYSCTL_FILE"
     fi
     net_hardening_apply
 
     while IFS= read -r name; do
-        write_if_changed "$VPN_CLIENTS/$name.conf" 600 < <(vpn_gen_client "$name") || true
+        write_if_changed "$VPN_CLIENTS_DIR/$name.conf" 600 root:root vpn_generate_client_conf "$name" || true
     done < <(vpn_client_names)
-    if write_if_changed "$WG_CONF" 600 < <(vpn_gen_server); then changed=1; fi
-    if write_if_changed "$VPN_NFT" 600 < <(vpn_gen_nat); then changed=1; fi
+    if write_if_changed "$WIREGUARD_CONF" 600 root:root vpn_generate_server_conf; then changed=1; fi
+    if write_if_changed "$VPN_NAT_RULES" 600 root:root vpn_generate_nat_rules; then changed=1; fi
 
-    if ! systemctl is-active --quiet "wg-quick@$VPN_IF"; then
-        run "Démarrage du VPN" systemctl enable --now "wg-quick@$VPN_IF"
+    if ! systemctl is-active --quiet "wg-quick@$VPN_INTERFACE"; then
+        run 'Starting the VPN' systemctl enable --now "wg-quick@$VPN_INTERFACE"
     else
-        cur_port=$(wg show "$VPN_IF" listen-port 2>/dev/null || true)
-        if [[ $cur_port != "$VPN_PORT" ]]; then
-            run "Redémarrage du VPN (nouveau port)" systemctl restart "wg-quick@$VPN_IF"
+        current_port=$(wg show "$VPN_INTERFACE" listen-port 2>/dev/null || true)
+        if [[ $current_port != "$VPN_PORT" ]]; then
+            run 'Restarting the VPN (new port)' systemctl restart "wg-quick@$VPN_INTERFACE"
         elif ((changed)); then
-            run "Application de la configuration" vpn_sync
+            run 'Applying the configuration' vpn_sync
         fi
-        systemctl enable --quiet "wg-quick@$VPN_IF" 2>/dev/null || true
+        systemctl enable --quiet "wg-quick@$VPN_INTERFACE" 2>/dev/null || true
     fi
 }
 
-vpn_next_id() {
-    local id f used=" "
-    for f in "$VPN_CLIENTS"/*.env; do
-        [[ -e $f ]] || continue
+vpn_next_client_number() {
+    local number file used=" "
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        [[ -e $file ]] || continue
         used+="$(
             # shellcheck source=/dev/null
-            . "$f"
-            printf '%s' "$ID"
+            . "$file"
+            printf '%s' "$CLIENT_NUMBER"
         ) "
     done
-    for ((id = 1; id <= VPN_MAX; id++)); do
-        if [[ $used != *" $id "* ]]; then
-            printf '%s' "$id"
+    for ((number = 1; number <= VPN_MAX_CLIENTS; number++)); do
+        if [[ $used != *" $number "* ]]; then
+            printf '%s' "$number"
             return 0
         fi
     done
     return 1
 }
 
-# --- Clients -------------------------------------------------------------------
+# --- Clients --------------------------------------------------------------------------
 
 vpn_add_client() {
-    local name=$1 ID PUB PSK PRIV
-    vpn_valid_name "$name" || die "Nom de client invalide : « $name » (lettres, chiffres, - et _, 15 caractères max)."
-    [[ ! -e $VPN_CLIENTS/$name.env ]] || die "Le client « $name » existe déjà."
-    if ! ID=$(vpn_next_id); then die "Nombre maximum de clients atteint ($VPN_MAX)."; fi
-    PRIV=$(wg genkey)
-    PUB=$(printf '%s' "$PRIV" | wg pubkey)
-    PSK=$(wg genpsk)
-    (umask 077 && conf_write "$VPN_CLIENTS/$name.env" ID PUB PSK PRIV)
+    local name=$1 CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY
+    vpn_is_valid_client_name "$name" || die 'Invalid client name: "%s" (letters, digits, - and _, 15 characters at most).' "$name"
+    [[ ! -e $VPN_CLIENTS_DIR/$name.env ]] || die 'Client "%s" already exists.' "$name"
+    if ! CLIENT_NUMBER=$(vpn_next_client_number); then die 'Maximum number of clients reached (%s).' "$VPN_MAX_CLIENTS"; fi
+    CLIENT_PRIVATE_KEY=$(wg genkey)
+    CLIENT_PUBLIC_KEY=$(printf '%s' "$CLIENT_PRIVATE_KEY" | wg pubkey)
+    CLIENT_PRESHARED_KEY=$(wg genpsk)
+    (umask 077 && state_write "$VPN_CLIENTS_DIR/$name.env" CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY)
     vpn_apply
-    ok "Client « $name » créé : IP $VPN_NET.$((ID + 1)), port ouvert $((VPN_PORT_BASE + ID)), fichier $VPN_CLIENTS/$name.conf"
+    ok 'Client "%s" created: IP %s, open port %s, file %s' "$name" "$VPN_SUBNET.$((CLIENT_NUMBER + 1))" \
+        "$((VPN_FORWARDED_PORT_BASE + CLIENT_NUMBER))" "$VPN_CLIENTS_DIR/$name.conf"
 }
 
 vpn_remove_client() {
     local name=$1
     vpn_require_client "$name"
-    rm -f "$VPN_CLIENTS/$name.env" "$VPN_CLIENTS/$name.conf"
+    rm -f "$VPN_CLIENTS_DIR/$name.env" "$VPN_CLIENTS_DIR/$name.conf"
     vpn_apply
-    ok "Client « $name » révoqué : sa clé ne peut plus se connecter."
+    ok 'Client "%s" revoked: its key can no longer connect.' "$name"
 }
 
 vpn_show_client() {
-    local name=$1 ID PUB PSK PRIV port
+    local name=$1 CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY port
     vpn_require_client "$name"
     # shellcheck source=/dev/null
-    . "$VPN_CLIENTS/$name.env"
-    port=$((VPN_PORT_BASE + ID))
-    titre
-    section "CLIENT VPN « $name »"
-    qrencode -t ansiutf8 <"$VPN_CLIENTS/$name.conf"
-    cat <<EOF
-
-Téléphone  : application WireGuard → « + » → « Scanner un code QR ».
-Ordinateur : application WireGuard → « Importer » avec le fichier
-             $VPN_CLIENTS/$name.conf, à récupérer par un lien de
-             téléchargement :  finalcut vpn share $name
-
-Port ouvert pour ce client : ${C_BLD}$port${C_END} (TCP et UDP)
-  Les connexions entrantes sur $VPN_ENDPOINT:$port arrivent chez ce client
-  quand il est connecté : mettez ce port dans votre logiciel torrent.
-
-EOF
-    if ((FC_INTERACTIVE)); then
-        if confirm "Afficher le contenu du fichier (pour un copier-coller) ?" n; then
+    . "$VPN_CLIENTS_DIR/$name.env"
+    port=$((VPN_FORWARDED_PORT_BASE + CLIENT_NUMBER))
+    banner
+    section 'VPN CLIENT "%s"' "$name"
+    qrencode -t ansiutf8 <"$VPN_CLIENTS_DIR/$name.conf"
+    echo
+    text vpn_client_help
+    echo
+    if ((INTERACTIVE)); then
+        if confirm 'Show the content of the file (to copy and paste)?' n; then
             echo
-            cat "$VPN_CLIENTS/$name.conf"
+            cat "$VPN_CLIENTS_DIR/$name.conf"
             echo
         fi
     else
-        cat "$VPN_CLIENTS/$name.conf"
+        cat "$VPN_CLIENTS_DIR/$name.conf"
     fi
 }
 
-# Lien de téléchargement à usage unique du fichier d'un client (voir share.sh)
+# One-time download link for the file of a client (see share.sh)
 vpn_share_client() {
     local name=$1
     vpn_require_client "$name"
-    share_require "Sans seedbox :  finalcut vpn show $name  (QR code, ou contenu à copier-coller)."
-    share_create "$VPN_CLIENTS/$name.conf" "$name.conf" "Configuration VPN « $name »" \
-        "<li>Ordinateur : application WireGuard → importer un tunnel depuis un fichier → choisissez ce fichier.</li>
-<li>Téléphone : application WireGuard → « + » → importer depuis un fichier.</li>" \
-        "Ce fichier contient la clé secrète de « $name » : supprimez-le une fois importé."
+    share_require "$(t 'Without a seedbox:  seedtunnel vpn show %s  (QR code, or content to copy and paste).' "$name")"
+    share_create "$VPN_CLIENTS_DIR/$name.conf" "$name.conf" "$(t 'VPN configuration "%s"' "$name")" \
+        "$(text share_steps_vpn)" "$(t 'This file holds the secret key of "%s": delete it once imported.' "$name")"
 }
 
-# vpn_pick_client VAR "Question" — liste numérotée, choix par numéro ou par nom
+# vpn_pick_client VARIABLE "Question (already translated)" — numbered list, pick
+# by number or by name
 vpn_pick_client() {
-    local _pc_var=$1 _pc_q=$2 _pc_rep _pc_i=0 _pc_n
-    local -a _pc_names
-    mapfile -t _pc_names < <(vpn_client_names)
-    if ((${#_pc_names[@]} == 0)); then
-        warn "Aucun client pour l'instant."
+    local _pick_var=$1 _pick_question=$2 _pick_answer _pick_index=0 _pick_name
+    local -a _pick_names
+    mapfile -t _pick_names < <(vpn_client_names)
+    if ((${#_pick_names[@]} == 0)); then
+        warn 'No client yet.'
         return 1
     fi
-    for _pc_n in "${_pc_names[@]}"; do
-        _pc_i=$((_pc_i + 1))
-        printf '  %2d) %s\n' "$_pc_i" "$_pc_n"
+    for _pick_name in "${_pick_names[@]}"; do
+        _pick_index=$((_pick_index + 1))
+        printf '  %2d) %s\n' "$_pick_index" "$_pick_name"
     done
     echo
-    ask _pc_rep "$_pc_q (numéro ou nom, vide pour annuler)" ""
-    [[ -n $_pc_rep ]] || return 1
-    if [[ ! $_pc_rep =~ ^[A-Za-z0-9_-]{1,15}$ ]]; then
-        warn "Nom invalide."
+    ask _pick_answer "$(t '%s (number or name, empty to cancel)' "$_pick_question")" ""
+    [[ -n $_pick_answer ]] || return 1
+    if [[ ! $_pick_answer =~ ^[A-Za-z0-9_-]{1,15}$ ]]; then
+        warn 'Invalid name.'
         return 1
     fi
-    if [[ $_pc_rep =~ ^[0-9]+$ ]] && ((_pc_rep >= 1 && _pc_rep <= ${#_pc_names[@]})); then
-        _pc_rep=${_pc_names[_pc_rep - 1]}
+    if [[ $_pick_answer =~ ^[0-9]+$ ]] && ((_pick_answer >= 1 && _pick_answer <= ${#_pick_names[@]})); then
+        _pick_answer=${_pick_names[_pick_answer - 1]}
     fi
-    if [[ ! -e $VPN_CLIENTS/$_pc_rep.env ]]; then
-        warn "Client « $_pc_rep » introuvable."
+    if [[ ! -e $VPN_CLIENTS_DIR/$_pick_answer.env ]]; then
+        warn 'Client "%s" not found.' "$_pick_answer"
         return 1
     fi
-    printf -v "$_pc_var" '%s' "$_pc_rep"
+    printf -v "$_pick_var" '%s' "$_pick_answer"
 }
 
 vpn_ask_client_name() {
-    local _cn_var=$1 _cn_def=${2-} _cn_name
+    local _client_var=$1 _client_default=${2-} _client_name
     while true; do
-        ask _cn_name "Nom du client (ex. telephone, pc-salon)" "$_cn_def"
-        if ! vpn_valid_name "$_cn_name"; then
-            warn "Lettres, chiffres, - et _ uniquement, 15 caractères maximum."
-        elif [[ -e $VPN_CLIENTS/$_cn_name.env ]]; then
-            warn "Le client « $_cn_name » existe déjà."
+        ask _client_name 'Client name (e.g. phone, laptop)' "$_client_default"
+        if ! vpn_is_valid_client_name "$_client_name"; then
+            warn 'Letters, digits, - and _ only, 15 characters at most.'
+        elif [[ -e $VPN_CLIENTS_DIR/$_client_name.env ]]; then
+            warn 'Client "%s" already exists.' "$_client_name"
         else
             break
         fi
     done
-    printf -v "$_cn_var" '%s' "$_cn_name"
+    printf -v "$_client_var" '%s' "$_client_name"
 }
 
-# Tableau des clients avec l'état de leur connexion
+# Table of the clients with the state of their connection
 vpn_status_table() {
-    local -A hs=() rx=() tx=()
-    local pk _psk _ep _ips h r t _ka f name ID PUB PSK PRIV now last ago
-    if systemctl is-active --quiet "wg-quick@$VPN_IF"; then
-        while IFS=$'\t' read -r pk _psk _ep _ips h r t _ka; do
-            hs[$pk]=$h
-            rx[$pk]=$r
-            tx[$pk]=$t
-        done < <(wg show "$VPN_IF" dump | tail -n +2)
+    local -A handshakes=() received=() sent=()
+    local key _psk _endpoint _ips handshake rx tx _keepalive file name now ago
+    local CLIENT_NUMBER CLIENT_PUBLIC_KEY CLIENT_PRESHARED_KEY CLIENT_PRIVATE_KEY
+    if systemctl is-active --quiet "wg-quick@$VPN_INTERFACE"; then
+        while IFS=$'\t' read -r key _psk _endpoint _ips handshake rx tx _keepalive; do
+            handshakes[$key]=$handshake
+            received[$key]=$rx
+            sent[$key]=$tx
+        done < <(wg show "$VPN_INTERFACE" dump | tail -n +2)
     fi
     now=$(date +%s)
-    printf '%s%-16s %-12s %-7s %-20s %s%s\n' "$C_BLD" "CLIENT" "IP" "PORT" "REÇU / ENVOYÉ" "DERNIÈRE CONNEXION" "$C_END"
-    for f in "$VPN_CLIENTS"/*.env; do
-        [[ -e $f ]] || continue
-        name=${f##*/}
+    printf '%s%-16s %-12s %-7s %-20s %s%s\n' "$C_BOLD" "$(t 'CLIENT')" "IP" "PORT" \
+        "$(t 'RECEIVED / SENT')" "$(t 'LAST CONNECTION')" "$C_RESET"
+    for file in "$VPN_CLIENTS_DIR"/*.env; do
+        [[ -e $file ]] || continue
+        name=${file##*/}
         name=${name%.env}
         # shellcheck source=/dev/null
-        . "$f"
-        last=${hs[$PUB]:-0}
-        if ((last == 0)); then
-            ago="${C_DIM}jamais${C_END}"
+        . "$file"
+        handshake=${handshakes[$CLIENT_PUBLIC_KEY]:-0}
+        if ((handshake == 0)); then
+            ago="$C_DIM$(t 'never')$C_RESET"
         else
-            ago=$((now - last))
+            ago=$((now - handshake))
             if ((ago < 180)); then
-                ago="${C_GRN}connecté${C_END} (${ago} s)"
+                ago="$C_GREEN$(t 'connected')$C_RESET $(t '(%s s)' "$ago")"
             elif ((ago < 3600)); then
-                ago="il y a $((ago / 60)) min"
+                ago=$(t '%s min ago' "$((ago / 60))")
             elif ((ago < 86400)); then
-                ago="il y a $((ago / 3600)) h"
+                ago=$(t '%s h ago' "$((ago / 3600))")
             else
-                ago="il y a $((ago / 86400)) j"
+                ago=$(t '%s days ago' "$((ago / 86400))")
             fi
         fi
-        printf '%-16s %-12s %-7s %-20s %s\n' "$name" "$VPN_NET.$((ID + 1))" "$((VPN_PORT_BASE + ID))" \
-            "$(numfmt --to=iec --suffix=o "${rx[$PUB]:-0}") / $(numfmt --to=iec --suffix=o "${tx[$PUB]:-0}")" "$ago"
+        printf '%-16s %-12s %-7s %-20s %s\n' "$name" "$VPN_SUBNET.$((CLIENT_NUMBER + 1))" \
+            "$((VPN_FORWARDED_PORT_BASE + CLIENT_NUMBER))" \
+            "$(human_size "${received[$CLIENT_PUBLIC_KEY]:-0}") / $(human_size "${sent[$CLIENT_PUBLIC_KEY]:-0}")" "$ago"
     done
 }
 
-# --- Réglages, installation, désinstallation ----------------------------------
+# --- Settings, installation, removal ---------------------------------------------
 
 vpn_ask_dns() {
-    local c
+    local choice
     echo
-    echo "DNS utilisés par les clients du VPN :"
-    echo "  1) Quad9      — bloque les domaines malveillants (fondation suisse)"
-    echo "  2) Cloudflare — généralement le plus rapide"
-    echo "  3) Autre      — saisie manuelle"
+    say 'DNS servers used by the VPN clients:'
+    say '  1) Quad9      — blocks malicious domains (Swiss foundation)'
+    say '  2) Cloudflare — usually the fastest'
+    say '  3) Other      — type the addresses'
     while true; do
-        ask c "Votre choix [1-3]" "1"
-        case $c in
+        ask choice 'Your choice [1-3]' "1"
+        case $choice in
             1)
                 VPN_DNS=$(vpn_dns_value quad9)
                 return 0
@@ -445,51 +444,58 @@ vpn_ask_dns() {
                 return 0
                 ;;
             3)
-                ask VPN_DNS "Adresse(s) IP des DNS, séparées par des virgules" "$VPN_DNS"
-                if vpn_valid_dns "$VPN_DNS"; then return 0; fi
-                warn "Format attendu : 9.9.9.9, 149.112.112.112"
+                ask VPN_DNS 'DNS IP address(es), separated by commas' "$VPN_DNS"
+                if vpn_is_valid_dns "$VPN_DNS"; then return 0; fi
+                warn 'Expected format: 9.9.9.9, 149.112.112.112'
                 ;;
         esac
     done
 }
 
-# Questions communes à l'installation et à la modification des réglages
+# Questions shared by the installation and the change of settings
 vpn_ask_settings() {
     while true; do
-        ask VPN_ENDPOINT "Adresse publique du serveur (IP ou nom de domaine)" "$VPN_ENDPOINT"
-        if ! vpn_valid_endpoint "$VPN_ENDPOINT"; then
-            warn "Adresse invalide."
+        ask VPN_PUBLIC_ADDRESS 'Public address of the server (IP or domain name)' "$VPN_PUBLIC_ADDRESS"
+        if ! vpn_is_valid_address "$VPN_PUBLIC_ADDRESS"; then
+            warn 'Invalid address.'
             continue
         fi
-        ask VPN_PORT "Port UDP du VPN" "$VPN_PORT"
-        if ! valid_port "$VPN_PORT"; then
-            warn "Port invalide (1 à 65535)."
+        ask VPN_PORT 'UDP port of the VPN' "$VPN_PORT"
+        if ! is_valid_port "$VPN_PORT"; then
+            warn 'Invalid port (1 to 65535).'
             continue
         fi
-        if ! vpn_port_free "$VPN_PORT"; then
-            warn "Le port UDP $VPN_PORT est déjà utilisé sur ce serveur."
+        if ! vpn_port_is_free "$VPN_PORT"; then
+            warn 'UDP port %s is already used on this server.' "$VPN_PORT"
             continue
         fi
         vpn_ask_dns
-        printf '\nRécapitulatif :\n  Adresse : %s\n  Port    : %s/udp\n  DNS     : %s\n  Sortie  : interface %s\n\n' \
-            "$VPN_ENDPOINT" "$VPN_PORT" "$VPN_DNS" "${VPN_NIC:-?}"
-        if confirm "C'est bon ?" o; then return 0; fi
+        echo
+        say 'Summary:'
+        say '  Address : %s' "$VPN_PUBLIC_ADDRESS"
+        say '  Port    : %s/udp' "$VPN_PORT"
+        say '  DNS     : %s' "$VPN_DNS"
+        say '  Out     : interface %s' "${VPN_OUT_INTERFACE:-?}"
+        echo
+        if confirm 'Is that right?' y; then return 0; fi
     done
 }
 
 vpn_install_interactive() {
     local first
-    titre
-    section "INSTALLATION DU VPN WIREGUARD"
+    banner
+    section 'WIREGUARD VPN INSTALLATION'
     vpn_check_kernel
     base_setup
     echo
-    printf "Recherche de l'adresse IP publique… "
-    VPN_ENDPOINT=$(public_ipv4)
-    echo "${VPN_ENDPOINT:-introuvable}"
-    # si la seedbox a un nom de domaine, il fait une meilleure adresse
-    if sb_installed && [[ -n $SB_DOMAIN ]] && ! is_ipv4 "$SB_DOMAIN"; then VPN_ENDPOINT=$SB_DOMAIN; fi
-    VPN_NIC=$(default_iface)
+    printf '%s ' "$(t 'Looking for the public IP address…')"
+    VPN_PUBLIC_ADDRESS=$(public_ipv4)
+    echo "${VPN_PUBLIC_ADDRESS:-$(t 'not found')}"
+    # if the seedbox has a domain name, it makes a better address
+    if seedbox_installed && [[ -n $SEEDBOX_DOMAIN ]] && ! is_ipv4 "$SEEDBOX_DOMAIN"; then
+        VPN_PUBLIC_ADDRESS=$SEEDBOX_DOMAIN
+    fi
+    VPN_OUT_INTERFACE=$(default_interface)
     echo
     vpn_ask_settings
     echo
@@ -498,98 +504,98 @@ vpn_install_interactive() {
     vpn_apply
     vpn_add_client "$first"
     echo
-    ok "VPN installé — aucun redémarrage nécessaire."
+    ok 'VPN installed — no restart needed.'
     pause
     vpn_show_client "$first"
     pause
 }
 
-# Installation (ou remise en ordre) à partir d'un fichier --config. Relancée
-# avec le même fichier, elle ne change rien : les clients existants sont gardés.
-vpn_install_config() {
+# Installation (or putting back in order) from a --config file. Run again with
+# the same file, it changes nothing: existing clients are kept.
+vpn_install_from_config() {
     local name port dns
     local -a names=()
     vpn_check_kernel
     base_setup
-    VPN_ENDPOINT=$(cfg VPN_ENDPOINT "$VPN_ENDPOINT")
-    if [[ -z $VPN_ENDPOINT ]]; then VPN_ENDPOINT=$(public_ipv4); fi
-    vpn_valid_endpoint "$VPN_ENDPOINT" || die "VPN_ENDPOINT invalide : « $VPN_ENDPOINT »"
-    port=$(cfg VPN_PORT "$VPN_PORT")
-    valid_port "$port" || die "VPN_PORT invalide : « $port »"
-    vpn_port_free "$port" || die "Le port UDP $port est déjà utilisé sur ce serveur."
+    VPN_PUBLIC_ADDRESS=$(config_get VPN_PUBLIC_ADDRESS "$VPN_PUBLIC_ADDRESS")
+    if [[ -z $VPN_PUBLIC_ADDRESS ]]; then VPN_PUBLIC_ADDRESS=$(public_ipv4); fi
+    vpn_is_valid_address "$VPN_PUBLIC_ADDRESS" || die 'Invalid VPN_PUBLIC_ADDRESS: "%s"' "$VPN_PUBLIC_ADDRESS"
+    port=$(config_get VPN_PORT "$VPN_PORT")
+    is_valid_port "$port" || die 'Invalid VPN_PORT: "%s"' "$port"
+    vpn_port_is_free "$port" || die 'UDP port %s is already used on this server.' "$port"
     VPN_PORT=$port
-    dns=$(vpn_dns_value "$(cfg VPN_DNS "$VPN_DNS")")
-    vpn_valid_dns "$dns" || die "VPN_DNS invalide : « $dns »"
+    dns=$(vpn_dns_value "$(config_get VPN_DNS "$VPN_DNS")")
+    vpn_is_valid_dns "$dns" || die 'Invalid VPN_DNS: "%s"' "$dns"
     VPN_DNS=$dns
-    IFS=', ' read -r -a names <<<"$(cfg VPN_CLIENTS)"
+    IFS=', ' read -r -a names <<<"$(config_get VPN_CLIENTS)"
     for name in "${names[@]}"; do
-        vpn_valid_name "$name" || die "VPN_CLIENTS : nom invalide « $name »"
+        vpn_is_valid_client_name "$name" || die 'VPN_CLIENTS: invalid name "%s"' "$name"
     done
 
     vpn_apply
     for name in "${names[@]}"; do
-        if [[ ! -e $VPN_CLIENTS/$name.env ]]; then vpn_add_client "$name"; fi
+        if [[ ! -e $VPN_CLIENTS_DIR/$name.env ]]; then vpn_add_client "$name"; fi
     done
-    ok "VPN prêt : $VPN_ENDPOINT:$VPN_PORT/udp, $(vpn_count_clients) client(s) dans $VPN_CLIENTS/"
+    ok 'VPN ready: %s, %s client(s) in %s' "$VPN_PUBLIC_ADDRESS:$VPN_PORT/udp" "$(vpn_count_clients)" "$VPN_CLIENTS_DIR/"
 }
 
 vpn_change_settings() {
-    titre
-    section "RÉGLAGES DU VPN"
-    warn "Après modification, chaque client devra réimporter sa configuration."
+    banner
+    section 'VPN SETTINGS'
+    warn 'After a change, every client will have to import its configuration again.'
     echo
     vpn_ask_settings
     vpn_apply
-    ok "Réglages enregistrés. Réaffichez les clients pour récupérer leurs nouveaux QR codes."
+    ok 'Settings saved. Show the clients again to get their new QR codes.'
 }
 
 vpn_uninstall() {
-    titre
-    section "DÉSINSTALLATION DU VPN"
-    warn "Tous les clients ($(vpn_count_clients)) seront supprimés définitivement."
-    if ! confirm "Désinstaller le VPN ?" n; then return 0; fi
+    banner
+    section 'REMOVING THE VPN'
+    warn 'All the clients (%s) will be deleted for good.' "$(vpn_count_clients)"
+    if ! confirm 'Remove the VPN?' n; then return 0; fi
     echo
-    systemctl disable --now "wg-quick@$VPN_IF" >>"$FC_LOG" 2>&1 || true
-    nft delete table ip finalcut >>"$FC_LOG" 2>&1 || true
-    rm -rf "${VPN_DIR:?}" "$VPN_CONF" "$WG_CONF" "$VPN_SYSCTL"
+    systemctl disable --now "wg-quick@$VPN_INTERFACE" >>"$APP_LOG" 2>&1 || true
+    nft delete table ip seedtunnel >>"$APP_LOG" 2>&1 || true
+    rm -rf "${VPN_STATE_DIR:?}" "$VPN_CONF_FILE" "$WIREGUARD_CONF" "$VPN_SYSCTL_FILE"
     net_hardening_cleanup
     apt_purge wireguard-tools qrencode
-    fw_refresh
-    ok "VPN désinstallé (le routage IPv4 sera désactivé au prochain redémarrage)."
+    firewall_refresh
+    backup_auto_stop_if_unused
+    ok 'VPN removed (IPv4 routing will be turned off at the next restart).'
     pause
 }
 
 vpn_menu() {
-    local choix name
+    local choice name
     while true; do
         vpn_load
         vpn_installed || return 0
-        titre
-        section "GESTION DU VPN"
-        printf '  État    : %s\n' "$(svc_state "wg-quick@$VPN_IF")"
-        printf '  Adresse : %s:%s (UDP)\n' "$VPN_ENDPOINT" "$VPN_PORT"
-        printf '  Clients : %s (%s connecté(s) en ce moment)\n\n' "$(vpn_count_clients)" "$(vpn_connected_count)"
-        cat <<EOF
-1) Ajouter un client
-2) Afficher un client (QR code, fichier)
-3) Lien de téléchargement d'un client (usage unique)
-4) Révoquer un client
-5) Clients et connexions
-
-6) Modifier les réglages (adresse, port, DNS)
-7) Redémarrer le VPN
-8) Désinstaller le VPN
-
-Q) Retour
-EOF
+        banner
+        section 'VPN MANAGEMENT'
+        say '  State   : %s' "$(service_state "wg-quick@$VPN_INTERFACE")"
+        say '  Address : %s (UDP)' "$VPN_PUBLIC_ADDRESS:$VPN_PORT"
+        say '  Clients : %s (%s connected right now)' "$(vpn_count_clients)" "$(vpn_connected_count)"
         echo
-        ask choix "Votre choix" ""
-        case ${choix,,} in
+        say '1) Add a client'
+        say '2) Show a client (QR code, file)'
+        say '3) Download link for a client (one time only)'
+        say '4) Revoke a client'
+        say '5) Clients and connections'
+        echo
+        say '6) Change the settings (address, port, DNS)'
+        say '7) Restart the VPN'
+        say '8) Remove the VPN'
+        echo
+        say 'Q) Back'
+        echo
+        ask choice 'Your choice' ""
+        case ${choice,,} in
             1)
-                titre
-                section "AJOUTER UN CLIENT"
-                if (($(vpn_count_clients) >= VPN_MAX)); then
-                    warn "Nombre maximum de clients atteint ($VPN_MAX)."
+                banner
+                section 'ADD A CLIENT'
+                if (($(vpn_count_clients) >= VPN_MAX_CLIENTS)); then
+                    warn 'Maximum number of clients reached (%s).' "$VPN_MAX_CLIENTS"
                 else
                     vpn_ask_client_name name ""
                     vpn_add_client "$name"
@@ -599,34 +605,34 @@ EOF
                 pause
                 ;;
             2)
-                titre
-                section "AFFICHER UN CLIENT"
-                if vpn_pick_client name "Client à afficher"; then vpn_show_client "$name"; fi
+                banner
+                section 'SHOW A CLIENT'
+                if vpn_pick_client name "$(t 'Client to show')"; then vpn_show_client "$name"; fi
                 pause
                 ;;
             3)
-                titre
-                section "LIEN DE TÉLÉCHARGEMENT"
-                if ! sb_installed; then
-                    warn "Les liens passent par le site HTTPS de la seedbox, qui n'est pas installée :"
-                    warn "utilisez « Afficher un client » (QR code, ou contenu à copier-coller)."
-                elif vpn_pick_client name "Client à envoyer"; then
+                banner
+                section 'DOWNLOAD LINK'
+                if ! seedbox_installed; then
+                    warn 'Links go through the HTTPS site of the seedbox, which is not installed:'
+                    warn 'use "Show a client" instead (QR code, or content to copy and paste).'
+                elif vpn_pick_client name "$(t 'Client to send')"; then
                     vpn_share_client "$name"
                 fi
                 pause
                 ;;
             4)
-                titre
-                section "RÉVOQUER UN CLIENT"
-                if vpn_pick_client name "Client à révoquer" \
-                    && confirm "Révoquer définitivement « $name » ?" n; then
+                banner
+                section 'REVOKE A CLIENT'
+                if vpn_pick_client name "$(t 'Client to revoke')" \
+                    && confirm "$(t 'Revoke "%s" for good?' "$name")" n; then
                     vpn_remove_client "$name"
                 fi
                 pause
                 ;;
             5)
-                titre
-                section "CLIENTS ET CONNEXIONS"
+                banner
+                section 'CLIENTS AND CONNECTIONS'
                 vpn_status_table
                 echo
                 pause
@@ -637,7 +643,7 @@ EOF
                 ;;
             7)
                 echo
-                run "Redémarrage du VPN" systemctl restart "wg-quick@$VPN_IF"
+                run 'Restarting the VPN' systemctl restart "wg-quick@$VPN_INTERFACE"
                 pause
                 ;;
             8) vpn_uninstall ;;
@@ -648,9 +654,9 @@ EOF
 
 vpn_main() {
     vpn_load
-    if vpn_installed && (($(vpn_count_clients) == 0)) && ! systemctl is-active --quiet "wg-quick@$VPN_IF"; then
-        # réglages enregistrés mais ni client ni service : installation interrompue
-        warn "L'installation précédente du VPN s'est interrompue : on la reprend."
+    if vpn_installed && (($(vpn_count_clients) == 0)) && ! systemctl is-active --quiet "wg-quick@$VPN_INTERFACE"; then
+        # settings saved but neither client nor service: interrupted installation
+        warn 'The previous installation of the VPN was interrupted: starting it again.'
         pause
         vpn_install_interactive
     elif vpn_installed; then
@@ -660,37 +666,37 @@ vpn_main() {
     fi
 }
 
-# finalcut vpn <commande> …
+# seedtunnel vpn <command> …
 vpn_cli() {
-    local cmd=${1-}
+    local command=${1-}
     if (($#)); then shift; fi
-    case $cmd in
+    case $command in
         "")
-            require_tty
+            require_terminal
             vpn_main
             ;;
         install)
-            if [[ -n $FC_CONFIG ]]; then
-                config_load "$FC_CONFIG"
-                vpn_install_config
-                if [[ $(cfg FIREWALL) == yes ]]; then fw_enable; fi
+            if [[ -n $OPT_CONFIG_FILE ]]; then
+                config_load "$OPT_CONFIG_FILE"
+                vpn_install_from_config
+                if [[ $(config_get FIREWALL) == yes ]]; then firewall_enable; fi
             else
-                require_tty
-                if vpn_installed; then die "Le VPN est déjà installé (finalcut vpn pour le gérer)."; fi
+                require_terminal
+                if vpn_installed; then die 'The VPN is already installed (seedtunnel vpn to manage it).'; fi
                 vpn_install_interactive
             fi
             ;;
         add)
             vpn_require_installed
-            [[ -n ${1-} ]] || die "Usage : finalcut vpn add NOM [--qr]"
+            [[ -n ${1-} ]] || die 'Usage: seedtunnel vpn add NAME [--qr]'
             vpn_add_client "$1"
-            if ((FC_QR)); then vpn_show_client "$1"; fi
+            if ((OPT_QR)); then vpn_show_client "$1"; fi
             ;;
         remove)
             vpn_require_installed
-            [[ -n ${1-} ]] || die "Usage : finalcut vpn remove NOM --yes"
+            [[ -n ${1-} ]] || die 'Usage: seedtunnel vpn remove NAME --yes'
             vpn_require_client "$1"
-            if confirm "Révoquer définitivement « $1 » ?" n; then vpn_remove_client "$1"; fi
+            if confirm "$(t 'Revoke "%s" for good?' "$1")" n; then vpn_remove_client "$1"; fi
             ;;
         list)
             vpn_require_installed
@@ -698,22 +704,22 @@ vpn_cli() {
             ;;
         show)
             vpn_require_installed
-            [[ -n ${1-} ]] || die "Usage : finalcut vpn show NOM"
+            [[ -n ${1-} ]] || die 'Usage: seedtunnel vpn show NAME'
             vpn_show_client "$1"
             ;;
         share)
             vpn_require_installed
-            [[ -n ${1-} ]] || die "Usage : finalcut vpn share NOM"
+            [[ -n ${1-} ]] || die 'Usage: seedtunnel vpn share NAME'
             vpn_share_client "$1"
             ;;
         restart)
             vpn_require_installed
-            run "Redémarrage du VPN" systemctl restart "wg-quick@$VPN_IF"
+            run 'Restarting the VPN' systemctl restart "wg-quick@$VPN_INTERFACE"
             ;;
         uninstall)
             vpn_require_installed
             vpn_uninstall
             ;;
-        *) die "Commande inconnue : vpn $cmd   (aide : finalcut help)" ;;
+        *) die 'Unknown command: vpn %s   (help: seedtunnel help)' "$command" ;;
     esac
 }

@@ -1,18 +1,20 @@
-# Outils de développement (pas nécessaires pour utiliser finalcut)
-#   make lint        analyse du code avec shellcheck
-#   make fmt         met le code en forme avec shfmt
-#   make fmt-check   vérifie la mise en forme sans rien modifier
-#   make check       tout ce qui précède, plus « bash -n »
+# Development tools (not needed to use seedtunnel)
+#   make lint        code analysis with shellcheck
+#   make fmt         formats the code with shfmt
+#   make fmt-check   checks the formatting without changing anything
+#   make i18n        every message has its French translation
+#   make unit        unit tests (no root, no server needed)
+#   make check       all of the above, plus « bash -n »
 
-SCRIPTS := finalcut.sh $(wildcard lib/*.sh) $(wildcard tests/*.sh)
-# 4 espaces, « case » indentés, opérateurs (| && ||) en début de ligne
+SCRIPTS := seedtunnel.sh $(wildcard lib/*.sh) $(wildcard lang/*.sh) $(wildcard tests/*.sh)
+# 4 spaces, indented « case », operators (| && ||) at the start of lines
 SHFMT := shfmt -i 4 -ci -bn
 
-.PHONY: lint fmt fmt-check check
+.PHONY: lint fmt fmt-check i18n unit check
 
-# Exclusions : le script est découpé en fichiers chargés par finalcut.sh (les
-# variables d'un fichier servent dans les autres : SC2034, SC2154) et charge
-# dynamiquement ses fichiers d'état /etc/finalcut/*.conf (SC1090, SC1091).
+# Exclusions: the script is split into files loaded by seedtunnel.sh (the
+# variables of a file are used in the others: SC2034, SC2154) and it loads its
+# state files /etc/seedtunnel/*.conf dynamically (SC1090, SC1091).
 lint:
 	shellcheck -x -P SCRIPTDIR -S warning -e SC2034,SC2154,SC1090,SC1091 $(SCRIPTS)
 
@@ -22,6 +24,12 @@ fmt:
 fmt-check:
 	$(SHFMT) -d $(SCRIPTS)
 
-check: lint fmt-check
+i18n:
+	python3 tests/i18n_check.py
+
+unit:
+	tests/unit.sh
+
+check: lint fmt-check i18n unit
 	@for f in $(SCRIPTS); do bash -n "$$f" || exit 1; done
-	@echo "Tout est en ordre."
+	@echo "All good."

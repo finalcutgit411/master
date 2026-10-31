@@ -1,56 +1,65 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  finalcut — liens de téléchargement à usage unique
+#  seedtunnel — one-time download links
 #
-#  Pour récupérer un fichier (configuration VPN, connexion FileZilla) sur un
-#  ordinateur ou un téléphone sans scp : le site HTTPS de la seedbox sert
-#  https://<domaine>/partage/<jeton>/, une page avec un bouton de
-#  téléchargement. Le jeton est aléatoire (128 bits) : impossible à deviner.
+#  To get a file (VPN configuration, FileZilla site, backup) onto a computer
+#  without scp: the HTTPS site of the seedbox serves
+#  https://<domain>/share/<token>/, a page with a download button. The token
+#  is random (128 bits): impossible to guess.
 #
-#  Le fichier disparaît dès qu'il a été téléchargé une fois, et au plus tard au
-#  bout de 10 minutes. Tout est rangé dans /run, vidé au redémarrage.
-#  Ouvrir la page ne compte pas : l'aperçu de lien d'une messagerie ne
-#  « consomme » pas le téléchargement.
+#  The file is deleted the moment nginx opens it (inotify): a download that has
+#  started goes to the end, and any later request gets an error, whatever the
+#  form of the address. nginx also allows one download at a time per link, and
+#  never a partial one. An unused link expires after 10 minutes. Everything
+#  lives in /run, which is emptied at boot.
+#  Opening the page does not count: a messaging app that previews the link
+#  does not use it up.
 # =============================================================================
 
-SHARE_DIR="/run/finalcut-share"
-SHARE_LOG="/var/log/nginx/finalcut-partage.log"
-SHARE_PATH="/partage"
-SHARE_TTL=600
+SHARE_DIR="/run/seedtunnel-share"
+SHARE_URL_PATH="/share"
+SHARE_LIFETIME=600
 
-# Surveillance d'un lien (lancée à part par systemd-run) : attend dans le
-# journal de nginx le premier téléchargement réussi du fichier, ou la fin du
-# délai, puis supprime le dossier du lien.
-#   $1 jeton  $2 fichier  $3 taille du journal au départ  $4 délai (s)
-#   $5 dossier du lien  $6 journal nginx  $7 chemin web
+# Watches one link (started on its own by systemd-run): waits for the first
+# opening of the file, or the end of the lifetime, then deletes the link.
+# If a mark file is given, it is touched when the file was really opened.
+#   $1 file   $2 lifetime (seconds)   $3 folder of the link   $4 mark file
 read -r -d '' SHARE_WATCHER <<'SH' || true
-end=$((SECONDS + $4))
-while ((SECONDS < end)); do
-    if IFS= read -r -t "$((end - SECONDS))" line; then
-        if [[ $line == *"\"GET $7/$1/$2 HTTP/"*"\" 200 "* ]]; then break; fi
-    elif (($? <= 128)); then
-        break
-    fi
-done < <(exec tail -c "+$(($3 + 1))" -F "$6" 2>/dev/null)
-rm -rf -- "$5"
+if inotifywait -qq -t "$2" -e open -- "$1"; then
+    if [[ -n $4 ]]; then touch -- "$4"; fi
+fi
+rm -rf -- "$3"
 SH
 
-# Bloc nginx inséré dans le site HTTPS de la seedbox (voir sb_gen_nginx).
-# $1 : en-tête HSTS éventuel, déjà mis en forme.
-share_gen_nginx() {
+# nginx directive at the top of the seedbox site (http level)
+share_generate_nginx_http() {
+    cat <<'EOF'
+# One-time links: one download at a time per address (see share_generate_nginx)
+limit_conn_zone $uri zone=seedtunnel_share:1m;
+EOF
+}
+
+# nginx block inside the HTTPS server of the seedbox (see nginx_generate_site).
+# $1: HSTS header, if any, already formatted.
+share_generate_nginx() {
     cat <<EOF
 
-    # Liens à usage unique (finalcut vpn share, finalcut seedbox sftp-config) :
-    # pas de mot de passe, le jeton aléatoire du lien en tient lieu
-    location ^~ $SHARE_PATH/ {
+    # One-time links (seedtunnel vpn share, seedbox sftp-config, backup share):
+    # no password, the random token of the link plays that role
+    location ^~ $SHARE_URL_PATH/ {
         auth_basic off;
         alias $SHARE_DIR/;
-        access_log $SHARE_LOG;
         log_not_found off;
+        # one download at a time, always complete (no Range, no cache)
+        limit_conn seedtunnel_share 1;
+        max_ranges 0;
+        open_file_cache off;
+        if_modified_since off;
+        etag off;
         types {
             text/html html;
-            application/octet-stream conf xml;
         }
+        default_type application/octet-stream;
         add_header Cache-Control "no-store" always;
         add_header X-Content-Type-Options nosniff always;
         add_header Referrer-Policy no-referrer always;
@@ -60,28 +69,27 @@ share_gen_nginx() {
 EOF
 }
 
-# Les liens passent par le site de la seedbox : il doit être en place.
-# $1 : solution de repli à proposer sans seedbox.
+# Links go through the seedbox site: it must be installed and running.
+# $1: what to do instead, without a seedbox.
 share_require() {
-    sb_installed || die "Les liens de téléchargement passent par le site HTTPS de la seedbox, qui n'est pas installée.
-  $1"
-    systemctl is-active --quiet nginx || die "nginx est arrêté :  finalcut seedbox restart"
+    seedbox_installed || die 'Download links go through the HTTPS site of the seedbox, which is not installed.\n  %s' "$1"
+    systemctl is-active --quiet nginx || die 'nginx is stopped:  seedtunnel seedbox restart'
 }
 
-# Filet de sécurité : dossiers dont la surveillance aurait disparu
+# Safety net: link folders whose watcher has disappeared
 share_purge() {
     [[ -d $SHARE_DIR ]] || return 0
-    find "$SHARE_DIR" -mindepth 1 -maxdepth 1 -type d -mmin +$((SHARE_TTL / 60 + 5)) \
+    find "$SHARE_DIR" -mindepth 1 -maxdepth 1 -type d -mmin +$((SHARE_LIFETIME / 60 + 5)) \
         -exec rm -rf {} + 2>/dev/null || true
 }
 
-# Page d'accueil du lien : bouton de téléchargement + mode d'emploi.
-# Tout ce qui y est inséré a été validé avant (noms, domaine) : pas de HTML.
-share_gen_page() {
+# Home page of a link: download button + how to use the file.
+# Everything inserted here was checked before (names, domain): no HTML.
+share_generate_page() {
     local name=$1 title=$2 steps=$3 note=$4
     cat <<EOF
 <!doctype html>
-<html lang="fr">
+<html lang="$APP_LANG">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -90,7 +98,7 @@ share_gen_page() {
 <style>
 body { font: 16px/1.55 system-ui, sans-serif; max-width: 34rem; margin: 2.5rem auto; padding: 0 1rem; color: #1f2328; background: #f6f8fa; }
 h1 { font-size: 1.35rem; }
-.btn { display: inline-block; margin: .5rem 0 1rem; padding: .75rem 1.3rem; border-radius: .5rem; background: #1f6feb; color: #fff; font-weight: 600; text-decoration: none; }
+.button { display: inline-block; margin: .5rem 0 1rem; padding: .75rem 1.3rem; border-radius: .5rem; background: #1f6feb; color: #fff; font-weight: 600; text-decoration: none; }
 li { margin: .35rem 0; }
 code { background: #eaeef2; padding: .1rem .3rem; border-radius: .25rem; word-break: break-all; }
 .note { color: #57606a; font-size: .92rem; }
@@ -103,47 +111,53 @@ code { background: #eaeef2; padding: .1rem .3rem; border-radius: .25rem; word-br
 </head>
 <body>
 <h1>$title</h1>
-<a class="btn" href="$name" download>Télécharger $name</a>
+<a class="button" href="$name" download>$(t 'Download %s' "$name")</a>
 <ol>
 $steps
 </ol>
-<p class="note">$note Ce lien ne fonctionne qu'une fois et expire au bout de $((SHARE_TTL / 60)) minutes.</p>
+<p class="note">$note $(t 'This link works only once and expires after %s minutes.' "$((SHARE_LIFETIME / 60))")</p>
 </body>
 </html>
 EOF
 }
 
-# share_create FICHIER NOM "Titre" "<li>étapes…</li>" "Remarque"
-# Publie FICHIER sous le nom NOM et affiche le lien.
+# share_create FILE NAME "Title" "<li>steps…</li>" "Note" [MARK_FILE]
+# Publishes FILE under the name NAME and prints the link.
 share_create() {
-    local src=$1 name=$2 title=$3 steps=$4 note=$5 token dir size
-    # le site doit connaître /partage/ (installations antérieures à la 2.2)
-    sb_apply_nginx
+    local source=$1 name=$2 title=$3 steps=$4 note=$5 mark=${6-} token dir i
+    apt_install inotify-tools
+    # the site must know /share/ (if it was installed by an older version)
+    seedbox_apply_nginx
     share_purge
     install -d -m 750 -o root -g www-data "$SHARE_DIR"
     token=$(openssl rand -hex 16)
     dir="$SHARE_DIR/$token"
     install -d -m 750 -o root -g www-data "$dir"
-    install -m 640 -o root -g www-data "$src" "$dir/$name"
-    share_gen_page "$name" "$title" "$steps" "$note" >"$dir/index.html"
+    install -m 640 -o root -g www-data "$source" "$dir/$name"
+    share_generate_page "$name" "$title" "$steps" "$note" >"$dir/index.html"
     chown root:www-data "$dir/index.html"
     chmod 640 "$dir/index.html"
 
-    size=$(stat -c %s "$SHARE_LOG" 2>/dev/null || echo 0)
-    printf '\n=== %(%F %T)T · lien de téléchargement pour %s\n' -1 "$name" >>"$FC_LOG"
-    if ! systemd-run --quiet --collect --unit="finalcut-partage-${token:0:12}" \
-        --property=RuntimeMaxSec=$((SHARE_TTL + 60)) \
-        /bin/bash -c "$SHARE_WATCHER" finalcut-partage \
-        "$token" "$name" "$size" "$SHARE_TTL" "$dir" "$SHARE_LOG" "$SHARE_PATH" >>"$FC_LOG" 2>&1; then
+    printf '\n=== %(%F %T)T · download link for %s\n' -1 "$name" >>"$APP_LOG"
+    if ! systemd-run --quiet --collect --unit="seedtunnel-share-${token:0:12}" \
+        --property=RuntimeMaxSec=$((SHARE_LIFETIME + 60)) \
+        /bin/bash -c "$SHARE_WATCHER" seedtunnel-share \
+        "$dir/$name" "$SHARE_LIFETIME" "$dir" "$mark" >>"$APP_LOG" 2>&1; then
         rm -rf "$dir"
-        die "Impossible de programmer la suppression du lien (détails dans $FC_LOG)."
+        die 'Cannot start the watcher of the link (details in %s).' "$APP_LOG"
     fi
+    # the watch must be in place before the link is shown
+    for i in {1..30}; do
+        if pgrep -f -- "inotifywait.*$dir/$name" >/dev/null; then break; fi
+        sleep 0.1
+    done
+    sleep 0.2
 
-    printf '\nLien de téléchargement (%sune seule fois, pendant %s minutes%s) :\n' \
-        "$C_BLD" "$((SHARE_TTL / 60))" "$C_END"
-    printf '  %shttps://%s%s/%s/%s\n\n' "$C_BLD" "$SB_DOMAIN" "$SHARE_PATH" "$token" "$C_END"
-    if [[ $SB_CERT == selfsigned ]]; then
-        echo "Certificat auto-signé : le navigateur affichera une alerte, à accepter."
+    echo
+    say 'Download link (%sone time only, for %s minutes%s):' "$C_BOLD" "$((SHARE_LIFETIME / 60))" "$C_RESET"
+    printf '  %shttps://%s%s/%s/%s\n\n' "$C_BOLD" "$SEEDBOX_DOMAIN" "$SHARE_URL_PATH" "$token" "$C_RESET"
+    if [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then
+        say 'Self-signed certificate: the browser will show a warning, to accept.'
         echo
     fi
 }

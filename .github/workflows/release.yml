@@ -1,12 +1,12 @@
-# Publication automatique d'une version
+# Automatic publication of a version
 #
-# Pour publier : changez FC_VERSION dans lib/common.sh, ajoutez la section
-# correspondante dans CHANGELOG.md, puis envoyez sur master. Si cette version
-# n'est pas encore publiée, les tests complets tournent, puis GitHub crée
-# l'étiquette vX.Y.Z et publie l'archive avec son fichier SHA256SUMS (utilisé
-# par « finalcut update » pour vérifier ce qu'il télécharge).
-# Envoyer soi-même une étiquette vX.Y.Z fonctionne aussi.
-name: Publication
+# To publish: change APP_VERSION in lib/common.sh, add the matching section to
+# CHANGELOG.md, then push to master. If this version is not published yet, the
+# full tests run, then GitHub creates the tag vX.Y.Z and publishes the archive
+# with its SHA256SUMS file (used by « seedtunnel update » to check what it
+# downloads). Pushing a vX.Y.Z tag yourself works too.
+# Development versions (with a dash, e.g. 1.1.0-dev) are never published.
+name: Release
 
 on:
   push:
@@ -19,12 +19,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: publication
+  group: release
   cancel-in-progress: false
 
 jobs:
   version:
-    name: Version à publier ?
+    name: Version to publish?
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -38,20 +38,31 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          v=$(sed -n 's/^FC_VERSION="\(.*\)"$/\1/p' lib/common.sh)
+          v=$(sed -n 's/^APP_VERSION="\(.*\)"$/\1/p' lib/common.sh)
           echo "version=$v" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
-            echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à FC_VERSION=$v (lib/common.sh)"
+            echo "::error::The tag $GITHUB_REF_NAME does not match APP_VERSION=$v (lib/common.sh)"
             exit 1
           fi
+          case $v in
+            "")
+              echo "::error::APP_VERSION not found in lib/common.sh"
+              exit 1
+              ;;
+            *-*)
+              echo "Development version $v: nothing to publish."
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
           if gh release view "v$v" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "La version $v est déjà publiée : rien à faire."
+            echo "Version $v is already published: nothing to do."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           elif ! grep -q "^## \[$v\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md n'a pas de section [$v]"
+            echo "::error::CHANGELOG.md has no [$v] section"
             exit 1
           else
-            echo "Version $v à publier."
+            echo "Version $v to publish."
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -61,7 +72,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   release:
-    name: Publication de la version
+    name: Publish the version
     needs: [version, tests]
     if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-24.04
@@ -73,15 +84,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Archive, empreinte et notes de version
+      - name: Archive, checksum and release notes
         run: |
-          git archive --format=tar.gz --prefix="finalcut-$V/" -o "finalcut-$V.tar.gz" "$GITHUB_SHA"
-          sha256sum "finalcut-$V.tar.gz" > SHA256SUMS
-          # section de cette version dans le CHANGELOG
+          git archive --format=tar.gz --prefix="seedtunnel-$V/" -o "seedtunnel-$V.tar.gz" "$GITHUB_SHA"
+          sha256sum "seedtunnel-$V.tar.gz" > SHA256SUMS
+          # section of this version in the CHANGELOG
           awk -v v="[$V]" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md > notes.md
           cat SHA256SUMS
 
-      - name: Publication sur GitHub
+      - name: Publish on GitHub
         run: |
-          gh release create "v$V" "finalcut-$V.tar.gz" SHA256SUMS \
-            --target "$GITHUB_SHA" --title "finalcut $V" --notes-file notes.md
+          gh release create "v$V" "seedtunnel-$V.tar.gz" SHA256SUMS \
+            --target "$GITHUB_SHA" --title "seedtunnel $V" --notes-file notes.md

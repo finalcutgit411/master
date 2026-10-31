@@ -1,9 +1,8 @@
-# Fins de ligne Unix obligatoires : un script bash enregistré sous Windows
-# (CRLF) ne fonctionne plus sur le serveur.
+# Unix line endings required: a bash script saved on Windows (CRLF) no longer
+# works on the server.
 * text=auto eol=lf
 
-# Exclus des archives de publication (git archive) : utiles au développement
-# seulement.
+# Left out of the release archives (git archive): only useful for development.
 .github export-ignore
 tests export-ignore
 Makefile export-ignore

@@ -1,393 +1,437 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  finalcut — bibliothèque commune
-#  Affichage, saisie, journal, fichier de configuration, vérifications système.
-#  Chargée par finalcut.sh : ce fichier ne s'exécute pas seul.
+#  seedtunnel — shared library
+#  Output, input, log, configuration file, system checks, apt, network.
+#  Loaded by seedtunnel.sh: this file does nothing on its own.
 # =============================================================================
 
-FC_VERSION="2.2.2"
-# Dépôt GitHub utilisé par « finalcut update » (compte/projet)
-FC_REPO="finalcutgit411/finalcut"
-# État et secrets du script (lisible par root uniquement)
-FC_ETC="/etc/finalcut"
-# Sortie détaillée de toutes les commandes lancées
-FC_LOG="/var/log/finalcut.log"
-FC_OS_DESC=""
-FC_APT_UPDATED=0
+APP_NAME="seedtunnel"
+APP_VERSION="1.0.0-dev"
+# GitHub repository used by « seedtunnel update » (owner/project)
+APP_REPO="finalcutgit411/seedtunnel"
+# Server state and secrets (readable by root only)
+APP_STATE_DIR="/etc/seedtunnel"
+APP_LANG_FILE="$APP_STATE_DIR/language"
+# Detailed output of every command the script runs
+APP_LOG="/var/log/seedtunnel.log"
+# Prevents two copies of the script from changing the server at the same time
+APP_LOCK="/run/seedtunnel.lock"
+APP_OS_DESCRIPTION=""
+APP_APT_UPDATED=0
 
-# Options de la ligne de commande (remplies par finalcut.sh)
-FC_INTERACTIVE=0
-FC_YES=0
-FC_CONFIG=""
-FC_STAGING=0
-FC_OUTPUT=""
-FC_PASSFILE=""
-FC_PURGE=0
-FC_QR=0
-FC_NEWUSER=""
+# Command line options (set by seedtunnel.sh)
+INTERACTIVE=0
+OPT_YES=0
+OPT_CONFIG_FILE=""
+OPT_STAGING=0
+OPT_OUTPUT_FILE=""
+OPT_PASSPHRASE_FILE=""
+OPT_PURGE_DATA=0
+OPT_QR=0
+OPT_NEW_USER=""
 
-# --- Couleurs (désactivées si la sortie n'est pas un terminal) ----------------
+# --- Colors (off when the output is not a terminal) ---------------------------
 if [[ -t 1 ]]; then
     C_RED=$'\e[1;31m'
-    C_GRN=$'\e[1;32m'
-    C_YEL=$'\e[1;33m'
-    C_BLU=$'\e[1;34m'
-    C_BLD=$'\e[1m'
+    C_GREEN=$'\e[1;32m'
+    C_YELLOW=$'\e[1;33m'
+    C_BLUE=$'\e[1;34m'
+    C_BOLD=$'\e[1m'
     C_DIM=$'\e[2m'
-    C_END=$'\e[0m'
+    C_RESET=$'\e[0m'
 else
     C_RED=""
-    C_GRN=""
-    C_YEL=""
-    C_BLU=""
-    C_BLD=""
+    C_GREEN=""
+    C_YELLOW=""
+    C_BLUE=""
+    C_BOLD=""
     C_DIM=""
-    C_END=""
+    C_RESET=""
 fi
 
-# --- Affichage ------------------------------------------------------------------
-titre() {
-    ((FC_INTERACTIVE)) || return 0
+# --- Output -----------------------------------------------------------------------
+# Every message is a printf format written in English (see lib/i18n.sh):
+#   ok 'Client "%s" created.' "$name"
+
+banner() {
+    ((INTERACTIVE)) || return 0
     clear 2>/dev/null || true
-    printf '%s' "$C_BLU"
+    printf '%s' "$C_BLUE"
     cat <<'EOF'
-___________ .___   _______       _____    .____      _________    ____ ___  ___________
-\_   _____/ |   |  \      \     /  _  \   |    |     \_   ___ \  |    |   \ \__    ___/
- |    __)   |   |  /   |   \   /  /_\  \  |    |     /    \  \/  |    |   /   |    |
- |     \    |   | /    |    \ /    |    \ |    |___  \     \____ |    |  /    |    |
- \___  /    |___| \____|__  / \____|__  / |_______ \  \______  / |______/     |____|
+ ___  ___  ___  ___   _____  _   _  _  _  _  _  ___  _
+/ __|| __|| __||   \ |_   _|| | | || \| || \| || __|| |
+\__ \| _| | _| | |) |  | |  | |_| || .` || .` || _| | |__
+|___/|___||___||___/   |_|   \___/ |_|\_||_|\_||___||____|
 EOF
-    printf '%s%s  v%s · VPN WireGuard + seedbox · %s%s\n\n' \
-        "$C_END" "$C_DIM" "$FC_VERSION" "${FC_OS_DESC:-Debian 12/13}" "$C_END"
+    printf '%s%s  v%s · %s · %s%s\n\n' "$C_RESET" "$C_DIM" "$APP_VERSION" \
+        "$(t 'WireGuard VPN + seedbox')" "${APP_OS_DESCRIPTION:-Debian 12/13}" "$C_RESET"
 }
 
-section() { printf '%s%s%s\n\n' "$C_BLD" "$*" "$C_END"; }
-ok() { printf '%s✔%s %s\n' "$C_GRN" "$C_END" "$*"; }
-warn() { printf '%s!%s %s\n' "$C_YEL" "$C_END" "$*" >&2; }
-err() { printf '%s✘ %s%s\n' "$C_RED" "$*" "$C_END" >&2; }
+say() {
+    t "$@"
+    printf '\n'
+}
+section() { printf '%s%s%s\n\n' "$C_BOLD" "$(t "$@")" "$C_RESET"; }
+ok() { printf '%s✔%s %s\n' "$C_GREEN" "$C_RESET" "$(t "$@")"; }
+warn() { printf '%s!%s %s\n' "$C_YELLOW" "$C_RESET" "$(t "$@")" >&2; }
+err() { printf '%s✘ %s%s\n' "$C_RED" "$(t "$@")" "$C_RESET" >&2; }
 
-# Arrête le script avec un message.
-# Attention : dans un $(…) elle ne quitte que le sous-shell, donc à éviter là.
+# Stops the script with a message.
+# Careful: inside $(…) it only leaves the subshell, so avoid it there.
 die() {
-    err "$*"
+    err "$@"
     exit 1
 }
 
 pause() {
     local _
-    ((FC_INTERACTIVE)) || return 0
-    IFS= read -r -p "Appuyez sur [Entrée] pour continuer… " _ || true
+    ((INTERACTIVE)) || return 0
+    IFS= read -r -p "$(t 'Press [Enter] to continue…') " _ || true
 }
 
-# Affiche l'état d'un service en couleur : actif / arrêté / absent
-svc_state() {
+# State of a service, in color: running / stopped / missing
+service_state() {
     if systemctl is-active --quiet "$1" 2>/dev/null; then
-        printf '%sactif%s' "$C_GRN" "$C_END"
+        printf '%s%s%s' "$C_GREEN" "$(t 'running')" "$C_RESET"
     elif systemctl cat "$1" &>/dev/null; then
-        printf '%sarrêté%s' "$C_RED" "$C_END"
+        printf '%s%s%s' "$C_RED" "$(t 'stopped')" "$C_RESET"
     else
-        printf '%sabsent%s' "$C_DIM" "$C_END"
+        printf '%s%s%s' "$C_DIM" "$(t 'missing')" "$C_RESET"
     fi
 }
 
-# --- Gestion des erreurs ------------------------------------------------------
-# Toute commande qui échoue sans être gérée arrive ici (set -e + trap ERR) :
-# on affiche où, au lieu de laisser le script continuer dans un état bancal.
-fc_on_error() {
-    local rc=$1 line=$2 cmd=$3 src=${4##*/}
+# --- Errors -----------------------------------------------------------------------
+# Any command that fails without being handled ends up here (set -e + trap
+# ERR): we show where, instead of carrying on in a half-done state.
+on_error() {
+    local code=$1 line=$2 command=$3 file=${4##*/}
     trap - ERR
     if ((BASH_SUBSHELL == 0)); then
-        printf '\n%s✘ Erreur inattendue (code %s) dans %s, ligne %s :%s\n    %s\n' \
-            "$C_RED" "$rc" "${src:-?}" "$line" "$C_END" "$cmd" >&2
-        printf '  Journal détaillé : %s\n' "$FC_LOG" >&2
+        printf '\n%s✘ %s%s\n    %s\n' "$C_RED" \
+            "$(t 'Unexpected error (code %s) in %s, line %s:' "$code" "${file:-?}" "$line")" \
+            "$C_RESET" "$command" >&2
+        printf '  %s\n' "$(t 'Detailed log: %s' "$APP_LOG")" >&2
     fi
-    exit "$rc"
+    exit "$code"
 }
 
-# run "Description" commande args…
-# Lance une commande en envoyant sa sortie dans le journal ; affiche « ok » ou
-# les dernières lignes du journal puis arrête le script en cas d'échec.
-# Ne jamais passer de mot de passe en argument : il finirait dans le journal.
+# run "Description" COMMAND [ARGUMENTS…]
+# Runs a command with its output sent to the log; prints « ok », or the end of
+# the log and stops the script if it fails.
+# Never pass a password as an argument: it would end up in the log.
 run() {
-    local desc=$1 rc
+    local description code
+    description=$(t "$1")
     shift
-    printf '  %s… ' "$desc"
-    printf '\n=== %(%F %T)T · %s\n$ %s\n' -1 "$desc" "$*" >>"$FC_LOG"
-    if "$@" >>"$FC_LOG" 2>&1; then
-        printf '%sok%s\n' "$C_GRN" "$C_END"
+    printf '  %s… ' "$description"
+    printf '\n=== %(%F %T)T · %s\n$ %s\n' -1 "$description" "$*" >>"$APP_LOG"
+    if "$@" >>"$APP_LOG" 2>&1; then
+        printf '%s%s%s\n' "$C_GREEN" "$(t 'ok')" "$C_RESET"
     else
-        rc=$?
-        printf '%séchec%s\n\n' "$C_RED" "$C_END"
-        tail -n 15 "$FC_LOG" | sed 's/^/    /' >&2
+        code=$?
+        printf '%s%s%s\n\n' "$C_RED" "$(t 'failed')" "$C_RESET"
+        tail -n 15 "$APP_LOG" | sed 's/^/    /' >&2
         echo >&2
-        die "« $desc » a échoué (code $rc). Journal complet : $FC_LOG"
+        die '"%s" failed (code %s). Full log: %s' "$description" "$code" "$APP_LOG"
     fi
 }
 
-# --- Saisie ---------------------------------------------------------------------
-# Les variables locales ont un préfixe unique : printf -v écrit dans la
-# variable de l'appelant, il ne faut pas qu'un nom local la masque.
+# --- Input ------------------------------------------------------------------------
+# Local variables have unique prefixes: printf -v writes into the caller's
+# variable, and a local variable with the same name would hide it.
 
-require_tty() {
-    [[ -t 0 ]] || die "Cette action est interactive : lancez-la depuis un terminal, ou utilisez --config."
-    FC_INTERACTIVE=1
+require_terminal() {
+    [[ -t 0 ]] || die 'This action is interactive: run it from a terminal, or use --config.'
+    INTERACTIVE=1
 }
 
-# ask VAR "Question" [valeur proposée]   (la valeur proposée est modifiable)
+# ask VARIABLE "Question" [suggested value]   (the suggestion can be edited)
 ask() {
-    local _ask_var=$1 _ask_prompt=$2 _ask_def=${3-} _ask_rep
-    ((FC_INTERACTIVE)) || die "Question hors mode interactif : $_ask_prompt"
-    IFS= read -r -e -i "$_ask_def" -p "$_ask_prompt : " _ask_rep || {
+    local _ask_var=$1 _ask_question _ask_default=${3-} _ask_answer
+    _ask_question=$(t "$2")
+    ((INTERACTIVE)) || die 'Question asked outside interactive mode: %s' "$_ask_question"
+    IFS= read -r -e -i "$_ask_default" -p "$_ask_question: " _ask_answer || {
         echo
         exit 130
     }
-    printf -v "$_ask_var" '%s' "$_ask_rep"
+    printf -v "$_ask_var" '%s' "$_ask_answer"
 }
 
-# confirm "Question" [o|n]   → code 0 si la réponse est oui
-# --yes vaut confirmation ; sans terminal, c'est la seule possible.
+# confirm "Question" [y|n]   → status 0 if the answer is yes
+# --yes counts as a confirmation; without a terminal, it is the only way.
 confirm() {
-    local q=$1 def=${2:-n} rep hint="[o/N]"
-    if ((FC_YES)); then return 0; fi
-    [[ -t 0 ]] || die "$q → relancez avec --yes pour confirmer."
-    [[ $def == o ]] && hint="[O/n]"
+    local question default=${2:-n} answer hint
+    question=$(t "$1")
+    if ((OPT_YES)); then return 0; fi
+    [[ -t 0 ]] || die '%s → run again with --yes to confirm.' "$question"
+    if [[ $default == y ]]; then hint=$(t '[Y/n]'); else hint=$(t '[y/N]'); fi
     while true; do
-        IFS= read -r -p "$q $hint " rep || {
+        IFS= read -r -p "$question $hint " answer || {
             echo
             exit 130
         }
-        rep=${rep:-$def}
-        case ${rep,,} in
-            o | oui | y | yes) return 0 ;;
-            n | non | no) return 1 ;;
+        answer=${answer:-$default}
+        case ${answer,,} in
+            y | yes | o | oui) return 0 ;;
+            n | no | non) return 1 ;;
         esac
     done
 }
 
-# Mot de passe aléatoire de 20 caractères alphanumériques (~119 bits)
-gen_password() {
+# Random password: 20 letters and digits (~119 bits)
+generate_password() {
     local p
     p=$(openssl rand -base64 48)
     p=${p//[^A-Za-z0-9]/}
     printf '%s' "${p:0:20}"
 }
 
-# ask_password VAR — saisie masquée avec confirmation ; vide = mot de passe généré
+# ask_password VARIABLE — hidden input, typed twice; empty = generated password
 ask_password() {
-    local _ap_var=$1 _ap_p1 _ap_p2
+    local _ap_var=$1 _ap_first _ap_second
     while true; do
-        IFS= read -r -s -p "Mot de passe (laisser vide pour en générer un) : " _ap_p1 || {
+        IFS= read -r -s -p "$(t 'Password (leave empty to generate one):') " _ap_first || {
             echo
             exit 130
         }
         echo
-        if [[ -z $_ap_p1 ]]; then
-            _ap_p1=$(gen_password)
-            printf 'Mot de passe généré : %s%s%s  ← notez-le\n' "$C_BLD" "$_ap_p1" "$C_END"
+        if [[ -z $_ap_first ]]; then
+            _ap_first=$(generate_password)
+            say 'Generated password: %s  ← write it down' "$C_BOLD$_ap_first$C_RESET"
             break
         fi
-        if ((${#_ap_p1} < 10)); then
-            warn "10 caractères minimum."
+        if ((${#_ap_first} < 10)); then
+            warn 'At least 10 characters.'
             continue
         fi
-        IFS= read -r -s -p "Confirmez le mot de passe : " _ap_p2 || {
+        IFS= read -r -s -p "$(t 'Type the password again:') " _ap_second || {
             echo
             exit 130
         }
         echo
-        [[ $_ap_p1 == "$_ap_p2" ]] && break
-        warn "Les deux saisies sont différentes, recommencez."
+        [[ $_ap_first == "$_ap_second" ]] && break
+        warn 'The two entries differ, try again.'
     done
-    printf -v "$_ap_var" '%s' "$_ap_p1"
+    printf -v "$_ap_var" '%s' "$_ap_first"
 }
 
-# --- Fichiers ---------------------------------------------------------------------
+# --- Files ------------------------------------------------------------------------
 
-# conf_write fichier VAR1 VAR2…  → écrit VAR=valeur (échappée) en mode 600
-conf_write() {
-    local f=$1 v
+# state_write FILE VAR1 VAR2…  → writes VAR=value (escaped), mode 600
+state_write() {
+    local file=$1 var
     shift
     {
-        printf '# Généré par finalcut — ne pas modifier à la main\n'
-        for v in "$@"; do printf '%s=%q\n' "$v" "${!v}"; done
-    } >"$f.tmp"
-    chmod 600 "$f.tmp"
-    mv -f "$f.tmp" "$f"
+        printf '# %s\n' 'Written by seedtunnel — do not edit by hand'
+        for var in "$@"; do printf '%s=%q\n' "$var" "${!var}"; done
+    } >"$file.tmp" || die 'Cannot write %s (disk full?).' "$file"
+    chmod 600 "$file.tmp"
+    mv -f "$file.tmp" "$file"
 }
 
-conf_read() {
+state_read() {
     if [[ -r $1 ]]; then
         # shellcheck source=/dev/null
         . "$1"
     fi
 }
 
-# write_if_changed FICHIER [MODE] [PROPRIÉTAIRE]
-# Lit le contenu voulu sur l'entrée standard et ne remplace le fichier que s'il
-# change : c'est ce qui permet de relancer le script sans tout redémarrer.
-# Code de retour : 0 si le fichier a été modifié, 1 s'il était déjà à jour.
+# write_if_changed FILE MODE OWNER COMMAND [ARGUMENTS…]
+# Runs COMMAND, which prints the wanted content, and replaces FILE only if
+# this content is different: that is what lets the script run again without
+# restarting anything.
+# Returns 0 if FILE was changed, 1 if it was already up to date. Any failure
+# (command, disk full, permissions) stops the script with a clear message and
+# leaves FILE as it was: never a half-written configuration.
 write_if_changed() {
-    local f=$1 mode=${2:-644} owner=${3:-root:root} tmp rc=1
-    tmp=$(mktemp "$f.XXXXXX")
-    cat >"$tmp"
-    if [[ -f $f ]] && cmp -s "$tmp" "$f"; then
+    local file=$1 mode=$2 owner=$3 tmp
+    shift 3
+    tmp=$(mktemp "$file.XXXXXX") || die 'Cannot create a temporary file next to %s.' "$file"
+    if ! "$@" >"$tmp"; then
         rm -f "$tmp"
-    else
-        mv -f "$tmp" "$f"
-        rc=0
+        die 'Cannot generate %s (disk full?). The file was not changed.' "$file"
     fi
-    chmod "$mode" "$f"
-    chown "$owner" "$f"
-    return "$rc"
+    if [[ -f $file ]] && cmp -s "$tmp" "$file"; then
+        rm -f "$tmp"
+        if ! { chmod "$mode" "$file" && chown "$owner" "$file"; }; then
+            die 'Cannot set the permissions of %s.' "$file"
+        fi
+        return 1
+    fi
+    if ! { chmod "$mode" "$tmp" && chown "$owner" "$tmp" && mv -f "$tmp" "$file"; }; then
+        rm -f "$tmp"
+        die 'Cannot replace %s: the previous version was kept.' "$file"
+    fi
+    return 0
 }
 
-# --- Fichier de configuration (--config) ---------------------------------------
-# Le fichier n'est jamais exécuté : il est lu ligne par ligne, et seules les
-# clés ci-dessous sont acceptées. Les valeurs sont rangées dans CFG_<CLÉ>.
-FC_CONFIG_KEYS=" VPN_ENDPOINT VPN_PORT VPN_DNS VPN_CLIENTS SB_USER SB_PASSWORD
- SB_PASSWORD_FILE SB_DOMAIN SB_DATA SB_LETSENCRYPT SB_ACME SB_SSH_KEYS_FILE
- SB_SFTP_PASSWORD FIREWALL "
+# --- Configuration file (--config) ----------------------------------------------------
+# The file is never executed: it is read line by line, and only the keys below
+# are accepted. Values are stored in CONFIG_VALUE_<KEY>.
+CONFIG_KEYS=" LANGUAGE VPN_PUBLIC_ADDRESS VPN_PORT VPN_DNS VPN_CLIENTS SEEDBOX_USER
+ SEEDBOX_PASSWORD SEEDBOX_PASSWORD_FILE SEEDBOX_DOMAIN SEEDBOX_DATA_DIR
+ SEEDBOX_LETSENCRYPT SEEDBOX_LETSENCRYPT_SERVER SEEDBOX_SSH_KEYS_FILE
+ SEEDBOX_SFTP_PASSWORD FIREWALL "
 
 config_load() {
-    local file=$1 line key val n=0
-    [[ -r $file ]] || die "Fichier de configuration introuvable : $file"
+    local file=$1 line key value number=0
+    [[ -r $file ]] || die 'Configuration file not found: %s' "$file"
     if [[ $(stat -c '%a' "$file") != [0-7]00 ]]; then
-        warn "$file est lisible par d'autres utilisateurs : faites  chmod 600 $file"
+        warn '%s can be read by other users: run  chmod 600 %s' "$file" "$file"
     fi
     while IFS= read -r line || [[ -n $line ]]; do
-        n=$((n + 1))
+        number=$((number + 1))
         line=${line%$'\r'}
         [[ $line =~ ^[[:space:]]*(#|$) ]] && continue
         if [[ ! $line =~ ^[[:space:]]*([A-Z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
-            die "$file, ligne $n : format attendu CLÉ=valeur"
+            die '%s, line %s: expected format KEY=value' "$file" "$number"
         fi
         key=${BASH_REMATCH[1]}
-        val=${BASH_REMATCH[2]}
-        # espaces de fin et guillemets autour de la valeur
-        val=${val%"${val##*[![:space:]]}"}
-        if [[ $val =~ ^\"(.*)\"$ || $val =~ ^\'(.*)\'$ ]]; then val=${BASH_REMATCH[1]}; fi
-        [[ $FC_CONFIG_KEYS == *[[:space:]]"$key"[[:space:]]* ]] || die "$file, ligne $n : clé inconnue « $key »"
-        printf -v "CFG_$key" '%s' "$val"
+        value=${BASH_REMATCH[2]}
+        # trailing spaces and quotes around the value
+        value=${value%"${value##*[![:space:]]}"}
+        if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then value=${BASH_REMATCH[1]}; fi
+        [[ $CONFIG_KEYS == *[[:space:]]"$key"[[:space:]]* ]] || die '%s, line %s: unknown key "%s"' "$file" "$number" "$key"
+        printf -v "CONFIG_VALUE_$key" '%s' "$value"
     done <"$file"
+    # language of the messages on this server, if chosen in the file
+    # (SEEDTUNNEL_LANG in the environment still wins for this run)
+    value=$(config_get LANGUAGE)
+    if [[ -n $value ]]; then
+        is_language "$value" || die '%s: LANGUAGE must be en or fr.' "$file"
+        language_save "$value"
+        if is_language "${SEEDTUNNEL_LANG-}"; then i18n_load "$SEEDTUNNEL_LANG"; fi
+    fi
 }
 
-# cfg CLÉ [défaut] → valeur lue dans le fichier de configuration, sinon le défaut
-cfg() {
-    local v="CFG_$1"
-    printf '%s' "${!v:-${2-}}"
+# config_get KEY [default] → value read from the configuration file, or the default
+config_get() {
+    local var="CONFIG_VALUE_$1"
+    printf '%s' "${!var:-${2-}}"
 }
 
-# --- Système --------------------------------------------------------------------
+# --- System -----------------------------------------------------------------------
 check_system() {
-    local id ver name
-    [[ $EUID -eq 0 ]] || die "Ce script doit être lancé en root :  sudo $0"
-    [[ -r /etc/os-release ]] || die "Système non reconnu (fichier /etc/os-release absent)."
-    IFS='|' read -r id ver name FC_OS_DESC < <(
+    local id version
+    [[ $EUID -eq 0 ]] || die 'This script must run as root:  sudo %s' "$0"
+    [[ -r /etc/os-release ]] || die 'Unknown system (no /etc/os-release file).'
+    IFS='|' read -r id version APP_OS_DESCRIPTION < <(
         # shellcheck source=/dev/null
         . /etc/os-release
-        printf '%s|%s|%s|%s\n' "${ID:-?}" "${VERSION_ID:-?}" "${VERSION_CODENAME:-?}" "${PRETTY_NAME:-?}"
+        printf '%s|%s|%s\n' "${ID:-?}" "${VERSION_ID:-?}" "${PRETTY_NAME:-?}"
     )
-    [[ $id == debian ]] || die "Ce script ne fonctionne que sur Debian (système détecté : $FC_OS_DESC)."
-    case $ver in
+    [[ $id == debian ]] || die 'This script only works on Debian (detected: %s).' "$APP_OS_DESCRIPTION"
+    case $version in
         12 | 13) ;;
-        *) die "Debian 12 (bookworm) ou 13 (trixie) requis — système détecté : $FC_OS_DESC." ;;
+        *) die 'Debian 12 (bookworm) or 13 (trixie) required — detected: %s.' "$APP_OS_DESCRIPTION" ;;
     esac
-    command -v systemctl >/dev/null || die "systemd est requis."
-    install -d -m 700 "$FC_ETC"
-    touch "$FC_LOG"
-    chmod 600 "$FC_LOG"
+    command -v systemctl >/dev/null || die 'systemd is required.'
+    install -d -m 700 "$APP_STATE_DIR"
+    touch "$APP_LOG"
+    chmod 600 "$APP_LOG"
 }
 
-# Empêche de lancer deux fois le script en même temps
+# Only one copy at a time may change the server. The lock file says who holds
+# the lock, so the message can tell which process to stop if it was forgotten.
 take_lock() {
-    exec 9>/run/finalcut.lock
-    flock -n 9 || die "finalcut est déjà en cours d'exécution dans un autre terminal."
+    local pid="" since="" tty=""
+    exec 9<>"$APP_LOCK"
+    if ! flock -n 9; then
+        read -r pid since tty <"$APP_LOCK" || true
+        if [[ $pid =~ ^[0-9]+$ && $since =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            die 'seedtunnel is already running (process %s, started %s min ago, terminal %s).\n  If that window is gone, stop it with:  kill %s' \
+                "$pid" "$((($(date +%s) - since) / 60))" "${tty:--}" "$pid"
+        fi
+        die 'seedtunnel is already running in another terminal.'
+    fi
+    if [[ -t 0 ]]; then tty=$(tty); fi
+    printf '%s %s %s\n' "$$" "$(date +%s)" "${tty#/dev/}" >"$APP_LOCK"
 }
 
-pkg_installed() {
+package_installed() {
     [[ $(dpkg-query -W -f='${Status}' "$1" 2>/dev/null || true) == *" installed" ]]
 }
 
-# apt_install paquet… — n'installe que ce qui manque. La liste des paquets est
-# mise à jour une fois par session ; on attend le verrou dpkg (les mises à
-# jour automatiques le tiennent souvent juste après le démarrage).
+# apt_install PACKAGE… — installs only what is missing. The package list is
+# refreshed once per run; we wait for the dpkg lock (automatic updates often
+# hold it right after boot).
 apt_install() {
-    local p
+    local package
     local -a missing=()
-    for p in "$@"; do pkg_installed "$p" || missing+=("$p"); done
+    for package in "$@"; do package_installed "$package" || missing+=("$package"); done
     ((${#missing[@]})) || return 0
     export DEBIAN_FRONTEND=noninteractive
-    if ((!FC_APT_UPDATED)); then
-        run "Mise à jour de la liste des paquets" apt-get -o DPkg::Lock::Timeout=300 update
-        FC_APT_UPDATED=1
+    if ((!APP_APT_UPDATED)); then
+        run 'Updating the package list' apt-get -o DPkg::Lock::Timeout=300 update
+        APP_APT_UPDATED=1
     fi
-    run "Installation de ${missing[*]}" apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${missing[@]}"
+    run "$(t 'Installing %s' "${missing[*]}")" apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${missing[@]}"
 }
 
-# apt_purge paquet… — ne supprime que ceux qui sont réellement installés
+# apt_purge PACKAGE… — only removes the ones actually installed
 apt_purge() {
-    local p
+    local package
     local -a present=()
-    for p in "$@"; do pkg_installed "$p" && present+=("$p"); done
+    for package in "$@"; do package_installed "$package" && present+=("$package"); done
     ((${#present[@]})) || return 0
     export DEBIAN_FRONTEND=noninteractive
-    run "Suppression de ${present[*]}" apt-get -o DPkg::Lock::Timeout=300 purge -y "${present[@]}"
-    run "Nettoyage des dépendances inutiles" apt-get -o DPkg::Lock::Timeout=300 autoremove -y
+    run "$(t 'Removing %s' "${present[*]}")" apt-get -o DPkg::Lock::Timeout=300 purge -y "${present[@]}"
+    run 'Removing unused dependencies' apt-get -o DPkg::Lock::Timeout=300 autoremove -y
 }
 
-# Paquets de base + mises à jour de sécurité automatiques
+# Base packages + automatic security updates
 base_setup() {
     apt_install curl ca-certificates openssl jq nftables procps iproute2 unattended-upgrades
     if [[ ! -f /etc/apt/apt.conf.d/20auto-upgrades ]]; then
         printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' \
             >/etc/apt/apt.conf.d/20auto-upgrades
-        ok "Mises à jour de sécurité automatiques activées"
+        ok 'Automatic security updates enabled'
     fi
 }
 
-# --- Durcissement réseau du noyau --------------------------------------------------
-# Dans /etc/sysctl.d : Debian 13 ne lit plus /etc/sysctl.conf au démarrage.
-# « * » vise toutes les interfaces, y compris celles qui existent déjà ;
-# « - » : ligne ignorée si l'IPv6 est désactivé sur le serveur.
-FC_SYSCTL_NET="/etc/sysctl.d/90-finalcut-reseau.conf"
+# --- Kernel network hardening -----------------------------------------------------
+# In /etc/sysctl.d: Debian 13 no longer reads /etc/sysctl.conf at boot.
+# « * » covers every interface, including the existing ones; a leading « - »
+# ignores the line when IPv6 is disabled on the server.
+NET_HARDENING_FILE="/etc/sysctl.d/90-seedtunnel-network.conf"
 
-net_hardening_gen() {
+net_hardening_generate() {
     cat <<'EOF'
-# Généré par finalcut — durcissement réseau du noyau
-# Ignorer les redirections ICMP : personne ne peut détourner le trafic du serveur
+# Written by seedtunnel — kernel network hardening
+# Ignore ICMP redirects: nobody can divert the server's traffic
 net.ipv4.conf.*.accept_redirects = 0
 net.ipv4.conf.*.secure_redirects = 0
 -net.ipv6.conf.*.accept_redirects = 0
-# … et ne pas en envoyer
+# … and do not send any
 net.ipv4.conf.*.send_redirects = 0
-# Refuser les paquets qui imposent leur propre chemin (routage par la source)
+# Refuse packets that choose their own route (source routing)
 net.ipv4.conf.*.accept_source_route = 0
 -net.ipv6.conf.*.accept_source_route = 0
 EOF
 }
 
-# Appelé par l'installation du VPN et de la seedbox (sans effet s'il est à jour)
+# Called when installing the VPN and the seedbox (does nothing if up to date)
 net_hardening_apply() {
-    if write_if_changed "$FC_SYSCTL_NET" 644 < <(net_hardening_gen) \
+    if write_if_changed "$NET_HARDENING_FILE" 644 root:root net_hardening_generate \
         || [[ $(sysctl -n net.ipv4.conf.all.send_redirects 2>/dev/null) != 0 ]]; then
-        printf '\n=== %(%F %T)T · durcissement réseau du noyau\n' -1 >>"$FC_LOG"
-        # systemd-sysctl, comme au démarrage : il comprend « * » et « - »
-        if /usr/lib/systemd/systemd-sysctl "$FC_SYSCTL_NET" >>"$FC_LOG" 2>&1; then
-            ok "Réglages réseau du noyau durcis (redirections ICMP, routage par la source)"
+        printf '\n=== %(%F %T)T · kernel network hardening\n' -1 >>"$APP_LOG"
+        # systemd-sysctl, as at boot: it understands « * » and « - »
+        if /usr/lib/systemd/systemd-sysctl "$NET_HARDENING_FILE" >>"$APP_LOG" 2>&1; then
+            ok 'Kernel network settings hardened (ICMP redirects, source routing)'
         else
-            warn "Réglages réseau du noyau non appliqués (détails dans $FC_LOG)."
+            warn 'Kernel network settings not applied (details in %s).' "$APP_LOG"
         fi
     fi
 }
 
-# Retiré quand ni le VPN ni la seedbox ne sont plus installés
+# Removed when neither the VPN nor the seedbox is installed any more
 net_hardening_cleanup() {
-    if ! vpn_installed && ! sb_installed; then rm -f "$FC_SYSCTL_NET"; fi
+    if ! vpn_installed && ! seedbox_installed; then rm -f "$NET_HARDENING_FILE"; fi
 }
 
-# « 36Go libres sur 40Go » pour la partition d'un dossier. L'espace libre est
-# en vert, en jaune sous 10 % ou 5 Go, en rouge sous 2 Go.
-disk_free_txt() {
+# « 36GB free of 40GB » for the partition of a folder. The free space is green,
+# yellow under 10 % or 5 GB, red under 2 GB.
+disk_free_text() {
     local size="" avail="" color
     read -r size avail < <(df -B1 --output=size,avail "$1" 2>/dev/null | tail -n 1) || true
     if [[ ! $size =~ ^[0-9]+$ || ! $avail =~ ^[0-9]+$ ]] || ((size == 0)); then
@@ -397,27 +441,34 @@ disk_free_txt() {
     if ((avail < 2 * 1024 ** 3)); then
         color=$C_RED
     elif ((avail < 5 * 1024 ** 3 || avail * 10 < size)); then
-        color=$C_YEL
+        color=$C_YELLOW
     else
-        color=$C_GRN
+        color=$C_GREEN
     fi
-    printf '%s%s libres%s sur %s' "$color" "$(numfmt --to=iec --suffix=o "$avail")" "$C_END" \
-        "$(numfmt --to=iec --suffix=o "$size")"
+    t '%s free%s of %s' "$color$(human_size "$avail")" "$C_RESET" "$(human_size "$size")"
 }
 
-# --- Réseau ---------------------------------------------------------------------
+# 38654705664 → « 36GB » (« 36Go » in French)
+human_size() { numfmt --to=iec --suffix="$(t 'B')" "$1"; }
+
+# Free space in whole gigabytes (GiB) on the partition of a folder
+disk_free_gb() {
+    df -Pk "$1" 2>/dev/null | awk 'NR == 2 { printf "%d", $4 / 1048576 }'
+}
+
+# --- Network ----------------------------------------------------------------------
 is_ipv4() { [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
 
-valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && (($1 >= 1 && $1 <= 65535)); }
+is_valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && (($1 >= 1 && $1 <= 65535)); }
 
-# Interface réseau de la route par défaut (eth0, ens3…)
-default_iface() {
+# Network interface of the default route (eth0, ens3…)
+default_interface() {
     ip -4 route show default 2>/dev/null \
         | awk '!found { for (i = 1; i < NF; i++) if ($i == "dev") { print $(i+1); found = 1 } }'
 }
 
-# IPv4 publique : demandée à des services externes (le serveur peut être
-# derrière un NAT), sinon adresse source de la route par défaut.
+# Public IPv4: asked to outside services (the server may be behind NAT),
+# otherwise the source address of the default route.
 public_ipv4() {
     local ip url
     for url in https://api.ipify.org https://ifconfig.me/ip https://ipv4.icanhazip.com; do
@@ -432,7 +483,7 @@ public_ipv4() {
         | awk '!found { for (i = 1; i < NF; i++) if ($i == "src") { print $(i+1); found = 1 } }'
 }
 
-# Un port est-il déjà utilisé ?  port_in_use tcp|udp PORT
+# Is a port already in use?  port_in_use tcp|udp PORT
 port_in_use() {
     local out
     if [[ $1 == udp ]]; then
@@ -444,8 +495,8 @@ port_in_use() {
 }
 
 reboot_server() {
-    if confirm "Redémarrer le serveur maintenant ?" n; then
-        printf '\nÀ bientôt !\n'
+    if confirm 'Restart the server now?' n; then
+        say 'See you soon!'
         systemctl reboot
         exit 0
     fi

@@ -1,50 +1,52 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  finalcut — module seedbox
+#  seedtunnel — seedbox module
 #
-#  Transmission  : n'écoute que sur 127.0.0.1, protégé par son propre mot de
-#                  passe, et enfermé par systemd (ProtectSystem=strict…)
-#  nginx         : seule porte d'entrée, HTTPS + mot de passe (même identifiant)
-#  Let's Encrypt : validation « webroot » par nginx, donc le renouvellement
-#                  automatique fonctionne (certbot.timer) ; repli auto-signé
-#  SFTP          : remplace le FTP ; utilisateur enfermé dans le dossier des
-#                  données, sans shell ni tunnel ; mot de passe et/ou clés SSH
-#  fail2ban      : SSH/SFTP, mot de passe web, récidivistes (pare-feu nftables)
+#  Transmission  : only listens on 127.0.0.1, protected by its own password,
+#                  and locked down by systemd (ProtectSystem=strict…)
+#  nginx         : the only way in, HTTPS + password (same login)
+#  Let's Encrypt : « webroot » validation through nginx, so the automatic
+#                  renewal works (certbot.timer); self-signed as a fallback
+#  SFTP          : replaces FTP; the user is locked in the data folder, with
+#                  no shell and no tunnel; password and/or SSH keys
+#  fail2ban      : SSH/SFTP, web password, repeat offenders (nftables)
 #
-#  Les mots de passe ne sont jamais stockés en clair : seules leurs empreintes
-#  (système, nginx, Transmission) sont gardées dans /etc/finalcut/seedbox.secrets,
-#  ce qui permet de tout réappliquer ou restaurer sans redemander le mot de passe.
+#  Passwords are never stored in clear: only their hashes (system, nginx,
+#  Transmission) are kept in /etc/seedtunnel/seedbox.secrets, so everything
+#  can be applied again or restored without asking for the password.
 #
-#  Dossiers : <données>/complete    téléchargements terminés (et en partage)
-#             <données>/incomplete  téléchargements en cours
-#             <données>/watch       déposez-y un .torrent, il démarre tout seul
-#             <données>/documents   espace personnel (Transmission n'y a pas accès)
+#  Folders: <data>/complete    finished downloads (and shared)
+#           <data>/incomplete  downloads in progress
+#           <data>/watch       drop a .torrent here, it starts by itself
+#           <data>/documents   personal space (Transmission has no access)
 # =============================================================================
 
-SB_CONF="$FC_ETC/seedbox.conf"
-SB_SECRETS="$FC_ETC/seedbox.secrets"
-SB_SSL="$FC_ETC/ssl"
-SB_NGINX_SITE="/etc/nginx/sites-available/finalcut"
-SB_NGINX_LINK="/etc/nginx/sites-enabled/finalcut"
-SB_HTPASSWD="/etc/nginx/finalcut.htpasswd"
-SB_SSHD="/etc/ssh/sshd_config.d/finalcut-seedbox.conf"
-SB_KEYS_DIR="/etc/ssh/finalcut_authorized_keys"
-SB_F2B_JAIL="/etc/fail2ban/jail.d/finalcut.local"
-SB_F2B_MAIN="/etc/fail2ban/fail2ban.d/finalcut.local"
-SB_TR_DROPIN="/etc/systemd/system/transmission-daemon.service.d/finalcut.conf"
-SB_WEBROOT="/var/www/letsencrypt"
-SB_LE_NAME="finalcut"
-SB_LE_DIR="/etc/letsencrypt/live/$SB_LE_NAME"
-SB_TR_USER="debian-transmission"
-SB_RPC_PORT=9091
-# les clients VPN utilisent 60001 et suivants
-SB_PEER_PORT=60000
-# mot de passe en cours de changement (jamais écrit sur le disque)
-SB_PASS=""
+SEEDBOX_CONF_FILE="$APP_STATE_DIR/seedbox.conf"
+SEEDBOX_SECRETS_FILE="$APP_STATE_DIR/seedbox.secrets"
+SEEDBOX_SSL_DIR="$APP_STATE_DIR/ssl"
+NGINX_SITE="/etc/nginx/sites-available/seedtunnel"
+NGINX_SITE_LINK="/etc/nginx/sites-enabled/seedtunnel"
+NGINX_HTPASSWD="/etc/nginx/seedtunnel.htpasswd"
+SSHD_SEEDBOX_CONF="/etc/ssh/sshd_config.d/seedtunnel-seedbox.conf"
+SFTP_KEYS_DIR="/etc/ssh/seedtunnel_authorized_keys"
+FAIL2BAN_JAIL="/etc/fail2ban/jail.d/seedtunnel.local"
+FAIL2BAN_MAIN_CONF="/etc/fail2ban/fail2ban.d/seedtunnel.local"
+TRANSMISSION_DROPIN="/etc/systemd/system/transmission-daemon.service.d/seedtunnel.conf"
+TRANSMISSION_USER="debian-transmission"
+# torrents, progress (« resume ») and settings of Transmission (Debian)
+TRANSMISSION_STATE_DIR="/var/lib/transmission-daemon/.config/transmission-daemon"
+TRANSMISSION_RPC_PORT=9091
+LETSENCRYPT_WEBROOT="/var/www/letsencrypt"
+LETSENCRYPT_CERT_NAME="seedtunnel"
+LETSENCRYPT_DIR="/etc/letsencrypt/live/$LETSENCRYPT_CERT_NAME"
+# the VPN clients use 60001 and above
+TORRENT_PORT=60000
+# password being changed (never written to disk)
+SEEDBOX_NEW_PASSWORD=""
 
-# Réglages imposés à Transmission. DHT, PEX, LPD et uTP sont coupés : réglage
-# adapté aux trackers privés (modifiable dans l'interface web, Préférences).
-read -r -d '' SB_TR_FILTER <<'JQ' || true
+# Settings imposed on Transmission. DHT, PEX, LPD and uTP are off: suited to
+# private trackers (can be changed in the web interface, Preferences).
+read -r -d '' TRANSMISSION_SETTINGS_FILTER <<'JQ' || true
 {
   "download-dir": $dl,
   "incomplete-dir": $inc,
@@ -71,294 +73,289 @@ read -r -d '' SB_TR_FILTER <<'JQ' || true
 }
 JQ
 
-sb_load() {
-    SB_USER=""
-    SB_DOMAIN=""
-    SB_DATA=""
-    # selfsigned | letsencrypt | staging : certificat actuellement servi
-    SB_CERT="selfsigned"
-    # auto | yes | no : faut-il demander un certificat Let's Encrypt ?
-    SB_LETSENCRYPT="auto"
-    # production | staging : serveurs Let's Encrypt utilisés
-    SB_ACME="production"
-    # yes | no : le SFTP accepte-t-il le mot de passe (sinon clés SSH seules)
-    SB_SFTP_PASSWORD="yes"
-    SB_HASH_SYS=""
-    SB_HASH_WEB=""
-    SB_HASH_TR=""
-    conf_read "$SB_CONF"
-    conf_read "$SB_SECRETS"
+seedbox_load() {
+    SEEDBOX_USER=""
+    SEEDBOX_DOMAIN=""
+    SEEDBOX_DATA_DIR=""
+    # selfsigned | letsencrypt | staging: certificate served right now
+    SEEDBOX_CERTIFICATE="selfsigned"
+    # auto | yes | no: should a Let's Encrypt certificate be requested?
+    SEEDBOX_LETSENCRYPT="auto"
+    # production | staging: Let's Encrypt servers used
+    SEEDBOX_LETSENCRYPT_SERVER="production"
+    # yes | no: does SFTP accept the password (otherwise SSH keys only)
+    SEEDBOX_SFTP_PASSWORD="yes"
+    SEEDBOX_HASH_SYSTEM=""
+    SEEDBOX_HASH_WEB=""
+    SEEDBOX_HASH_TRANSMISSION=""
+    state_read "$SEEDBOX_CONF_FILE"
+    state_read "$SEEDBOX_SECRETS_FILE"
 }
 
-sb_save() {
-    conf_write "$SB_CONF" SB_USER SB_DOMAIN SB_DATA SB_CERT SB_LETSENCRYPT SB_ACME SB_SFTP_PASSWORD
+seedbox_save() {
+    state_write "$SEEDBOX_CONF_FILE" SEEDBOX_USER SEEDBOX_DOMAIN SEEDBOX_DATA_DIR SEEDBOX_CERTIFICATE \
+        SEEDBOX_LETSENCRYPT SEEDBOX_LETSENCRYPT_SERVER SEEDBOX_SFTP_PASSWORD
 }
 
-sb_installed() { [[ -f $SB_CONF ]]; }
+seedbox_installed() { [[ -f $SEEDBOX_CONF_FILE ]]; }
 
-sb_require_installed() {
-    sb_installed || die "La seedbox n'est pas installée :  finalcut seedbox install"
+seedbox_require_installed() {
+    seedbox_installed || die 'The seedbox is not installed:  seedtunnel seedbox install'
 }
 
-# Fichier de réglages réel de Transmission (Debian le place dans /etc)
-sb_tr_settings() {
-    local link=/var/lib/transmission-daemon/.config/transmission-daemon/settings.json
+# Real settings file of Transmission (Debian puts it in /etc)
+transmission_settings_file() {
+    local link="$TRANSMISSION_STATE_DIR/settings.json"
     if [[ -e $link ]]; then readlink -f "$link"; else printf '%s' /etc/transmission-daemon/settings.json; fi
 }
 
-sb_cert_label() {
-    case $SB_CERT in
+seedbox_certificate_label() {
+    case $SEEDBOX_CERTIFICATE in
         letsencrypt) printf "Let's Encrypt" ;;
-        staging) printf "Let's Encrypt (serveur de test, non reconnu par les navigateurs)" ;;
-        *) printf 'auto-signé' ;;
+        staging) t "Let's Encrypt (test server, not trusted by browsers)" ;;
+        *) t 'self-signed' ;;
     esac
 }
 
-# --- Vérifications ------------------------------------------------------------
+# --- Checks ---------------------------------------------------------------------------
 
-sb_valid_user() { [[ $1 =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; }
+seedbox_is_valid_user() { [[ $1 =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; }
 
-sb_valid_domain() {
+seedbox_is_valid_domain() {
     [[ $1 =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$ ]] || is_ipv4 "$1"
 }
 
-# Adresses IPv4 d'un nom, demandées à un DNS public (pas au cache local)
-sb_dns_ips() {
+# IPv4 addresses of a name, asked to a public DNS server (not the local cache)
+dns_ipv4_addresses() {
     dig +short +time=3 +tries=2 A "$1" @9.9.9.9 2>/dev/null | grep -E '^[0-9]+(\.[0-9]+){3}$' || true
 }
 
-sb_dns_points_here() {
-    [[ -n $2 ]] && grep -qxF "$2" <<<"$(sb_dns_ips "$1")"
+dns_points_here() {
+    [[ -n $2 ]] && grep -qxF "$2" <<<"$(dns_ipv4_addresses "$1")"
 }
 
-# Propose un nom qui pointe déjà sur ce serveur : nom de la machine, ou nom
-# inverse fourni par l'hébergeur (ex. vps-1234abcd.vps.ovh.net). Sinon l'IP.
-sb_guess_domain() {
-    local ip=$1 cand ptr
-    ptr=$(dig +short -x "$ip" @9.9.9.9 2>/dev/null | sed -n '1s/\.$//p' || true)
-    for cand in "$(hostname --fqdn 2>/dev/null || true)" "$ptr"; do
-        cand=${cand,,}
-        if [[ -n $cand ]] && ! is_ipv4 "$cand" && sb_valid_domain "$cand" \
-            && sb_dns_points_here "$cand" "$ip"; then
-            printf '%s' "$cand"
+# Suggests a name that already points to this server: name of the machine, or
+# reverse name given by the provider (e.g. vps-1234abcd.vps.ovh.net). Else the IP.
+seedbox_guess_domain() {
+    local ip=$1 candidate reverse
+    reverse=$(dig +short -x "$ip" @9.9.9.9 2>/dev/null | sed -n '1s/\.$//p' || true)
+    for candidate in "$(hostname --fqdn 2>/dev/null || true)" "$reverse"; do
+        candidate=${candidate,,}
+        if [[ -n $candidate ]] && ! is_ipv4 "$candidate" && seedbox_is_valid_domain "$candidate" \
+            && dns_points_here "$candidate" "$ip"; then
+            printf '%s' "$candidate"
             return 0
         fi
     done
     printf '%s' "$ip"
 }
 
-# Plus grande partition locale ; si c'est « / », on utilise /srv/seedbox
-sb_default_data() {
-    local mnt
-    mnt=$(df -lP -x tmpfs -x devtmpfs -x overlay -x squashfs -x vfat 2>/dev/null \
+# Biggest local partition; if it is « / », /srv/seedbox is used
+seedbox_default_data_dir() {
+    local mount
+    mount=$(df -lP -x tmpfs -x devtmpfs -x overlay -x squashfs -x vfat 2>/dev/null \
         | awk 'NR > 1 { print $4, $6 }' | sort -nr | awk 'NR == 1 { print $2 }' || true)
-    case $mnt in
+    case $mount in
         "" | / | /boot*) printf '/srv/seedbox' ;;
-        *) printf '%s/seedbox' "${mnt%/}" ;;
+        *) printf '%s/seedbox' "${mount%/}" ;;
     esac
 }
 
-# sshd exige que chaque dossier du chemin du chroot SFTP appartienne à root
-# et ne soit modifiable par personne d'autre.
-sb_check_data_path() {
-    local p=$1 cur="" part owner mode
+# sshd requires every folder in the path of the SFTP chroot to belong to root
+# and to be writable by nobody else.
+seedbox_check_data_dir() {
+    local path=$1 current="" part owner mode
     local -a parts
-    if [[ ! $p =~ ^(/[A-Za-z0-9._-]+)+$ || $p == *..* ]]; then
-        warn "Chemin invalide : /dossier/sous-dossier (lettres, chiffres, . _ -)."
+    if [[ ! $path =~ ^(/[A-Za-z0-9._-]+)+$ || $path == *..* ]]; then
+        warn 'Invalid path: /folder/subfolder (letters, digits, . _ -).'
         return 1
     fi
-    case $p in
+    case $path in
         /bin | /boot | /dev | /etc | /home | /lib | /lib64 | /media | /mnt | /opt | /proc | /root | /run | /sbin | /srv | /sys | /tmp | /usr | /var)
-            warn "Choisissez un sous-dossier, pas un dossier système (ex. $p/seedbox)."
+            warn 'Choose a subfolder, not a system folder (e.g. %s/seedbox).' "$path"
             return 1
             ;;
     esac
-    IFS=/ read -r -a parts <<<"${p#/}"
+    IFS=/ read -r -a parts <<<"${path#/}"
     for part in "${parts[@]}"; do
-        cur+="/$part"
-        # la suite sera créée par le script (root, 755)
-        [[ -e $cur ]] || break
-        if [[ ! -d $cur ]]; then
-            warn "$cur existe mais n'est pas un dossier."
+        current+="/$part"
+        # the rest will be created by the script (root, 755)
+        [[ -e $current ]] || break
+        if [[ ! -d $current ]]; then
+            warn '%s exists but is not a folder.' "$current"
             return 1
         fi
-        read -r owner mode < <(stat -L -c '%u %a' "$cur")
+        read -r owner mode < <(stat -L -c '%u %a' "$current")
         if ((owner != 0 || (8#$mode & 8#022))); then
-            warn "$cur doit appartenir à root et n'être modifiable que par lui (exigence du SFTP enfermé)."
+            warn '%s must belong to root and be writable only by root (needed by the locked SFTP).' "$current"
             return 1
         fi
     done
     return 0
 }
 
-sb_check_web_ports() {
+seedbox_check_web_ports() {
     local out
     out=$(ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null || true)
     if [[ -n $out && $out != *nginx* ]]; then
-        die "Les ports 80/443 sont déjà utilisés par un autre logiciel :
-$out
-  Arrêtez-le (apache2 par exemple) avant d'installer la seedbox."
+        die 'Ports 80/443 are already used by another program:\n%s\n  Stop it (apache2 for example) before installing the seedbox.' "$out"
     fi
 }
 
-# --- Mots de passe (empreintes uniquement) -----------------------------------
+# --- Passwords (hashes only) -------------------------------------------------------
 
-# Transmission stocke « { » + sha1(mot de passe + sel) en hexadécimal + sel de
-# 8 caractères. On le calcule ici : le mot de passe n'est jamais écrit en clair.
-sb_tr_hash() {
-    local salt="" s sum
+# Transmission stores « { » + sha1(password + salt) in hexadecimal + a salt of
+# 8 characters. It is computed here: the password is never written in clear.
+transmission_password_hash() {
+    local salt="" random sum
     while ((${#salt} < 8)); do
-        s=$(openssl rand -base64 12)
-        salt+=${s//[^A-Za-z0-9]/}
+        random=$(openssl rand -base64 12)
+        salt+=${random//[^A-Za-z0-9]/}
     done
     salt=${salt:0:8}
     sum=$(printf '%s%s' "$1" "$salt" | sha1sum)
     printf '{%s%s' "${sum%% *}" "$salt"
 }
 
-# Calcule et enregistre les trois empreintes de SB_PASS (l'utilisateur doit exister)
-sb_hash_password() {
-    # printf est interne à bash : le mot de passe n'apparaît pas dans « ps »
-    printf '%s:%s\n' "$SB_USER" "$SB_PASS" | chpasswd
-    SB_HASH_SYS=$(getent shadow "$SB_USER" | cut -d: -f2)
-    SB_HASH_WEB=$(printf '%s\n' "$SB_PASS" | openssl passwd -6 -stdin)
-    SB_HASH_TR=$(sb_tr_hash "$SB_PASS")
-    conf_write "$SB_SECRETS" SB_HASH_SYS SB_HASH_WEB SB_HASH_TR
+# Computes and saves the three hashes of SEEDBOX_NEW_PASSWORD (the user must exist)
+seedbox_hash_password() {
+    # printf is built into bash: the password does not show in « ps »
+    printf '%s:%s\n' "$SEEDBOX_USER" "$SEEDBOX_NEW_PASSWORD" | chpasswd
+    SEEDBOX_HASH_SYSTEM=$(getent shadow "$SEEDBOX_USER" | cut -d: -f2)
+    SEEDBOX_HASH_WEB=$(printf '%s\n' "$SEEDBOX_NEW_PASSWORD" | openssl passwd -6 -stdin)
+    SEEDBOX_HASH_TRANSMISSION=$(transmission_password_hash "$SEEDBOX_NEW_PASSWORD")
+    state_write "$SEEDBOX_SECRETS_FILE" SEEDBOX_HASH_SYSTEM SEEDBOX_HASH_WEB SEEDBOX_HASH_TRANSMISSION
 }
 
-# Le mot de passe donné est-il déjà celui enregistré ? (relance idempotente)
-sb_password_matches() {
-    local salt calc
-    [[ $SB_HASH_WEB == '$6$'* ]] || return 1
-    salt=${SB_HASH_WEB#\$6\$}
+# Is this password already the saved one? (running again changes nothing)
+seedbox_password_matches() {
+    local salt computed
+    [[ $SEEDBOX_HASH_WEB == '$6$'* ]] || return 1
+    salt=${SEEDBOX_HASH_WEB#\$6\$}
     salt=${salt%%\$*}
-    calc=$(printf '%s\n' "$1" | openssl passwd -6 -salt "$salt" -stdin)
-    [[ $calc == "$SB_HASH_WEB" ]]
+    computed=$(printf '%s\n' "$1" | openssl passwd -6 -salt "$salt" -stdin)
+    [[ $computed == "$SEEDBOX_HASH_WEB" ]]
 }
 
-# --- Questions (mode interactif) -------------------------------------------------
+# --- Questions (interactive mode) ---------------------------------------------------
 
-sb_ask_user() {
+seedbox_ask_user() {
     local current=${1-} name
     while true; do
-        ask name "Nom d'utilisateur (web et SFTP)" "${SB_USER:-lancelot}"
-        if ! sb_valid_user "$name"; then
-            warn "Minuscules, chiffres, - et _ uniquement (32 caractères maximum)."
+        ask name 'User name (web and SFTP)' "${SEEDBOX_USER:-lancelot}"
+        if ! seedbox_is_valid_user "$name"; then
+            warn 'Lowercase letters, digits, - and _ only (32 characters at most).'
         elif [[ $name != "$current" ]] && id "$name" &>/dev/null; then
-            warn "« $name » existe déjà sur ce système : choisissez un autre nom."
+            warn '"%s" already exists on this system: choose another name.' "$name"
         else
             break
         fi
     done
-    FC_NEWUSER=$name
-    ask_password SB_PASS
+    OPT_NEW_USER=$name
+    ask_password SEEDBOX_NEW_PASSWORD
 }
 
-# Demande le nom de domaine et vérifie qu'il pointe bien sur ce serveur.
-# Règle SB_LETSENCRYPT : auto si Let's Encrypt a une chance, sinon no.
-sb_ask_domain() {
-    local ip=$1 ips c
-    cat <<EOF
-Nom de domaine de la seedbox. Sans domaine à vous, l'hébergeur en fournit
-souvent un (ex. vps-1234abcd.vps.ovh.net). À défaut, entrez l'adresse IP :
-un certificat auto-signé sera utilisé (alerte du navigateur à accepter).
-
-EOF
+# Asks for the domain name and checks that it points to this server.
+# Sets SEEDBOX_LETSENCRYPT: auto if Let's Encrypt has a chance, otherwise no.
+seedbox_ask_domain() {
+    local ip=$1 ips choice
+    text seedbox_domain_help
+    echo
     while true; do
-        ask SB_DOMAIN "Nom de domaine ou IP" "$SB_DOMAIN"
-        SB_DOMAIN=${SB_DOMAIN,,}
-        SB_DOMAIN=${SB_DOMAIN#http://}
-        SB_DOMAIN=${SB_DOMAIN#https://}
-        SB_DOMAIN=${SB_DOMAIN%/}
-        if ! sb_valid_domain "$SB_DOMAIN"; then
-            warn "Nom de domaine invalide."
+        ask SEEDBOX_DOMAIN 'Domain name or IP' "$SEEDBOX_DOMAIN"
+        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN,,}
+        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN#http://}
+        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN#https://}
+        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN%/}
+        if ! seedbox_is_valid_domain "$SEEDBOX_DOMAIN"; then
+            warn 'Invalid domain name.'
             continue
         fi
-        if is_ipv4 "$SB_DOMAIN"; then
-            SB_LETSENCRYPT=no
+        if is_ipv4 "$SEEDBOX_DOMAIN"; then
+            SEEDBOX_LETSENCRYPT=no
             return 0
         fi
-        ips=$(sb_dns_ips "$SB_DOMAIN")
+        ips=$(dns_ipv4_addresses "$SEEDBOX_DOMAIN")
         if [[ -z $ips ]]; then
-            warn "« $SB_DOMAIN » ne pointe vers aucune adresse IPv4."
+            warn '"%s" does not point to any IPv4 address.' "$SEEDBOX_DOMAIN"
         elif ! grep -qxF "$ip" <<<"$ips"; then
-            warn "« $SB_DOMAIN » pointe vers ${ips//$'\n'/, } et non vers ce serveur ($ip)."
+            warn '"%s" points to %s, not to this server (%s).' "$SEEDBOX_DOMAIN" "${ips//$'\n'/, }" "$ip"
         else
-            ok "« $SB_DOMAIN » pointe bien vers ce serveur ($ip)."
-            SB_LETSENCRYPT=auto
+            ok '"%s" points to this server (%s).' "$SEEDBOX_DOMAIN" "$ip"
+            SEEDBOX_LETSENCRYPT=auto
             return 0
         fi
-        echo "  Let's Encrypt ne pourra pas délivrer de certificat pour ce nom."
-        echo "  (après une modification DNS, comptez de quelques minutes à quelques heures)"
-        echo "  R) Recommencer    C) Continuer avec un certificat auto-signé"
-        ask c "Votre choix" "R"
-        if [[ ${c,,} == c ]]; then
-            SB_LETSENCRYPT=no
+        say "  Let's Encrypt will not be able to issue a certificate for this name."
+        say '  (after a DNS change, allow a few minutes to a few hours)'
+        say '  R) Try again    C) Continue with a self-signed certificate'
+        ask choice 'Your choice' "R"
+        if [[ ${choice,,} == c ]]; then
+            SEEDBOX_LETSENCRYPT=no
             return 0
         fi
     done
 }
 
-# --- Application (idempotente) ---------------------------------------------------
+# --- Applying (idempotent) -----------------------------------------------------------
 
-sb_apply_user() {
-    local cur
-    if ! id "$SB_USER" &>/dev/null; then
-        run "Création de l'utilisateur $SB_USER" useradd --no-create-home --home-dir / \
-            --shell /usr/sbin/nologin --user-group --groups "$SB_TR_USER" \
-            --comment "finalcut seedbox" "$SB_USER"
+seedbox_apply_user() {
+    local current
+    if ! id "$SEEDBOX_USER" &>/dev/null; then
+        run "$(t 'Creating the user %s' "$SEEDBOX_USER")" useradd --no-create-home --home-dir / \
+            --shell /usr/sbin/nologin --user-group --groups "$TRANSMISSION_USER" \
+            --comment "seedtunnel seedbox" "$SEEDBOX_USER"
     fi
-    if [[ " $(id -nG "$SB_USER") " != *" $SB_TR_USER "* ]]; then
-        usermod -aG "$SB_TR_USER" "$SB_USER"
+    if [[ " $(id -nG "$SEEDBOX_USER") " != *" $TRANSMISSION_USER "* ]]; then
+        usermod -aG "$TRANSMISSION_USER" "$SEEDBOX_USER"
     fi
-    if [[ -n $SB_PASS ]]; then
-        sb_hash_password
-    elif [[ -z $SB_HASH_SYS || -z $SB_HASH_WEB || -z $SB_HASH_TR ]]; then
-        die "Aucun mot de passe connu pour $SB_USER : définissez-en un avec  finalcut seedbox password"
+    if [[ -n $SEEDBOX_NEW_PASSWORD ]]; then
+        seedbox_hash_password
+    elif [[ -z $SEEDBOX_HASH_SYSTEM || -z $SEEDBOX_HASH_WEB || -z $SEEDBOX_HASH_TRANSMISSION ]]; then
+        die 'No known password for %s: set one with  seedtunnel seedbox password' "$SEEDBOX_USER"
     else
-        cur=$(getent shadow "$SB_USER" | cut -d: -f2)
-        if [[ $cur != "$SB_HASH_SYS" ]]; then
-            printf '%s:%s\n' "$SB_USER" "$SB_HASH_SYS" | chpasswd -e
+        current=$(getent shadow "$SEEDBOX_USER" | cut -d: -f2)
+        if [[ $current != "$SEEDBOX_HASH_SYSTEM" ]]; then
+            printf '%s:%s\n' "$SEEDBOX_USER" "$SEEDBOX_HASH_SYSTEM" | chpasswd -e
         fi
     fi
 }
 
-sb_apply_dirs() {
-    install -d -m 755 -o root -g root "$SB_DATA"
-    # setgid (le 2 de 2775) : tout ce qui est créé dedans appartient au groupe de
-    # Transmission, donc l'utilisateur SFTP peut lire et supprimer les fichiers.
-    install -d -m 2775 -o "$SB_TR_USER" -g "$SB_TR_USER" \
-        "$SB_DATA/complete" "$SB_DATA/incomplete" "$SB_DATA/watch"
-    install -d -m 700 -o "$SB_USER" -g "$SB_USER" "$SB_DATA/documents"
+seedbox_apply_dirs() {
+    install -d -m 755 -o root -g root "$SEEDBOX_DATA_DIR"
+    # setgid (the 2 of 2775): everything created inside belongs to the group of
+    # Transmission, so the SFTP user can read and delete the files.
+    install -d -m 2775 -o "$TRANSMISSION_USER" -g "$TRANSMISSION_USER" \
+        "$SEEDBOX_DATA_DIR/complete" "$SEEDBOX_DATA_DIR/incomplete" "$SEEDBOX_DATA_DIR/watch"
+    install -d -m 700 -o "$SEEDBOX_USER" -g "$SEEDBOX_USER" "$SEEDBOX_DATA_DIR/documents"
 }
 
-sb_tr_desired() {
-    jq -n --arg dl "$SB_DATA/complete" --arg inc "$SB_DATA/incomplete" \
-        --arg watch "$SB_DATA/watch" --arg user "$SB_USER" --arg hash "$SB_HASH_TR" \
-        --argjson rpcport "$SB_RPC_PORT" --argjson peerport "$SB_PEER_PORT" "$SB_TR_FILTER"
+transmission_desired_settings() {
+    jq -n --arg dl "$SEEDBOX_DATA_DIR/complete" --arg inc "$SEEDBOX_DATA_DIR/incomplete" \
+        --arg watch "$SEEDBOX_DATA_DIR/watch" --arg user "$SEEDBOX_USER" --arg hash "$SEEDBOX_HASH_TRANSMISSION" \
+        --argjson rpcport "$TRANSMISSION_RPC_PORT" --argjson peerport "$TORRENT_PORT" "$TRANSMISSION_SETTINGS_FILTER"
 }
 
-# Les réglages voulus sont-ils déjà en place ? (« umask » ignoré : Transmission
-# le réécrit à sa façon selon les versions)
-sb_tr_uptodate() {
+# Are the wanted settings already in place? (« umask » is ignored: Transmission
+# writes it back in its own way depending on the version)
+transmission_settings_uptodate() {
     [[ -s $1 ]] || return 1
     jq -e --argjson d "$2" '. as $c | $d | del(.umask) | to_entries | all(.value == $c[.key])' "$1" &>/dev/null
 }
 
-# Durcissement systemd : si Transmission était compromis, il ne pourrait écrire
-# que dans ses propres dossiers et dans celui des téléchargements.
-sb_gen_tr_dropin() {
+# systemd hardening: if Transmission were compromised, it could only write to
+# its own folders and to the download folder.
+transmission_generate_dropin() {
     local home=yes
-    case $SB_DATA in
+    case $SEEDBOX_DATA_DIR in
         /home/* | /root/* | /run/user/*) home=no ;;
     esac
     cat <<EOF
-# Généré par finalcut — Transmission enfermé par systemd
+# Written by seedtunnel — Transmission locked down by systemd
 [Service]
 UMask=0002
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=-/var/lib/transmission-daemon -/etc/transmission-daemon -$SB_DATA
+ReadWritePaths=-/var/lib/transmission-daemon -/etc/transmission-daemon -$SEEDBOX_DATA_DIR
 ProtectHome=$home
 PrivateTmp=yes
 PrivateDevices=yes
@@ -382,133 +379,141 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 EOF
 }
 
-sb_apply_transmission() {
-    local tr desired restart=0
-    tr=$(sb_tr_settings)
-    desired=$(sb_tr_desired)
-    install -d -m 755 "${SB_TR_DROPIN%/*}"
-    if write_if_changed "$SB_TR_DROPIN" 644 < <(sb_gen_tr_dropin); then
-        run "Rechargement de systemd" systemctl daemon-reload
+seedbox_apply_transmission() {
+    local settings desired restart=0
+    settings=$(transmission_settings_file)
+    desired=$(transmission_desired_settings)
+    install -d -m 755 "${TRANSMISSION_DROPIN%/*}"
+    if write_if_changed "$TRANSMISSION_DROPIN" 644 root:root transmission_generate_dropin; then
+        run 'Reloading systemd' systemctl daemon-reload
         restart=1
     fi
-    if ! sb_tr_uptodate "$tr" "$desired"; then
-        # Transmission réécrit ses réglages en s'arrêtant : on modifie à l'arrêt
-        run "Arrêt de Transmission" systemctl stop transmission-daemon
-        [[ -s $tr ]] || printf '{}\n' >"$tr"
-        if ! jq --argjson d "$desired" '. + $d' "$tr" >"$tr.tmp"; then
-            rm -f "$tr.tmp"
-            die "Impossible de lire $tr (JSON invalide ?)."
+    if ! transmission_settings_uptodate "$settings" "$desired"; then
+        # Transmission writes its settings back when it stops: change them while stopped
+        run 'Stopping Transmission' systemctl stop transmission-daemon
+        [[ -s $settings ]] || printf '{}\n' >"$settings"
+        if ! jq --argjson d "$desired" '. + $d' "$settings" >"$settings.tmp"; then
+            rm -f "$settings.tmp"
+            die 'Cannot read %s (invalid JSON?).' "$settings"
         fi
-        # « cat > » conserve le fichier (Debian y pointe par un lien)
-        cat "$tr.tmp" >"$tr"
-        rm -f "$tr.tmp"
-        chown "$SB_TR_USER:$SB_TR_USER" "$tr"
-        chmod 600 "$tr"
+        # « cat > » keeps the file itself (Debian links to it)
+        if ! cat "$settings.tmp" >"$settings"; then
+            rm -f "$settings.tmp"
+            die 'Cannot write %s (disk full?).' "$settings"
+        fi
+        rm -f "$settings.tmp"
+        chown "$TRANSMISSION_USER:$TRANSMISSION_USER" "$settings"
+        chmod 600 "$settings"
         restart=1
     fi
     systemctl enable --quiet transmission-daemon 2>/dev/null || true
+    # stopped on purpose because the disk is almost full: left alone
+    if diskguard_stopped; then return 0; fi
     if ((restart)) || ! systemctl is-active --quiet transmission-daemon; then
-        run "Démarrage de Transmission" systemctl restart transmission-daemon
+        run 'Starting Transmission' systemctl restart transmission-daemon
     fi
 }
 
-sb_apply_htpasswd() {
-    write_if_changed "$SB_HTPASSWD" 640 root:www-data < <(printf '%s:%s\n' "$SB_USER" "$SB_HASH_WEB") || true
+seedbox_apply_htpasswd() {
+    write_if_changed "$NGINX_HTPASSWD" 640 root:www-data \
+        printf '%s:%s\n' "$SEEDBOX_USER" "$SEEDBOX_HASH_WEB" || true
 }
 
-# Certificat auto-signé de secours, recréé seulement s'il ne correspond plus
-sb_selfsigned_ensure() {
-    local san="DNS:$SB_DOMAIN" check=""
-    if is_ipv4 "$SB_DOMAIN"; then san="IP:$SB_DOMAIN"; fi
-    install -d -m 700 "$SB_SSL"
-    if [[ -s $SB_SSL/selfsigned.crt && -s $SB_SSL/selfsigned.key ]]; then
-        if is_ipv4 "$SB_DOMAIN"; then
-            check=$(openssl x509 -in "$SB_SSL/selfsigned.crt" -noout -checkip "$SB_DOMAIN" 2>/dev/null || true)
+# Self-signed fallback certificate, created again only if it no longer matches
+seedbox_selfsigned_ensure() {
+    local san="DNS:$SEEDBOX_DOMAIN" check=""
+    if is_ipv4 "$SEEDBOX_DOMAIN"; then san="IP:$SEEDBOX_DOMAIN"; fi
+    install -d -m 700 "$SEEDBOX_SSL_DIR"
+    if [[ -s $SEEDBOX_SSL_DIR/selfsigned.crt && -s $SEEDBOX_SSL_DIR/selfsigned.key ]]; then
+        if is_ipv4 "$SEEDBOX_DOMAIN"; then
+            check=$(openssl x509 -in "$SEEDBOX_SSL_DIR/selfsigned.crt" -noout -checkip "$SEEDBOX_DOMAIN" 2>/dev/null || true)
         else
-            check=$(openssl x509 -in "$SB_SSL/selfsigned.crt" -noout -checkhost "$SB_DOMAIN" 2>/dev/null || true)
+            check=$(openssl x509 -in "$SEEDBOX_SSL_DIR/selfsigned.crt" -noout -checkhost "$SEEDBOX_DOMAIN" 2>/dev/null || true)
         fi
         [[ $check == *"does match"* ]] && return 0
     fi
-    run "Création d'un certificat auto-signé (solution de secours)" \
+    run 'Creating a self-signed certificate (fallback)' \
         openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
-        -subj "/CN=$SB_DOMAIN" -addext "subjectAltName=$san" \
-        -keyout "$SB_SSL/selfsigned.key" -out "$SB_SSL/selfsigned.crt"
+        -subj "/CN=$SEEDBOX_DOMAIN" -addext "subjectAltName=$san" \
+        -keyout "$SEEDBOX_SSL_DIR/selfsigned.key" -out "$SEEDBOX_SSL_DIR/selfsigned.crt"
 }
 
-# Le certificat Let's Encrypt existant est-il bien pour ce nom ?
-sb_le_matches_domain() {
+# Is the existing Let's Encrypt certificate for this name?
+letsencrypt_matches_domain() {
     local check
-    [[ -e $SB_LE_DIR/cert.pem ]] || return 1
-    check=$(openssl x509 -in "$SB_LE_DIR/cert.pem" -noout -checkhost "$SB_DOMAIN" 2>/dev/null || true)
+    [[ -e $LETSENCRYPT_DIR/cert.pem ]] || return 1
+    check=$(openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -checkhost "$SEEDBOX_DOMAIN" 2>/dev/null || true)
     [[ $check == *"does match"* ]]
 }
 
-# … et utilisable pour le type demandé (production | staging), encore valide 1 jour ?
-sb_le_usable() {
+# … and usable for the requested kind (production | staging), valid for 1 more day?
+letsencrypt_usable() {
     local issuer
-    sb_le_matches_domain || return 1
-    openssl x509 -in "$SB_LE_DIR/cert.pem" -noout -checkend 86400 &>/dev/null || return 1
-    issuer=$(openssl x509 -in "$SB_LE_DIR/cert.pem" -noout -issuer 2>/dev/null || true)
+    letsencrypt_matches_domain || return 1
+    openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -checkend 86400 &>/dev/null || return 1
+    issuer=$(openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -issuer 2>/dev/null || true)
     if [[ $issuer == *STAGING* ]]; then [[ $1 == staging ]]; else [[ $1 == production ]]; fi
 }
 
-sb_cert_mode() {
-    if [[ $SB_ACME == staging ]]; then printf staging; else printf letsencrypt; fi
+seedbox_certificate_mode() {
+    if [[ $SEEDBOX_LETSENCRYPT_SERVER == staging ]]; then printf staging; else printf letsencrypt; fi
 }
 
-# Demande le certificat Let's Encrypt. Code 1 en cas d'échec.
-sb_letsencrypt() {
-    local -a extra=()
-    install -d -m 755 "$SB_WEBROOT"
-    # Certificat existant pour un autre nom ou un autre serveur : on repart de zéro
-    if [[ -e $SB_LE_DIR/cert.pem ]] && ! sb_le_usable "$SB_ACME"; then
-        certbot delete --cert-name "$SB_LE_NAME" --non-interactive >>"$FC_LOG" 2>&1 || true
-    fi
+# Requests the Let's Encrypt certificate. Status 1 if it fails.
+letsencrypt_request() {
     local label=""
-    if [[ $SB_ACME == staging ]]; then
-        extra=(--test-cert)
-        label=" (serveur de test)"
+    local -a extra=()
+    install -d -m 755 "$LETSENCRYPT_WEBROOT"
+    # Existing certificate for another name or another server: start over
+    if [[ -e $LETSENCRYPT_DIR/cert.pem ]] && ! letsencrypt_usable "$SEEDBOX_LETSENCRYPT_SERVER"; then
+        certbot delete --cert-name "$LETSENCRYPT_CERT_NAME" --non-interactive >>"$APP_LOG" 2>&1 || true
     fi
-    printf "  Demande du certificat Let's Encrypt%s pour %s… " "$label" "$SB_DOMAIN"
-    printf '\n=== %(%F %T)T · certbot pour %s\n' -1 "$SB_DOMAIN" >>"$FC_LOG"
-    if certbot certonly --webroot -w "$SB_WEBROOT" --cert-name "$SB_LE_NAME" -d "$SB_DOMAIN" \
+    if [[ $SEEDBOX_LETSENCRYPT_SERVER == staging ]]; then
+        extra=(--test-cert)
+        label=" $(t '(test server)')"
+    fi
+    printf '  %s… ' "$(t "Requesting the Let's Encrypt certificate%s for %s" "$label" "$SEEDBOX_DOMAIN")"
+    printf '\n=== %(%F %T)T · certbot for %s\n' -1 "$SEEDBOX_DOMAIN" >>"$APP_LOG"
+    if certbot certonly --webroot -w "$LETSENCRYPT_WEBROOT" --cert-name "$LETSENCRYPT_CERT_NAME" -d "$SEEDBOX_DOMAIN" \
         --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring \
-        --deploy-hook "systemctl reload nginx" "${extra[@]}" >>"$FC_LOG" 2>&1; then
-        printf '%sok%s\n' "$C_GRN" "$C_END"
+        --deploy-hook "systemctl reload nginx" "${extra[@]}" >>"$APP_LOG" 2>&1; then
+        printf '%s%s%s\n' "$C_GREEN" "$(t 'ok')" "$C_RESET"
         return 0
     fi
-    printf '%séchec%s\n' "$C_RED" "$C_END"
+    printf '%s%s%s\n' "$C_RED" "$(t 'failed')" "$C_RESET"
     return 1
 }
 
-sb_gen_nginx() {
-    local crt key hsts="" v6_80="" v6_443=""
-    if [[ $SB_CERT == selfsigned ]]; then
-        crt="$SB_SSL/selfsigned.crt"
-        key="$SB_SSL/selfsigned.key"
+nginx_generate_site() {
+    local crt key hsts="" ipv6_80="" ipv6_443=""
+    if [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then
+        crt="$SEEDBOX_SSL_DIR/selfsigned.crt"
+        key="$SEEDBOX_SSL_DIR/selfsigned.key"
     else
-        crt="$SB_LE_DIR/fullchain.pem"
-        key="$SB_LE_DIR/privkey.pem"
+        crt="$LETSENCRYPT_DIR/fullchain.pem"
+        key="$LETSENCRYPT_DIR/privkey.pem"
     fi
-    # HSTS seulement avec un vrai certificat : sinon le navigateur interdirait
-    # ensuite de passer outre l'alerte de sécurité.
-    if [[ $SB_CERT == letsencrypt ]]; then
+    # HSTS only with a real certificate: otherwise the browser would then refuse
+    # to let the user accept the security warning.
+    if [[ $SEEDBOX_CERTIFICATE == letsencrypt ]]; then
         hsts=$'\n    add_header Strict-Transport-Security "max-age=31536000" always;'
     fi
     if [[ -e /proc/net/if_inet6 ]]; then
-        v6_80=$'\n    listen [::]:80;'
-        v6_443=$'\n    listen [::]:443 ssl;'
+        ipv6_80=$'\n    listen [::]:80;'
+        ipv6_443=$'\n    listen [::]:443 ssl;'
     fi
     cat <<EOF
-# Généré par finalcut — utilisez le menu plutôt que de modifier ce fichier.
+# Written by seedtunnel — use the menu rather than editing this file.
+
+$(share_generate_nginx_http)
 
 server {
-    listen 80;$v6_80
-    server_name $SB_DOMAIN;
+    listen 80;$ipv6_80
+    server_name $SEEDBOX_DOMAIN;
 
-    # Validation et renouvellement Let's Encrypt
+    # Let's Encrypt validation and renewal
     location ^~ /.well-known/acme-challenge/ {
-        root $SB_WEBROOT;
+        root $LETSENCRYPT_WEBROOT;
         default_type text/plain;
     }
     location / {
@@ -517,15 +522,15 @@ server {
 }
 
 server {
-    listen 443 ssl;$v6_443
-    server_name $SB_DOMAIN;
+    listen 443 ssl;$ipv6_443
+    server_name $SEEDBOX_DOMAIN;
 
     ssl_certificate     $crt;
     ssl_certificate_key $key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
     ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:finalcut:10m;
+    ssl_session_cache shared:seedtunnel:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
@@ -535,17 +540,17 @@ server {
     add_header Referrer-Policy no-referrer always;$hsts
 
     auth_basic "Seedbox";
-    auth_basic_user_file $SB_HTPASSWD;
+    auth_basic_user_file $NGINX_HTPASSWD;
 
-    # Ajout de fichiers .torrent depuis l'interface web
+    # Adding .torrent files from the web interface
     client_max_body_size 32m;
-$(share_gen_nginx "${hsts//$'\n    '/$'\n        '}")
+$(share_generate_nginx "${hsts//$'\n    '/$'\n        '}")
 
     location = / {
         return 302 /transmission/web/;
     }
     location /transmission/ {
-        proxy_pass http://127.0.0.1:$SB_RPC_PORT;
+        proxy_pass http://127.0.0.1:$TRANSMISSION_RPC_PORT;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -556,11 +561,11 @@ $(share_gen_nginx "${hsts//$'\n    '/$'\n        '}")
 EOF
 }
 
-sb_apply_nginx() {
+seedbox_apply_nginx() {
     local changed=0
-    if write_if_changed "$SB_NGINX_SITE" 644 < <(sb_gen_nginx); then changed=1; fi
-    if [[ ! -L $SB_NGINX_LINK ]]; then
-        ln -sf "$SB_NGINX_SITE" "$SB_NGINX_LINK"
+    if write_if_changed "$NGINX_SITE" 644 root:root nginx_generate_site; then changed=1; fi
+    if [[ ! -L $NGINX_SITE_LINK ]]; then
+        ln -sf "$NGINX_SITE" "$NGINX_SITE_LINK"
         changed=1
     fi
     if [[ -e /etc/nginx/sites-enabled/default || -L /etc/nginx/sites-enabled/default ]]; then
@@ -568,73 +573,68 @@ sb_apply_nginx() {
         changed=1
     fi
     if ((changed)) || ! systemctl is-active --quiet nginx; then
-        run "Vérification de la configuration nginx" nginx -t
-        run "Rechargement de nginx" systemctl reload-or-restart nginx
+        run 'Checking the nginx configuration' nginx -t
+        run 'Reloading nginx' systemctl reload-or-restart nginx
     fi
 }
 
-# Choisit le certificat servi : Let's Encrypt s'il est disponible ou obtenu,
-# sinon le certificat auto-signé.
-sb_apply_https() {
+# Chooses the certificate served: Let's Encrypt if available or obtained,
+# otherwise the self-signed one.
+seedbox_apply_https() {
     local want=0 ip
-    sb_selfsigned_ensure
-    if is_ipv4 "$SB_DOMAIN" || [[ $SB_LETSENCRYPT == no ]]; then
-        SB_CERT=selfsigned
-    elif sb_le_usable "$SB_ACME"; then
-        # certificat déjà en place (relance, restauration) : rien à demander
-        SB_CERT=$(sb_cert_mode)
+    seedbox_selfsigned_ensure
+    if is_ipv4 "$SEEDBOX_DOMAIN" || [[ $SEEDBOX_LETSENCRYPT == no ]]; then
+        SEEDBOX_CERTIFICATE=selfsigned
+    elif letsencrypt_usable "$SEEDBOX_LETSENCRYPT_SERVER"; then
+        # certificate already in place (run again, restore): nothing to request
+        SEEDBOX_CERTIFICATE=$(seedbox_certificate_mode)
     else
-        if [[ $SB_LETSENCRYPT == yes ]]; then
+        if [[ $SEEDBOX_LETSENCRYPT == yes ]]; then
             want=1
         else
             ip=$(public_ipv4)
-            if sb_dns_points_here "$SB_DOMAIN" "$ip"; then
+            if dns_points_here "$SEEDBOX_DOMAIN" "$ip"; then
                 want=1
             else
-                warn "« $SB_DOMAIN » ne pointe pas vers ce serveur ($ip) : certificat auto-signé."
+                warn '"%s" does not point to this server (%s): self-signed certificate.' "$SEEDBOX_DOMAIN" "$ip"
             fi
         fi
         if ((want)); then
-            # nginx doit déjà répondre sur le port 80 pour la validation
-            if [[ $SB_CERT != selfsigned ]] && ! sb_le_matches_domain; then SB_CERT=selfsigned; fi
-            sb_apply_nginx
-            if sb_letsencrypt; then
-                SB_CERT=$(sb_cert_mode)
-                ok "Certificat Let's Encrypt installé, renouvelé automatiquement."
-            elif sb_le_usable "$SB_ACME"; then
-                SB_CERT=$(sb_cert_mode)
-                warn "Let's Encrypt n'a pas répondu, le certificat existant (encore valide) est conservé."
+            # nginx must already answer on port 80 for the validation
+            if [[ $SEEDBOX_CERTIFICATE != selfsigned ]] && ! letsencrypt_matches_domain; then SEEDBOX_CERTIFICATE=selfsigned; fi
+            seedbox_apply_nginx
+            if letsencrypt_request; then
+                SEEDBOX_CERTIFICATE=$(seedbox_certificate_mode)
+                ok "Let's Encrypt certificate installed, renewed automatically."
+            elif letsencrypt_usable "$SEEDBOX_LETSENCRYPT_SERVER"; then
+                SEEDBOX_CERTIFICATE=$(seedbox_certificate_mode)
+                warn "Let's Encrypt did not answer, the existing certificate (still valid) is kept."
             else
-                SB_CERT=selfsigned
-                warn "Let's Encrypt n'a pas délivré de certificat : l'auto-signé reste en place."
-                cat <<EOF
-  Causes fréquentes : port 80 bloqué par le pare-feu de l'hébergeur, DNS pas
-  encore propagé, ou plus de 5 certificats demandés cette semaine pour ce nom
-  (pour vos essais, utilisez --staging). Détails dans $FC_LOG.
-  Pour réessayer :  finalcut seedbox domain $SB_DOMAIN
-EOF
+                SEEDBOX_CERTIFICATE=selfsigned
+                warn "Let's Encrypt did not issue a certificate: the self-signed one stays in place."
+                text letsencrypt_failed_help
             fi
         else
-            SB_CERT=selfsigned
+            SEEDBOX_CERTIFICATE=selfsigned
         fi
     fi
-    sb_apply_nginx
-    # renouvellement automatique (installé avec le paquet certbot)
-    if [[ $SB_CERT != selfsigned ]] && ! systemctl is-active --quiet certbot.timer; then
-        run "Activation du renouvellement automatique" systemctl enable --now certbot.timer
+    seedbox_apply_nginx
+    # automatic renewal (installed with the certbot package)
+    if [[ $SEEDBOX_CERTIFICATE != selfsigned ]] && ! systemctl is-active --quiet certbot.timer; then
+        run 'Enabling automatic renewal' systemctl enable --now certbot.timer
     fi
 }
 
-sb_has_keys() { [[ -s $SB_KEYS_DIR/$SB_USER ]] && grep -q '^ssh-\|^ecdsa-\|^sk-' "$SB_KEYS_DIR/$SB_USER"; }
+sftp_has_keys() { [[ -s $SFTP_KEYS_DIR/$SEEDBOX_USER ]] && grep -q '^ssh-\|^ecdsa-\|^sk-' "$SFTP_KEYS_DIR/$SEEDBOX_USER"; }
 
-sb_gen_sshd() {
+sshd_generate_seedbox_conf() {
     cat <<EOF
-# Généré par finalcut — accès SFTP de la seedbox, enfermé dans $SB_DATA
-Match User $SB_USER
-    ChrootDirectory $SB_DATA
+# Written by seedtunnel — SFTP access to the seedbox, locked in $SEEDBOX_DATA_DIR
+Match User $SEEDBOX_USER
+    ChrootDirectory $SEEDBOX_DATA_DIR
     ForceCommand internal-sftp -u 0002
-    AuthorizedKeysFile $SB_KEYS_DIR/%u
-    PasswordAuthentication $SB_SFTP_PASSWORD
+    AuthorizedKeysFile $SFTP_KEYS_DIR/%u
+    PasswordAuthentication $SEEDBOX_SFTP_PASSWORD
     PermitTTY no
     AllowTcpForwarding no
     AllowAgentForwarding no
@@ -644,41 +644,45 @@ Match User $SB_USER
 EOF
 }
 
-sb_apply_sftp() {
-    local t
-    install -d -m 755 "$SB_KEYS_DIR"
-    if [[ ! -e $SB_KEYS_DIR/$SB_USER ]]; then install -m 644 /dev/null "$SB_KEYS_DIR/$SB_USER"; fi
-    if [[ $SB_SFTP_PASSWORD == no ]] && ! sb_has_keys; then
-        warn "Aucune clé SSH enregistrée : le mot de passe SFTP reste autorisé."
-        SB_SFTP_PASSWORD=yes
+seedbox_apply_sftp() {
+    local settings
+    install -d -m 755 "$SFTP_KEYS_DIR"
+    if [[ ! -e $SFTP_KEYS_DIR/$SEEDBOX_USER ]]; then install -m 644 /dev/null "$SFTP_KEYS_DIR/$SEEDBOX_USER"; fi
+    if [[ $SEEDBOX_SFTP_PASSWORD == no ]] && ! sftp_has_keys; then
+        warn 'No SSH key saved: the SFTP password stays allowed.'
+        SEEDBOX_SFTP_PASSWORD=yes
     fi
-    if [[ -e $SB_SSHD ]]; then cp -p "$SB_SSHD" "$SB_SSHD.precedent"; fi
-    if write_if_changed "$SB_SSHD" 644 < <(sb_gen_sshd); then
-        # On ne recharge SSH que si la configuration est valide : pas de risque
-        # de se retrouver enfermé dehors. Sinon, retour à la version précédente.
-        if ! sshd -t >>"$FC_LOG" 2>&1; then
-            if [[ -e $SB_SSHD.precedent ]]; then mv -f "$SB_SSHD.precedent" "$SB_SSHD"; else rm -f "$SB_SSHD"; fi
-            die "sshd refuse la configuration générée (détails dans $FC_LOG). SSH n'a pas été modifié."
+    if [[ -e $SSHD_SEEDBOX_CONF ]]; then cp -p "$SSHD_SEEDBOX_CONF" "$SSHD_SEEDBOX_CONF.previous"; fi
+    if write_if_changed "$SSHD_SEEDBOX_CONF" 644 root:root sshd_generate_seedbox_conf; then
+        # SSH is only reloaded if the configuration is valid: no risk of being
+        # locked out. Otherwise, back to the previous version.
+        if ! sshd -t >>"$APP_LOG" 2>&1; then
+            if [[ -e $SSHD_SEEDBOX_CONF.previous ]]; then
+                mv -f "$SSHD_SEEDBOX_CONF.previous" "$SSHD_SEEDBOX_CONF"
+            else
+                rm -f "$SSHD_SEEDBOX_CONF"
+            fi
+            die 'sshd refuses the generated configuration (details in %s). SSH was not changed.' "$APP_LOG"
         fi
-        run "Rechargement de SSH" systemctl try-reload-or-restart ssh.service
+        run 'Reloading SSH' systemctl try-reload-or-restart ssh.service
     fi
-    rm -f "$SB_SSHD.precedent"
+    rm -f "$SSHD_SEEDBOX_CONF.previous"
 
-    # La règle s'applique-t-elle bien ? (Include présent, pas de AllowUsers bloquant…)
-    t=$(sshd -T -C "user=$SB_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
-    if [[ $t != *"chrootdirectory $SB_DATA"* ]]; then
-        warn "La règle SFTP ne semble pas prise en compte : /etc/ssh/sshd_config doit contenir"
-        warn "« Include /etc/ssh/sshd_config.d/*.conf » (présent par défaut sur Debian)."
+    # Does the rule really apply? (Include present, no AllowUsers in the way…)
+    settings=$(sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
+    if [[ $settings != *"chrootdirectory $SEEDBOX_DATA_DIR"* ]]; then
+        warn 'The SFTP rule does not seem to apply: /etc/ssh/sshd_config must contain'
+        warn '"Include /etc/ssh/sshd_config.d/*.conf" (there by default on Debian).'
     fi
-    if [[ $t == *$'\nallowusers '* || $t == *$'\nallowgroups '* ]]; then
-        warn "Votre SSH utilise AllowUsers/AllowGroups : ajoutez-y $SB_USER pour qu'il puisse se connecter."
+    if [[ $settings == *$'\nallowusers '* || $settings == *$'\nallowgroups '* ]]; then
+        warn 'Your SSH uses AllowUsers/AllowGroups: add %s to it so that it can connect.' "$SEEDBOX_USER"
     fi
 }
 
-sb_gen_f2b_main() {
-    # Journal fichier explicite : la règle « recidive » le lit
+fail2ban_generate_main() {
+    # explicit log file: the « recidive » jail reads it
     cat <<'EOF'
-# Généré par finalcut
+# Written by seedtunnel
 [DEFAULT]
 logtarget = /var/log/fail2ban.log
 
@@ -687,11 +691,11 @@ logtarget = /var/log/fail2ban.log
 EOF
 }
 
-sb_gen_f2b_jail() {
+fail2ban_generate_jail() {
     cat <<'EOF'
-# Généré par finalcut — protection contre les essais de mots de passe
+# Written by seedtunnel — protection against password guessing
 [DEFAULT]
-# La machine elle-même et les clients du VPN ne sont jamais bannis
+# The machine itself and the VPN clients are never banned
 ignoreip  = 127.0.0.1/8 ::1 10.8.0.0/24
 bantime   = 1h
 findtime  = 10m
@@ -699,23 +703,23 @@ maxretry  = 5
 banaction = nftables-multiport
 banaction_allports = nftables[type=allports]
 
-# SSH et SFTP : 5 échecs en 10 min → banni 1 h de tous les ports, ce qui
-# reste efficace même si SSH n'écoute pas sur le port 22
-# (Debian 12+ n'a plus /var/log/auth.log : on lit le journal systemd)
+# SSH and SFTP: 5 failures in 10 min → banned 1 h from every port, which stays
+# effective even when SSH does not listen on port 22
+# (Debian 12+ has no /var/log/auth.log any more: the systemd journal is read)
 [sshd]
 enabled   = true
 backend   = systemd
 mode      = aggressive
 banaction = %(banaction_allports)s
 
-# Mot de passe de l'interface web
+# Password of the web interface
 [nginx-http-auth]
 enabled = true
 backend = auto
 port    = http,https
 logpath = /var/log/nginx/error.log
 
-# Récidive : banni 3 fois en 24 h → banni 1 semaine de tous les ports
+# Repeat offenders: banned 3 times in 24 h → banned 1 week from every port
 [recidive]
 enabled   = true
 backend   = auto
@@ -727,149 +731,159 @@ maxretry  = 3
 EOF
 }
 
-sb_apply_fail2ban() {
+seedbox_apply_fail2ban() {
     local changed=0
-    if write_if_changed "$SB_F2B_MAIN" 644 < <(sb_gen_f2b_main); then changed=1; fi
+    if write_if_changed "$FAIL2BAN_MAIN_CONF" 644 root:root fail2ban_generate_main; then changed=1; fi
     touch /var/log/fail2ban.log
-    if write_if_changed "$SB_F2B_JAIL" 644 < <(sb_gen_f2b_jail); then changed=1; fi
+    if write_if_changed "$FAIL2BAN_JAIL" 644 root:root fail2ban_generate_jail; then changed=1; fi
     if ((changed)) || ! systemctl is-active --quiet fail2ban; then
         systemctl enable --quiet fail2ban 2>/dev/null || true
-        run "Redémarrage de fail2ban" systemctl restart fail2ban
+        run 'Restarting fail2ban' systemctl restart fail2ban
     fi
 }
 
-# Met la seedbox dans l'état décrit par /etc/finalcut (idempotent)
-sb_apply() {
-    apt_install transmission-daemon nginx certbot fail2ban python3-systemd bind9-dnsutils
+# Puts the seedbox in the state described in /etc/seedtunnel (idempotent)
+seedbox_apply() {
+    apt_install transmission-daemon nginx certbot fail2ban python3-systemd bind9-dnsutils inotify-tools
     net_hardening_apply
-    sb_apply_user
-    sb_save
-    # ports 80/443 ouverts avant la demande de certificat Let's Encrypt
-    fw_refresh
-    sb_apply_dirs
-    sb_apply_transmission
-    sb_apply_htpasswd
-    sb_apply_https
-    sb_apply_sftp
-    sb_apply_fail2ban
-    sb_save
+    seedbox_apply_user
+    seedbox_save
+    # ports 80/443 open before the Let's Encrypt request
+    firewall_refresh
+    seedbox_apply_dirs
+    seedbox_apply_transmission
+    seedbox_apply_htpasswd
+    seedbox_apply_https
+    seedbox_apply_sftp
+    seedbox_apply_fail2ban
+    diskguard_install
+    seedbox_save
 }
 
-# --- Vérification et récapitulatif ------------------------------------------------
+# --- Check and summary -------------------------------------------------------------
 
-# Requête authentifiée sans jeton de session : Transmission répond 409 si
-# HTTPS, nginx et les deux mots de passe fonctionnent. Sans mot de passe
-# connu, on vérifie seulement que l'accès est bien refusé (401).
-sb_curl_auth() {
-    local s="$SB_USER:$SB_PASS"
-    s=${s//\\/\\\\}
-    s=${s//\"/\\\"}
-    printf 'user = "%s"\n' "$s"
+# Authenticated request without a session token: Transmission answers 409 if
+# HTTPS, nginx and both passwords work. Without a known password, we only
+# check that access is refused (401).
+seedbox_curl_auth() {
+    local credentials="$SEEDBOX_USER:$SEEDBOX_NEW_PASSWORD"
+    credentials=${credentials//\\/\\\\}
+    credentials=${credentials//\"/\\\"}
+    printf 'user = "%s"\n' "$credentials"
 }
 
-sb_http_code() {
+seedbox_http_code() {
     local -a target
-    if is_ipv4 "$SB_DOMAIN"; then
-        target=(-H "Host: $SB_DOMAIN" "https://127.0.0.1$1")
+    if is_ipv4 "$SEEDBOX_DOMAIN"; then
+        target=(-H "Host: $SEEDBOX_DOMAIN" "https://127.0.0.1$1")
     else
-        target=(--resolve "$SB_DOMAIN:443:127.0.0.1" "https://$SB_DOMAIN$1")
+        target=(--resolve "$SEEDBOX_DOMAIN:443:127.0.0.1" "https://$SEEDBOX_DOMAIN$1")
     fi
     if [[ ${2-} == auth ]]; then
-        sb_curl_auth | curl -sk -o /dev/null -w '%{http_code}' --max-time 10 -K - "${target[@]}" 2>/dev/null || true
+        seedbox_curl_auth | curl -sk -o /dev/null -w '%{http_code}' --max-time 10 -K - "${target[@]}" 2>/dev/null || true
     else
         curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "${target[@]}" 2>/dev/null || true
     fi
 }
 
-sb_selftest() {
-    local code="" i
-    for i in 1 2 3 4 5; do
-        if [[ -n $SB_PASS ]]; then code=$(sb_http_code /transmission/rpc auth); else code=$(sb_http_code /transmission/web/); fi
-        # 502 : Transmission encore en train de démarrer
+seedbox_selftest() {
+    local code="" attempt
+    for attempt in 1 2 3 4 5; do
+        if [[ -n $SEEDBOX_NEW_PASSWORD ]]; then
+            code=$(seedbox_http_code /transmission/rpc auth)
+        else
+            code=$(seedbox_http_code /transmission/web/)
+        fi
+        # 502: Transmission still starting
         [[ $code == 502 ]] || break
         sleep 2
     done
     case $code in
-        409) ok "Test de connexion à l'interface web : réussi" ;;
+        409) ok 'Login test on the web interface: passed' ;;
         401)
-            if [[ -n $SB_PASS ]]; then
-                warn "Test de connexion : identifiants refusés (détails dans $FC_LOG)."
+            if [[ -n $SEEDBOX_NEW_PASSWORD ]]; then
+                warn 'Login test: credentials refused (details in %s).' "$APP_LOG"
             else
-                ok "Interface web en ligne et protégée par mot de passe"
+                ok 'Web interface online and protected by a password'
             fi
             ;;
-        502) warn "Test de connexion : nginx ne joint pas Transmission (journalctl -u transmission-daemon)." ;;
-        *) warn "Test de connexion : réponse inattendue (code ${code:-aucun})." ;;
+        502) warn 'Login test: nginx cannot reach Transmission (journalctl -u transmission-daemon).' ;;
+        *) warn 'Login test: unexpected answer (code %s).' "${code:-$(t 'none')}" ;;
     esac
 }
 
-sb_ssh_port() {
-    local t
-    t=$(sshd -T 2>/dev/null || true)
-    awk '$1 == "port" && !p { print $2; p = 1 }' <<<"$t"
+# First port on which SSH listens
+ssh_first_port() {
+    local settings
+    settings=$(sshd -T 2>/dev/null || true)
+    awk '$1 == "port" && !found { print $2; found = 1 }' <<<"$settings"
 }
 
-sb_recap() {
+seedbox_summary() {
     local port
-    port=$(sb_ssh_port)
-    cat <<EOF
+    port=$(ssh_first_port)
+    port=${port:-22}
+    echo
+    text seedbox_summary
+}
 
-${C_BLD}Interface web${C_END} : https://$SB_DOMAIN/   (certificat $(sb_cert_label))
-${C_BLD}SFTP${C_END}          : $SB_DOMAIN, port ${port:-22} (FileZilla, WinSCP, Cyberduck : protocole SFTP)
-                réglages prêts à importer :  finalcut seedbox sftp-config
-${C_BLD}Utilisateur${C_END}   : $SB_USER
-EOF
-    if [[ -n $SB_PASS ]]; then
-        printf '%sMot de passe%s  : %s\n' "$C_BLD" "$C_END" "$SB_PASS"
-    fi
-    cat <<EOF
+# --- SFTP connection settings (WinSCP, FileZilla) -------------------------------------
 
-Dossiers (vus en SFTP) :
-  watch/       déposez un .torrent ici, le téléchargement démarre tout seul
-  incomplete/  téléchargements en cours
-  complete/    téléchargements terminés
-  documents/   espace personnel
+# Fingerprint of the key of the server, shown by SFTP programs at the first
+# connection (e.g. « SHA256:szUj…NT8 ED25519 »): empty if not found
+host_key_fingerprint() {
+    local file=/etc/ssh/ssh_host_ed25519_key.pub
+    [[ -r $file ]] || return 0
+    ssh-keygen -l -E sha256 -f "$file" 2>/dev/null | awk '{ gsub(/[()]/, "", $NF); print $2, $NF }' || true
+}
 
-EOF
-    if [[ $SB_CERT == selfsigned ]]; then
-        echo "Certificat auto-signé : le navigateur affichera une alerte à accepter une fois."
-        echo
-    fi
-    if [[ -n $SB_PASS ]]; then
-        echo "Notez ces informations : le mot de passe n'est enregistré nulle part en clair."
+# Fingerprint in the format of WinSCP addresses: « ssh-ed25519-<SHA-256> »,
+# base64 padded with « = », with « - » instead of « + » and « _ » instead of
+# « / » (https://winscp.net/eng/docs/session_url)
+host_key_fingerprint_url() {
+    local file=/etc/ssh/ssh_host_ed25519_key.pub fingerprint
+    [[ -r $file ]] || return 0
+    fingerprint=$(ssh-keygen -l -E sha256 -f "$file" 2>/dev/null | awk '{ print $2 }' || true)
+    fingerprint=${fingerprint#SHA256:}
+    [[ -n $fingerprint ]] || return 0
+    while ((${#fingerprint} % 4)); do fingerprint+="="; done
+    fingerprint=${fingerprint//+/-}
+    fingerprint=${fingerprint//\//_}
+    printf 'ssh-ed25519-%s' "$fingerprint"
+}
+
+# Address to paste into WinSCP, with the fingerprint of the server when known:
+# WinSCP then checks the key of the server by itself, without a question
+winscp_url() {
+    local port=$1 fingerprint
+    fingerprint=$(host_key_fingerprint_url)
+    if [[ -n $fingerprint ]]; then
+        printf 'sftp://%s;fingerprint=%s@%s:%s/' "$SEEDBOX_USER" "$fingerprint" "$SEEDBOX_DOMAIN" "$port"
+    else
+        printf 'sftp://%s@%s:%s/' "$SEEDBOX_USER" "$SEEDBOX_DOMAIN" "$port"
     fi
 }
 
-# --- Fichier de connexion SFTP (FileZilla, WinSCP) ------------------------------------
-
-# Empreinte de la clé du serveur, que le logiciel SFTP montre à la première
-# connexion (ex. « SHA256:szUj…NT8 ED25519 ») : vide si introuvable
-sb_host_fingerprint() {
-    local f=/etc/ssh/ssh_host_ed25519_key.pub
-    [[ -r $f ]] || return 0
-    ssh-keygen -l -E sha256 -f "$f" 2>/dev/null | awk '{ gsub(/[()]/, "", $NF); print $2, $NF }' || true
-}
-
-# Site à importer dans FileZilla (Fichier → Importer…). Logontype 2 : le
-# mot de passe est demandé à la connexion, il n'est pas dans le fichier.
-sb_gen_filezilla() {
+# Site to import into FileZilla (File → Import…). Logontype 2: the password is
+# asked at connection time, it is not in the file.
+filezilla_generate_site() {
     cat <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <FileZilla3>
     <Servers>
         <Server>
-            <Host>$SB_DOMAIN</Host>
+            <Host>$SEEDBOX_DOMAIN</Host>
             <Port>$1</Port>
             <Protocol>1</Protocol>
             <Type>0</Type>
-            <User>$SB_USER</User>
+            <User>$SEEDBOX_USER</User>
             <Logontype>2</Logontype>
             <TimezoneOffset>0</TimezoneOffset>
             <PasvMode>MODE_DEFAULT</PasvMode>
             <MaximumMultipleConnections>0</MaximumMultipleConnections>
             <EncodingType>Auto</EncodingType>
             <BypassProxy>0</BypassProxy>
-            <Name>Seedbox $SB_DOMAIN</Name>
+            <Name>Seedbox $SEEDBOX_DOMAIN</Name>
             <Comments />
             <Colour>0</Colour>
             <LocalDir />
@@ -882,133 +896,98 @@ sb_gen_filezilla() {
 EOF
 }
 
-# Réglages de connexion SFTP + lien vers le fichier FileZilla
-# Empreinte au format des adresses WinSCP : « ssh-ed25519-<empreinte SHA-256> »,
-# en base64 complété par « = », avec « - » à la place de « + » et « _ » à la
-# place de « / » (https://winscp.net/eng/docs/session_url)
-sb_host_fingerprint_url() {
-    local f=/etc/ssh/ssh_host_ed25519_key.pub fp
-    [[ -r $f ]] || return 0
-    fp=$(ssh-keygen -l -E sha256 -f "$f" 2>/dev/null | awk '{ print $2 }' || true)
-    fp=${fp#SHA256:}
-    [[ -n $fp ]] || return 0
-    while ((${#fp} % 4)); do fp+="="; done
-    fp=${fp//+/-}
-    fp=${fp//\//_}
-    printf 'ssh-ed25519-%s' "$fp"
-}
-
-# Adresse à coller dans WinSCP, avec l'empreinte du serveur quand elle est
-# connue : WinSCP vérifie alors la clé du serveur tout seul, sans question
-sb_winscp_url() {
-    local port=$1 fp
-    fp=$(sb_host_fingerprint_url)
-    if [[ -n $fp ]]; then
-        printf 'sftp://%s;fingerprint=%s@%s:%s/' "$SB_USER" "$fp" "$SB_DOMAIN" "$port"
-    else
-        printf 'sftp://%s@%s:%s/' "$SB_USER" "$SB_DOMAIN" "$port"
-    fi
-}
-
-# Lien vers le site à importer dans FileZilla
-sb_filezilla_share() {
-    local port=$1 tmp
-    systemctl is-active --quiet nginx || die "nginx est arrêté :  finalcut seedbox restart"
+# Link to the site to import into FileZilla
+filezilla_share() {
+    local port=$1 tmp fingerprint
+    systemctl is-active --quiet nginx || die 'nginx is stopped:  seedtunnel seedbox restart'
+    fingerprint=$(host_key_fingerprint)
     tmp=$(mktemp)
-    sb_gen_filezilla "$port" >"$tmp"
-    share_create "$tmp" "seedbox-filezilla.xml" "Connexion SFTP à la seedbox (FileZilla)" \
-        "<li>FileZilla : « Fichier » → « Importer… » → choisissez ce fichier.</li>
-<li>Le site « Seedbox $SB_DOMAIN » apparaît dans le gestionnaire de sites. Le mot de passe est demandé à la connexion.</li>
-<li>À la première connexion, l'empreinte du serveur doit être : <code>$(sb_host_fingerprint)</code></li>" \
-        "Le fichier ne contient pas de mot de passe."
+    filezilla_generate_site "$port" >"$tmp"
+    share_create "$tmp" "seedbox-filezilla.xml" "$(t 'SFTP connection to the seedbox (FileZilla)')" \
+        "$(text share_steps_filezilla)" "$(t 'The file holds no password.')"
     rm -f "$tmp"
 }
 
-# Réglages de connexion SFTP : adresse pour WinSCP, et sur demande
-# (« filezilla ») un lien vers le fichier à importer dans FileZilla
-sb_sftp_config() {
-    local port fp keys=""
-    port=$(sb_ssh_port)
+# SFTP connection settings: address for WinSCP and, on request (« filezilla »),
+# a link to the file to import into FileZilla
+seedbox_sftp_config() {
+    local port fingerprint keys_only="" url
+    port=$(ssh_first_port)
     port=${port:-22}
-    fp=$(sb_host_fingerprint)
-    if [[ $SB_SFTP_PASSWORD == no ]]; then keys=" (clé SSH uniquement)"; fi
-    titre
-    section "CONNEXION SFTP À LA SEEDBOX"
-    printf '  Protocole   : SFTP\n  Hôte        : %s\n  Port        : %s\n  Utilisateur : %s%s\n' \
-        "$SB_DOMAIN" "$port" "$SB_USER" "$keys"
-    if [[ -n $fp ]]; then printf '  Empreinte   : %s\n' "$fp"; fi
-    cat <<EOF
-
-${C_BLD}WinSCP${C_END} : dans la fenêtre de connexion, « Nouveau site », collez cette adresse
-dans « Nom d'hôte », puis « Enregistrer » :
-
-$(sb_winscp_url "$port")
-
-L'empreinte du serveur est dans l'adresse : WinSCP vérifie tout seul que c'est
-bien votre serveur, sans question à la première connexion.
-
-EOF
+    fingerprint=$(host_key_fingerprint)
+    url=$(winscp_url "$port")
+    if [[ $SEEDBOX_SFTP_PASSWORD == no ]]; then keys_only=" $(t '(SSH key only)')"; fi
+    banner
+    section 'SFTP CONNECTION TO THE SEEDBOX'
+    say '  Protocol    : SFTP'
+    say '  Host        : %s' "$SEEDBOX_DOMAIN"
+    say '  Port        : %s' "$port"
+    say '  User        : %s' "$SEEDBOX_USER$keys_only"
+    if [[ -n $fingerprint ]]; then say '  Fingerprint : %s' "$fingerprint"; fi
+    echo
+    text sftp_config_help
+    echo
     if [[ ${1-} == filezilla ]]; then
-        sb_filezilla_share "$port"
-    elif ((FC_INTERACTIVE)); then
-        if confirm "Créer aussi un lien vers un fichier à importer dans FileZilla ?" n; then
-            sb_filezilla_share "$port"
+        filezilla_share "$port"
+    elif ((INTERACTIVE)); then
+        if confirm 'Also create a link to a file to import into FileZilla?' n; then
+            filezilla_share "$port"
         fi
     else
-        echo "FileZilla : fichier à importer avec  finalcut seedbox sftp-config filezilla"
+        say 'FileZilla: file to import with  seedtunnel seedbox sftp-config filezilla'
     fi
 }
 
-# --- Clés SSH du SFTP ----------------------------------------------------------------
+# --- SSH keys for SFTP ---------------------------------------------------------------
 
-# Ajoute les clés publiques valides d'un fichier (- = entrée standard), sans doublon
-sb_keys_import() {
-    local src=$1 line tmp n=0 file="$SB_KEYS_DIR/$SB_USER"
-    install -d -m 755 "$SB_KEYS_DIR"
+# Adds the valid public keys of a file (- = standard input), without duplicates
+sftp_keys_import() {
+    local source=$1 line tmp count=0 file="$SFTP_KEYS_DIR/$SEEDBOX_USER"
+    install -d -m 755 "$SFTP_KEYS_DIR"
     if [[ ! -e $file ]]; then install -m 644 /dev/null "$file"; fi
     tmp=$(mktemp)
-    if [[ $src == - ]]; then cat >"$tmp"; else cat -- "$src" >"$tmp"; fi
+    if [[ $source == - ]]; then cat >"$tmp"; else cat -- "$source" >"$tmp"; fi
     while IFS= read -r line || [[ -n $line ]]; do
         line=${line%$'\r'}
         [[ -z $line || $line == \#* ]] && continue
         if ! ssh-keygen -l -f - <<<"$line" &>/dev/null; then
             rm -f "$tmp"
-            die "Clé SSH invalide : ${line:0:40}…"
+            die 'Invalid SSH key: %s…' "${line:0:40}"
         fi
         if ! grep -qxF -- "$line" "$file"; then
             printf '%s\n' "$line" >>"$file"
-            n=$((n + 1))
+            count=$((count + 1))
         fi
     done <"$tmp"
     rm -f "$tmp"
-    if ((n)); then
-        ok "$n clé(s) SSH ajoutée(s) pour $SB_USER."
+    if ((count)); then
+        ok '%s SSH key(s) added for %s.' "$count" "$SEEDBOX_USER"
     else
-        ok "Clé(s) déjà enregistrée(s) pour $SB_USER."
+        ok 'Key(s) already saved for %s.' "$SEEDBOX_USER"
     fi
 }
 
-sb_keys_list() {
-    local i=0 line
-    if ! sb_has_keys; then
-        echo "Aucune clé SSH enregistrée pour $SB_USER."
+sftp_keys_list() {
+    local index=0 line
+    if ! sftp_has_keys; then
+        say 'No SSH key saved for %s.' "$SEEDBOX_USER"
         return 0
     fi
     while IFS= read -r line; do
         [[ -z $line || $line == \#* ]] && continue
-        i=$((i + 1))
-        printf '  %2d) %s\n' "$i" "$(ssh-keygen -l -f - <<<"$line" 2>/dev/null || printf '%s' "${line:0:50}")"
-    done <"$SB_KEYS_DIR/$SB_USER"
+        index=$((index + 1))
+        printf '  %2d) %s\n' "$index" "$(ssh-keygen -l -f - <<<"$line" 2>/dev/null || printf '%s' "${line:0:50}")"
+    done <"$SFTP_KEYS_DIR/$SEEDBOX_USER"
 }
 
-sb_keys_remove() {
-    local num=$1 file="$SB_KEYS_DIR/$SB_USER" i=0 line tmp found=0
-    [[ $num =~ ^[0-9]+$ ]] || die "Indiquez le numéro de la clé (finalcut seedbox sftp-key list)."
+sftp_keys_remove() {
+    local number=$1 file="$SFTP_KEYS_DIR/$SEEDBOX_USER" index=0 line tmp found=0
+    [[ $number =~ ^[0-9]+$ ]] || die 'Give the number of the key (seedtunnel seedbox sftp-key list).'
     tmp=$(mktemp)
     while IFS= read -r line; do
         if [[ -n $line && $line != \#* ]]; then
-            i=$((i + 1))
-            if ((i == num)); then
+            index=$((index + 1))
+            if ((index == number)); then
                 found=1
                 continue
             fi
@@ -1017,75 +996,74 @@ sb_keys_remove() {
     done <"$file"
     if ((!found)); then
         rm -f "$tmp"
-        die "Clé n°$num introuvable."
+        die 'Key number %s not found.' "$number"
     fi
     cat "$tmp" >"$file"
     rm -f "$tmp"
-    if [[ $SB_SFTP_PASSWORD == no ]] && ! sb_has_keys; then
-        SB_SFTP_PASSWORD=yes
-        sb_save
-        warn "Plus aucune clé : le mot de passe SFTP est de nouveau autorisé."
+    if [[ $SEEDBOX_SFTP_PASSWORD == no ]] && ! sftp_has_keys; then
+        SEEDBOX_SFTP_PASSWORD=yes
+        seedbox_save
+        warn 'No key left: the SFTP password is allowed again.'
     fi
-    sb_apply_sftp
-    ok "Clé n°$num supprimée."
+    seedbox_apply_sftp
+    ok 'Key number %s removed.' "$number"
 }
 
-sb_set_sftp_password() {
+seedbox_set_sftp_password() {
     case $1 in
-        on | yes) SB_SFTP_PASSWORD=yes ;;
+        on | yes) SEEDBOX_SFTP_PASSWORD=yes ;;
         off | no)
-            sb_has_keys || die "Ajoutez d'abord une clé SSH (finalcut seedbox sftp-key add FICHIER)."
-            SB_SFTP_PASSWORD=no
+            sftp_has_keys || die 'Add an SSH key first (seedtunnel seedbox sftp-key add FILE).'
+            SEEDBOX_SFTP_PASSWORD=no
             ;;
-        *) die "Usage : finalcut seedbox sftp-password on|off" ;;
+        *) die 'Usage: seedtunnel seedbox sftp-password on|off' ;;
     esac
-    sb_save
-    sb_apply_sftp
-    if [[ $SB_SFTP_PASSWORD == yes ]]; then
-        ok "SFTP : mot de passe autorisé."
+    seedbox_save
+    seedbox_apply_sftp
+    if [[ $SEEDBOX_SFTP_PASSWORD == yes ]]; then
+        ok 'SFTP: password allowed.'
     else
-        ok "SFTP : clés SSH uniquement (le mot de passe reste valable pour l'interface web)."
+        ok 'SFTP: SSH keys only (the password still works for the web interface).'
     fi
 }
 
-sb_keys_menu() {
-    local choix num
+sftp_keys_menu() {
+    local choice answer state
     while true; do
-        sb_load
-        titre
-        section "CLÉS SSH POUR LE SFTP"
-        echo "Une clé SSH remplace avantageusement le mot de passe pour le SFTP."
-        echo "Collez la clé PUBLIQUE (fichier .pub, commence par ssh-ed25519 ou ssh-rsa)."
+        seedbox_load
+        banner
+        section 'SSH KEYS FOR SFTP'
+        say 'An SSH key is a good replacement for the password in SFTP.'
+        say 'Paste the PUBLIC key (.pub file, starts with ssh-ed25519 or ssh-rsa).'
         echo
-        sb_keys_list
+        sftp_keys_list
         echo
-        printf '  Mot de passe SFTP : %s\n\n' \
-            "$([[ $SB_SFTP_PASSWORD == yes ]] && printf 'autorisé' || printf 'refusé (clés uniquement)')"
-        cat <<EOF
-1) Ajouter une clé
-2) Supprimer une clé
-3) Autoriser / refuser le mot de passe pour le SFTP
-
-Q) Retour
-EOF
+        if [[ $SEEDBOX_SFTP_PASSWORD == yes ]]; then state=$(t 'allowed'); else state=$(t 'refused (keys only)'); fi
+        say '  SFTP password: %s' "$state"
         echo
-        ask choix "Votre choix" ""
-        case ${choix,,} in
+        say '1) Add a key'
+        say '2) Remove a key'
+        say '3) Allow / refuse the password in SFTP'
+        echo
+        say 'Q) Back'
+        echo
+        ask choice 'Your choice' ""
+        case ${choice,,} in
             1)
-                ask num "Clé publique" ""
-                if [[ -n $num ]]; then
-                    sb_keys_import - <<<"$num"
-                    sb_apply_sftp
+                ask answer 'Public key' ""
+                if [[ -n $answer ]]; then
+                    sftp_keys_import - <<<"$answer"
+                    seedbox_apply_sftp
                 fi
                 pause
                 ;;
             2)
-                ask num "Numéro de la clé à supprimer" ""
-                if [[ -n $num ]]; then sb_keys_remove "$num"; fi
+                ask answer 'Number of the key to remove' ""
+                if [[ -n $answer ]]; then sftp_keys_remove "$answer"; fi
                 pause
                 ;;
             3)
-                if [[ $SB_SFTP_PASSWORD == yes ]]; then sb_set_sftp_password off; else sb_set_sftp_password on; fi
+                if [[ $SEEDBOX_SFTP_PASSWORD == yes ]]; then seedbox_set_sftp_password off; else seedbox_set_sftp_password on; fi
                 pause
                 ;;
             q) return 0 ;;
@@ -1093,420 +1071,432 @@ EOF
     done
 }
 
-# --- Actions ---------------------------------------------------------------------
+# --- Actions ---------------------------------------------------------------------------
 
-sb_install_interactive() {
-    local ip cert
-    titre
-    section "INSTALLATION DE LA SEEDBOX"
-    sb_check_web_ports
+seedbox_install_interactive() {
+    local ip certificate
+    banner
+    section 'SEEDBOX INSTALLATION'
+    seedbox_check_web_ports
     base_setup
     apt_install bind9-dnsutils
     echo
-    printf "Recherche de l'adresse IP publique… "
+    printf '%s ' "$(t 'Looking for the public IP address…')"
     ip=$(public_ipv4)
-    echo "${ip:-introuvable}"
-    SB_DOMAIN=$(sb_guess_domain "$ip")
-    SB_DATA=$(sb_default_data)
-    if ((FC_STAGING)); then SB_ACME=staging; fi
+    echo "${ip:-$(t 'not found')}"
+    SEEDBOX_DOMAIN=$(seedbox_guess_domain "$ip")
+    SEEDBOX_DATA_DIR=$(seedbox_default_data_dir)
+    if ((OPT_STAGING)); then SEEDBOX_LETSENCRYPT_SERVER=staging; fi
     echo
     while true; do
-        sb_ask_user ""
-        SB_USER=$FC_NEWUSER
+        seedbox_ask_user ""
+        SEEDBOX_USER=$OPT_NEW_USER
         echo
-        sb_ask_domain "$ip"
+        seedbox_ask_domain "$ip"
         echo
         while true; do
-            ask SB_DATA "Dossier des données" "$SB_DATA"
-            if sb_check_data_path "$SB_DATA"; then break; fi
+            ask SEEDBOX_DATA_DIR 'Data folder' "$SEEDBOX_DATA_DIR"
+            if seedbox_check_data_dir "$SEEDBOX_DATA_DIR"; then break; fi
         done
-        cert="Let's Encrypt"
-        if [[ $SB_ACME == staging ]]; then cert="Let's Encrypt (serveur de test)"; fi
-        if [[ $SB_LETSENCRYPT == no ]]; then cert="auto-signé"; fi
-        printf '\nRécapitulatif :\n  Utilisateur : %s\n  Adresse     : https://%s/\n  Certificat  : %s\n  Données     : %s\n\n' \
-            "$SB_USER" "$SB_DOMAIN" "$cert" "$SB_DATA"
-        if confirm "Lancer l'installation ?" o; then break; fi
+        certificate="Let's Encrypt"
+        if [[ $SEEDBOX_LETSENCRYPT_SERVER == staging ]]; then certificate=$(t "Let's Encrypt (test server)"); fi
+        if [[ $SEEDBOX_LETSENCRYPT == no ]]; then certificate=$(t 'self-signed'); fi
+        echo
+        say 'Summary:'
+        say '  User        : %s' "$SEEDBOX_USER"
+        say '  Address     : %s' "https://$SEEDBOX_DOMAIN/"
+        say '  Certificate : %s' "$certificate"
+        say '  Data        : %s' "$SEEDBOX_DATA_DIR"
+        echo
+        if confirm 'Start the installation?' y; then break; fi
         echo
     done
     echo
-    sb_apply
+    seedbox_apply
     echo
-    sb_selftest
-    titre
-    section "SEEDBOX INSTALLÉE — aucun redémarrage nécessaire"
-    sb_recap
-    SB_PASS=""
+    seedbox_selftest
+    banner
+    section 'SEEDBOX INSTALLED — no restart needed'
+    seedbox_summary
+    SEEDBOX_NEW_PASSWORD=""
     echo
     pause
 }
 
-# Installation (ou remise en ordre) à partir d'un fichier --config
-sb_install_config() {
-    local pw pwfile ip generated=0 first=1 keys cur_user=$SB_USER
-    if sb_installed; then first=0; fi
+# Installation (or putting back in order) from a --config file
+seedbox_install_from_config() {
+    local password password_file ip generated=0 first=1 keys current_user=$SEEDBOX_USER
+    if seedbox_installed; then first=0; fi
     base_setup
     apt_install bind9-dnsutils
 
-    SB_USER=$(cfg SB_USER "${SB_USER:-lancelot}")
-    sb_valid_user "$SB_USER" || die "SB_USER invalide : « $SB_USER »"
-    if ((first)) && id "$SB_USER" &>/dev/null; then
-        die "SB_USER : l'utilisateur « $SB_USER » existe déjà sur ce système."
+    SEEDBOX_USER=$(config_get SEEDBOX_USER "${SEEDBOX_USER:-lancelot}")
+    seedbox_is_valid_user "$SEEDBOX_USER" || die 'Invalid SEEDBOX_USER: "%s"' "$SEEDBOX_USER"
+    if ((first)) && id "$SEEDBOX_USER" &>/dev/null; then
+        die 'SEEDBOX_USER: the user "%s" already exists on this system.' "$SEEDBOX_USER"
     fi
-    if ((!first)) && [[ $cur_user != "$SB_USER" ]]; then
-        die "Renommer l'utilisateur passe par :  finalcut seedbox password --user $SB_USER"
+    if ((!first)) && [[ $current_user != "$SEEDBOX_USER" ]]; then
+        die 'Renaming the user goes through:  seedtunnel seedbox password --user %s' "$SEEDBOX_USER"
     fi
 
-    SB_DATA=$(cfg SB_DATA "${SB_DATA:-$(sb_default_data)}")
-    sb_check_data_path "$SB_DATA" || die "SB_DATA refusé : « $SB_DATA »"
+    SEEDBOX_DATA_DIR=$(config_get SEEDBOX_DATA_DIR "${SEEDBOX_DATA_DIR:-$(seedbox_default_data_dir)}")
+    seedbox_check_data_dir "$SEEDBOX_DATA_DIR" || die 'SEEDBOX_DATA_DIR refused: "%s"' "$SEEDBOX_DATA_DIR"
 
-    SB_DOMAIN=$(cfg SB_DOMAIN "$SB_DOMAIN")
-    SB_DOMAIN=${SB_DOMAIN,,}
-    if [[ -z $SB_DOMAIN ]]; then
+    SEEDBOX_DOMAIN=$(config_get SEEDBOX_DOMAIN "$SEEDBOX_DOMAIN")
+    SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN,,}
+    if [[ -z $SEEDBOX_DOMAIN ]]; then
         ip=$(public_ipv4)
-        SB_DOMAIN=$(sb_guess_domain "$ip")
+        SEEDBOX_DOMAIN=$(seedbox_guess_domain "$ip")
     fi
-    sb_valid_domain "$SB_DOMAIN" || die "SB_DOMAIN invalide : « $SB_DOMAIN »"
+    seedbox_is_valid_domain "$SEEDBOX_DOMAIN" || die 'Invalid SEEDBOX_DOMAIN: "%s"' "$SEEDBOX_DOMAIN"
 
-    SB_LETSENCRYPT=$(cfg SB_LETSENCRYPT "$SB_LETSENCRYPT")
-    [[ $SB_LETSENCRYPT =~ ^(auto|yes|no)$ ]] || die "SB_LETSENCRYPT : auto, yes ou no"
-    SB_ACME=$(cfg SB_ACME "$SB_ACME")
-    if ((FC_STAGING)); then SB_ACME=staging; fi
-    [[ $SB_ACME =~ ^(production|staging)$ ]] || die "SB_ACME : production ou staging"
-    SB_SFTP_PASSWORD=$(cfg SB_SFTP_PASSWORD "$SB_SFTP_PASSWORD")
-    [[ $SB_SFTP_PASSWORD =~ ^(yes|no)$ ]] || die "SB_SFTP_PASSWORD : yes ou no"
+    SEEDBOX_LETSENCRYPT=$(config_get SEEDBOX_LETSENCRYPT "$SEEDBOX_LETSENCRYPT")
+    [[ $SEEDBOX_LETSENCRYPT =~ ^(auto|yes|no)$ ]] || die 'SEEDBOX_LETSENCRYPT: auto, yes or no'
+    SEEDBOX_LETSENCRYPT_SERVER=$(config_get SEEDBOX_LETSENCRYPT_SERVER "$SEEDBOX_LETSENCRYPT_SERVER")
+    if ((OPT_STAGING)); then SEEDBOX_LETSENCRYPT_SERVER=staging; fi
+    [[ $SEEDBOX_LETSENCRYPT_SERVER =~ ^(production|staging)$ ]] || die 'SEEDBOX_LETSENCRYPT_SERVER: production or staging'
+    SEEDBOX_SFTP_PASSWORD=$(config_get SEEDBOX_SFTP_PASSWORD "$SEEDBOX_SFTP_PASSWORD")
+    [[ $SEEDBOX_SFTP_PASSWORD =~ ^(yes|no)$ ]] || die 'SEEDBOX_SFTP_PASSWORD: yes or no'
 
-    # Mot de passe : fichier, valeur, ou généré à la première installation.
-    # S'il est identique à celui déjà en place, rien n'est modifié.
-    pw=$(cfg SB_PASSWORD)
-    pwfile=$(cfg SB_PASSWORD_FILE)
-    if [[ -n $pwfile ]]; then
-        [[ -r $pwfile ]] || die "SB_PASSWORD_FILE introuvable : $pwfile"
-        IFS= read -r pw <"$pwfile" || true
+    # Password: file, value, or generated at the first installation.
+    # If it is the one already in place, nothing is changed.
+    password=$(config_get SEEDBOX_PASSWORD)
+    password_file=$(config_get SEEDBOX_PASSWORD_FILE)
+    if [[ -n $password_file ]]; then
+        [[ -r $password_file ]] || die 'SEEDBOX_PASSWORD_FILE not found: %s' "$password_file"
+        IFS= read -r password <"$password_file" || true
     fi
-    if [[ -n $pw ]]; then
-        ((${#pw} >= 10)) || die "Mot de passe de la seedbox : 10 caractères minimum."
-        if sb_password_matches "$pw"; then SB_PASS=""; else SB_PASS=$pw; fi
-    elif [[ -z $SB_HASH_WEB ]]; then
-        SB_PASS=$(gen_password)
+    if [[ -n $password ]]; then
+        ((${#password} >= 10)) || die 'Seedbox password: at least 10 characters.'
+        if seedbox_password_matches "$password"; then SEEDBOX_NEW_PASSWORD=""; else SEEDBOX_NEW_PASSWORD=$password; fi
+    elif [[ -z $SEEDBOX_HASH_WEB ]]; then
+        SEEDBOX_NEW_PASSWORD=$(generate_password)
         generated=1
     fi
 
-    keys=$(cfg SB_SSH_KEYS_FILE)
-    if ((first)); then sb_check_web_ports; fi
+    keys=$(config_get SEEDBOX_SSH_KEYS_FILE)
+    if ((first)); then seedbox_check_web_ports; fi
     if [[ -n $keys ]]; then
-        [[ -r $keys ]] || die "SB_SSH_KEYS_FILE introuvable : $keys"
-        sb_keys_import "$keys"
+        [[ -r $keys ]] || die 'SEEDBOX_SSH_KEYS_FILE not found: %s' "$keys"
+        sftp_keys_import "$keys"
     fi
 
-    sb_apply
-    sb_selftest
-    sb_recap
-    if ((generated)); then warn "Mot de passe généré automatiquement : notez-le, il ne sera plus affiché."; fi
-    SB_PASS=""
+    seedbox_apply
+    seedbox_selftest
+    seedbox_summary
+    if ((generated)); then warn 'Password generated automatically: write it down, it will not be shown again.'; fi
+    SEEDBOX_NEW_PASSWORD=""
 }
 
-# Change le mot de passe (et éventuellement le nom) de l'utilisateur seedbox
-sb_set_credentials() {
-    local new=$1 old=$SB_USER
+# Changes the password (and possibly the name) of the seedbox user
+seedbox_set_credentials() {
+    local new=$1 old=$SEEDBOX_USER
     if [[ $new != "$old" ]]; then
-        sb_valid_user "$new" || die "Nom d'utilisateur invalide : « $new »"
-        if id "$new" &>/dev/null; then die "« $new » existe déjà sur ce système."; fi
-        run "Renommage de $old en $new" usermod --login "$new" "$old"
+        seedbox_is_valid_user "$new" || die 'Invalid user name: "%s"' "$new"
+        if id "$new" &>/dev/null; then die '"%s" already exists on this system.' "$new"; fi
+        run "$(t 'Renaming %s to %s' "$old" "$new")" usermod --login "$new" "$old"
         if getent group "$old" >/dev/null; then
-            run "Renommage du groupe $old" groupmod --new-name "$new" "$old"
+            run "$(t 'Renaming the group %s' "$old")" groupmod --new-name "$new" "$old"
         fi
-        if [[ -e $SB_KEYS_DIR/$old ]]; then mv -f "$SB_KEYS_DIR/$old" "$SB_KEYS_DIR/$new"; fi
-        SB_USER=$new
-        sb_save
+        if [[ -e $SFTP_KEYS_DIR/$old ]]; then mv -f "$SFTP_KEYS_DIR/$old" "$SFTP_KEYS_DIR/$new"; fi
+        SEEDBOX_USER=$new
+        seedbox_save
     fi
-    sb_apply
+    seedbox_apply
 }
 
-sb_change_credentials() {
-    titre
-    section "UTILISATEUR ET MOT DE PASSE"
-    sb_ask_user "$SB_USER"
+seedbox_change_credentials() {
+    banner
+    section 'USER AND PASSWORD'
+    seedbox_ask_user "$SEEDBOX_USER"
     echo
-    sb_set_credentials "$FC_NEWUSER"
+    seedbox_set_credentials "$OPT_NEW_USER"
     echo
-    sb_selftest
-    sb_recap
-    SB_PASS=""
+    seedbox_selftest
+    seedbox_summary
+    SEEDBOX_NEW_PASSWORD=""
 }
 
-# finalcut seedbox password [--user NOM] : mot de passe saisi, ou lu sur l'entrée standard
-sb_cli_password() {
-    local new=${FC_NEWUSER:-$SB_USER}
+# seedtunnel seedbox password [--user NAME]: typed, or read from standard input
+seedbox_cli_password() {
+    local new=${OPT_NEW_USER:-$SEEDBOX_USER}
     if [[ -t 0 ]]; then
-        FC_INTERACTIVE=1
-        ask_password SB_PASS
+        INTERACTIVE=1
+        ask_password SEEDBOX_NEW_PASSWORD
     else
-        IFS= read -r SB_PASS || true
-        ((${#SB_PASS} >= 10)) || die "Mot de passe : 10 caractères minimum (lu sur l'entrée standard)."
+        IFS= read -r SEEDBOX_NEW_PASSWORD || true
+        ((${#SEEDBOX_NEW_PASSWORD} >= 10)) || die 'Password: at least 10 characters (read from standard input).'
     fi
-    sb_set_credentials "$new"
-    sb_selftest
-    SB_PASS=""
-    ok "Identifiants mis à jour pour $SB_USER."
+    seedbox_set_credentials "$new"
+    seedbox_selftest
+    SEEDBOX_NEW_PASSWORD=""
+    ok 'Credentials updated for %s.' "$SEEDBOX_USER"
 }
 
-sb_set_domain() {
+seedbox_set_domain() {
     local name=${1,,}
-    sb_valid_domain "$name" || die "Nom de domaine invalide : « $name »"
-    SB_DOMAIN=$name
-    SB_LETSENCRYPT=auto
-    if ((FC_STAGING)); then SB_ACME=staging; else SB_ACME=production; fi
-    sb_apply_https
-    sb_save
-    ok "Seedbox accessible sur https://$SB_DOMAIN/ (certificat $(sb_cert_label))"
+    seedbox_is_valid_domain "$name" || die 'Invalid domain name: "%s"' "$name"
+    SEEDBOX_DOMAIN=$name
+    SEEDBOX_LETSENCRYPT=auto
+    if ((OPT_STAGING)); then SEEDBOX_LETSENCRYPT_SERVER=staging; else SEEDBOX_LETSENCRYPT_SERVER=production; fi
+    seedbox_apply_https
+    seedbox_save
+    ok 'Seedbox available at %s (certificate %s)' "https://$SEEDBOX_DOMAIN/" "$(seedbox_certificate_label)"
 }
 
-sb_change_domain() {
+seedbox_change_domain() {
     local ip
-    titre
-    section "NOM DE DOMAINE ET CERTIFICAT HTTPS"
-    printf 'Actuellement : https://%s/ (certificat %s)\n\n' "$SB_DOMAIN" "$(sb_cert_label)"
-    printf "Recherche de l'adresse IP publique… "
+    banner
+    section 'DOMAIN NAME AND HTTPS CERTIFICATE'
+    say 'Right now: %s (certificate %s)' "https://$SEEDBOX_DOMAIN/" "$(seedbox_certificate_label)"
+    echo
+    printf '%s ' "$(t 'Looking for the public IP address…')"
     ip=$(public_ipv4)
-    echo "${ip:-introuvable}"
+    echo "${ip:-$(t 'not found')}"
     echo
-    sb_ask_domain "$ip"
-    if ((FC_STAGING)); then SB_ACME=staging; else SB_ACME=production; fi
+    seedbox_ask_domain "$ip"
+    if ((OPT_STAGING)); then SEEDBOX_LETSENCRYPT_SERVER=staging; else SEEDBOX_LETSENCRYPT_SERVER=production; fi
     echo
-    sb_apply_https
-    sb_save
+    seedbox_apply_https
+    seedbox_save
     echo
-    ok "Seedbox accessible sur https://$SB_DOMAIN/ (certificat $(sb_cert_label))"
+    ok 'Seedbox available at %s (certificate %s)' "https://$SEEDBOX_DOMAIN/" "$(seedbox_certificate_label)"
 }
 
-sb_bans_print() {
-    local jail out cur total ips
+fail2ban_bans_print() {
+    local jail out current total ips
     for jail in sshd nginx-http-auth recidive; do
         out=$(fail2ban-client status "$jail" 2>/dev/null || true)
-        cur=$(sed -n 's/.*Currently banned:[[:space:]]*//p' <<<"$out")
+        current=$(sed -n 's/.*Currently banned:[[:space:]]*//p' <<<"$out")
         total=$(sed -n 's/.*Total banned:[[:space:]]*//p' <<<"$out")
         ips=$(sed -n 's/.*Banned IP list:[[:space:]]*//p' <<<"$out")
-        printf '%s%-16s%s bannies : %-4s depuis le démarrage : %s\n' "$C_BLD" "$jail" "$C_END" "${cur:-?}" "${total:-?}"
+        say '%s%-16s%s banned: %-4s since start: %s' "$C_BOLD" "$jail" "$C_RESET" "${current:-?}" "${total:-?}"
         if [[ -n ${ips// /} ]]; then printf '    %s\n' "$ips"; fi
     done
     echo
-    echo "  sshd = SSH/SFTP · nginx-http-auth = interface web · recidive = bannis 1 semaine"
+    say '  sshd = SSH/SFTP · nginx-http-auth = web interface · recidive = banned 1 week'
 }
 
-sb_unban() {
-    [[ $1 =~ ^[0-9A-Fa-f.:]+$ ]] || die "Adresse IP invalide : « $1 »"
-    run "Débannissement de $1" fail2ban-client unban "$1"
+fail2ban_unban() {
+    [[ $1 =~ ^[0-9A-Fa-f.:]+$ ]] || die 'Invalid IP address: "%s"' "$1"
+    run "$(t 'Unbanning %s' "$1")" fail2ban-client unban "$1"
 }
 
-sb_bans() {
+fail2ban_bans_menu() {
     local ip
-    titre
-    section "ADRESSES IP BANNIES (fail2ban)"
-    sb_bans_print
+    banner
+    section 'BANNED IP ADDRESSES (fail2ban)'
+    fail2ban_bans_print
     echo
-    ask ip "IP à débannir (vide pour revenir)" ""
+    ask ip 'IP to unban (empty to go back)' ""
     if [[ -n $ip ]]; then
-        sb_unban "$ip"
+        fail2ban_unban "$ip"
         pause
     fi
 }
 
-sb_restart() {
-    local s
+seedbox_restart() {
+    local service
     echo
-    for s in transmission-daemon nginx fail2ban; do
-        run "Redémarrage de $s" systemctl restart "$s"
+    for service in nginx fail2ban; do
+        run "$(t 'Restarting %s' "$service")" systemctl restart "$service"
     done
+    if diskguard_stopped; then
+        warn 'Transmission stays stopped: the disk is almost full (%s GB free). It restarts by itself above %s GB.' \
+            "$(disk_free_gb "$SEEDBOX_DATA_DIR")" "$DISKGUARD_START_ABOVE_GB"
+    else
+        run "$(t 'Restarting %s' transmission-daemon)" systemctl restart transmission-daemon
+    fi
 }
 
-sb_uninstall() {
-    local del_data=0
-    titre
-    section "DÉSINSTALLATION DE LA SEEDBOX"
-    echo "Seront supprimés : Transmission, nginx, certbot, fail2ban, l'utilisateur $SB_USER"
-    echo "et le certificat. Les données dans $SB_DATA sont conservées, sauf avec --purge-data"
-    echo "(ou si vous le demandez ci-dessous)."
+seedbox_uninstall() {
+    local delete_data=0
+    banner
+    section 'REMOVING THE SEEDBOX'
+    text seedbox_uninstall_help
     echo
-    if ! confirm "Désinstaller la seedbox ?" n; then return 0; fi
-    if ((FC_INTERACTIVE)); then
-        if confirm "Supprimer AUSSI toutes les données de $SB_DATA ?" n; then del_data=1; fi
-    elif ((FC_PURGE)); then
-        del_data=1
+    if ! confirm 'Remove the seedbox?' n; then return 0; fi
+    if ((INTERACTIVE)); then
+        if confirm "$(t 'ALSO delete all the data in %s?' "$SEEDBOX_DATA_DIR")" n; then delete_data=1; fi
+    elif ((OPT_PURGE_DATA)); then
+        delete_data=1
     fi
     echo
-    systemctl disable --now transmission-daemon >>"$FC_LOG" 2>&1 || true
-    if [[ -f $SB_SSHD ]]; then
-        rm -f "$SB_SSHD"
-        run "Rechargement de SSH" systemctl try-reload-or-restart ssh.service
+    diskguard_remove
+    systemctl disable --now transmission-daemon >>"$APP_LOG" 2>&1 || true
+    if [[ -f $SSHD_SEEDBOX_CONF ]]; then
+        rm -f "$SSHD_SEEDBOX_CONF"
+        run 'Reloading SSH' systemctl try-reload-or-restart ssh.service
     fi
-    if [[ -n $SB_USER ]] && id "$SB_USER" &>/dev/null; then
-        # les documents restent accessibles à root une fois l'utilisateur supprimé
-        if [[ -d $SB_DATA/documents ]]; then chown -R root:root "$SB_DATA/documents"; fi
-        if ! userdel "$SB_USER" >>"$FC_LOG" 2>&1; then
-            warn "Impossible de supprimer l'utilisateur $SB_USER (session SFTP ouverte ?)."
+    if [[ -n $SEEDBOX_USER ]] && id "$SEEDBOX_USER" &>/dev/null; then
+        # the documents stay readable by root once the user is deleted
+        if [[ -d $SEEDBOX_DATA_DIR/documents ]]; then chown -R root:root "$SEEDBOX_DATA_DIR/documents"; fi
+        if ! userdel "$SEEDBOX_USER" >>"$APP_LOG" 2>&1; then
+            warn 'Cannot delete the user %s (SFTP session open?).' "$SEEDBOX_USER"
         fi
     fi
     if command -v certbot >/dev/null; then
-        certbot delete --cert-name "$SB_LE_NAME" --non-interactive >>"$FC_LOG" 2>&1 || true
+        certbot delete --cert-name "$LETSENCRYPT_CERT_NAME" --non-interactive >>"$APP_LOG" 2>&1 || true
     fi
-    # liens de téléchargement en cours
-    systemctl stop 'finalcut-partage-*' >>"$FC_LOG" 2>&1 || true
+    # download links in progress
+    systemctl stop 'seedtunnel-share-*' >>"$APP_LOG" 2>&1 || true
     rm -rf "$SHARE_DIR"
-    rm -f "$SB_NGINX_LINK" "$SB_NGINX_SITE" "$SB_HTPASSWD" "$SB_F2B_JAIL" "$SB_F2B_MAIN" "$SB_TR_DROPIN" "$SHARE_LOG"
-    rm -f "$SB_KEYS_DIR/$SB_USER"
-    rmdir "$SB_KEYS_DIR" "${SB_TR_DROPIN%/*}" 2>/dev/null || true
-    rm -rf "$SB_SSL" "$SB_WEBROOT"
+    rm -f "$NGINX_SITE_LINK" "$NGINX_SITE" "$NGINX_HTPASSWD" "$FAIL2BAN_JAIL" "$FAIL2BAN_MAIN_CONF" "$TRANSMISSION_DROPIN"
+    rm -f "$SFTP_KEYS_DIR/$SEEDBOX_USER"
+    rmdir "$SFTP_KEYS_DIR" "${TRANSMISSION_DROPIN%/*}" 2>/dev/null || true
+    rm -rf "$SEEDBOX_SSL_DIR" "$LETSENCRYPT_WEBROOT"
     systemctl daemon-reload 2>/dev/null || true
-    apt_purge transmission-daemon transmission-common nginx nginx-common certbot fail2ban
-    if ((del_data)) && [[ -n $SB_DATA && $SB_DATA != / ]]; then
-        run "Suppression des données" rm -rf "${SB_DATA:?}"
+    apt_purge transmission-daemon transmission-common nginx nginx-common certbot fail2ban inotify-tools
+    if ((delete_data)) && [[ -n $SEEDBOX_DATA_DIR && $SEEDBOX_DATA_DIR != / ]]; then
+        run 'Deleting the data' rm -rf "${SEEDBOX_DATA_DIR:?}"
     fi
-    rm -f "$SB_CONF" "$SB_SECRETS"
+    rm -f "$SEEDBOX_CONF_FILE" "$SEEDBOX_SECRETS_FILE"
     net_hardening_cleanup
-    fw_refresh
+    firewall_refresh
+    backup_auto_stop_if_unused
     echo
-    if ((del_data)); then
-        ok "Seedbox et données supprimées."
+    if ((delete_data)); then
+        ok 'Seedbox and data deleted.'
     else
-        ok "Seedbox désinstallée. Vos données restent dans $SB_DATA."
+        ok 'Seedbox removed. Your data stays in %s.' "$SEEDBOX_DATA_DIR"
     fi
     pause
 }
 
-sb_menu() {
-    local choix free cert
+seedbox_menu() {
+    local choice certificate transmission
     while true; do
-        sb_load
-        sb_installed || return 0
-        free=$(disk_free_txt "$SB_DATA")
-        if [[ $SB_CERT == selfsigned ]]; then
-            cert="${C_YEL}auto-signé${C_END} (option 2 pour retenter Let's Encrypt)"
+        seedbox_load
+        seedbox_installed || return 0
+        if [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then
+            certificate="$C_YELLOW$(t 'self-signed')$C_RESET $(t "(option 2 to try Let's Encrypt again)")"
         else
-            cert=$(sb_cert_label)
+            certificate=$(seedbox_certificate_label)
         fi
-        titre
-        section "GESTION DE LA SEEDBOX"
-        printf '  Interface web : https://%s/\n' "$SB_DOMAIN"
-        printf '  Certificat    : %s\n' "$cert"
-        printf '  SFTP          : %s@%s — %s\n' "$SB_USER" "$SB_DOMAIN" "$free"
-        printf '  Services      : transmission %s · nginx %s · fail2ban %s\n\n' \
-            "$(svc_state transmission-daemon)" "$(svc_state nginx)" "$(svc_state fail2ban)"
-        cat <<EOF
-1) Changer l'utilisateur ou le mot de passe
-2) Nom de domaine et certificat HTTPS
-3) Clés SSH pour le SFTP
-4) Connexion SFTP : réglages pour WinSCP et FileZilla
-5) Adresses IP bannies (fail2ban)
-
-6) Redémarrer les services
-7) Désinstaller la seedbox
-
-Q) Retour
-EOF
+        transmission=$(service_state transmission-daemon)
+        if diskguard_stopped; then transmission="$C_RED$(t 'stopped: disk almost full')$C_RESET"; fi
+        banner
+        section 'SEEDBOX MANAGEMENT'
+        say '  Web interface : %s' "https://$SEEDBOX_DOMAIN/"
+        say '  Certificate   : %s' "$certificate"
+        say '  SFTP          : %s — %s' "$SEEDBOX_USER@$SEEDBOX_DOMAIN" "$(disk_free_text "$SEEDBOX_DATA_DIR")"
+        say '  Services      : transmission %s · nginx %s · fail2ban %s' \
+            "$transmission" "$(service_state nginx)" "$(service_state fail2ban)"
         echo
-        ask choix "Votre choix" ""
-        case ${choix,,} in
+        say '1) Change the user or the password'
+        say '2) Domain name and HTTPS certificate'
+        say '3) SSH keys for SFTP'
+        say '4) SFTP connection: settings for WinSCP and FileZilla'
+        say '5) Banned IP addresses (fail2ban)'
+        echo
+        say '6) Restart the services'
+        say '7) Remove the seedbox'
+        echo
+        say 'Q) Back'
+        echo
+        ask choice 'Your choice' ""
+        case ${choice,,} in
             1)
-                sb_change_credentials
+                seedbox_change_credentials
                 echo
                 pause
                 ;;
             2)
-                sb_change_domain
+                seedbox_change_domain
                 echo
                 pause
                 ;;
-            3) sb_keys_menu ;;
+            3) sftp_keys_menu ;;
             4)
-                sb_sftp_config
+                seedbox_sftp_config
                 pause
                 ;;
-            5) sb_bans ;;
+            5) fail2ban_bans_menu ;;
             6)
-                sb_restart
+                seedbox_restart
                 echo
                 pause
                 ;;
-            7) sb_uninstall ;;
+            7) seedbox_uninstall ;;
             q) return 0 ;;
         esac
     done
 }
 
-sb_main() {
-    sb_load
-    if sb_installed; then sb_menu; else sb_install_interactive; fi
+seedbox_main() {
+    seedbox_load
+    if seedbox_installed; then seedbox_menu; else seedbox_install_interactive; fi
 }
 
-# finalcut seedbox <commande> …
-sb_cli() {
-    local cmd=${1-}
+# seedtunnel seedbox <command> …
+seedbox_cli() {
+    local command=${1-}
     if (($#)); then shift; fi
-    case $cmd in
+    case $command in
         "")
-            require_tty
-            sb_main
+            require_terminal
+            seedbox_main
             ;;
         install)
-            if [[ -n $FC_CONFIG ]]; then
-                config_load "$FC_CONFIG"
-                sb_install_config
-                if [[ $(cfg FIREWALL) == yes ]]; then fw_enable; fi
+            if [[ -n $OPT_CONFIG_FILE ]]; then
+                config_load "$OPT_CONFIG_FILE"
+                seedbox_install_from_config
+                if [[ $(config_get FIREWALL) == yes ]]; then firewall_enable; fi
             else
-                require_tty
-                if sb_installed; then die "La seedbox est déjà installée (finalcut seedbox pour la gérer)."; fi
-                sb_install_interactive
+                require_terminal
+                if seedbox_installed; then die 'The seedbox is already installed (seedtunnel seedbox to manage it).'; fi
+                seedbox_install_interactive
             fi
             ;;
         password)
-            sb_require_installed
-            sb_cli_password
+            seedbox_require_installed
+            seedbox_cli_password
             ;;
         domain)
-            sb_require_installed
-            [[ -n ${1-} ]] || die "Usage : finalcut seedbox domain NOM [--staging]"
-            sb_set_domain "$1"
+            seedbox_require_installed
+            [[ -n ${1-} ]] || die 'Usage: seedtunnel seedbox domain NAME [--staging]'
+            seedbox_set_domain "$1"
+            ;;
+        sftp-config)
+            seedbox_require_installed
+            case ${1-} in
+                "" | filezilla) seedbox_sftp_config "${1-}" ;;
+                *) die 'Usage: seedtunnel seedbox sftp-config [filezilla]' ;;
+            esac
             ;;
         sftp-key)
-            sb_require_installed
+            seedbox_require_installed
             case ${1-} in
                 add)
-                    [[ -n ${2-} ]] || die "Usage : finalcut seedbox sftp-key add FICHIER.pub   (- pour l'entrée standard)"
-                    sb_keys_import "$2"
-                    sb_apply_sftp
+                    [[ -n ${2-} ]] || die 'Usage: seedtunnel seedbox sftp-key add FILE.pub   (- for standard input)'
+                    sftp_keys_import "$2"
+                    seedbox_apply_sftp
                     ;;
-                list) sb_keys_list ;;
-                remove) sb_keys_remove "${2-}" ;;
-                *) die "Usage : finalcut seedbox sftp-key add|list|remove" ;;
+                list) sftp_keys_list ;;
+                remove) sftp_keys_remove "${2-}" ;;
+                *) die 'Usage: seedtunnel seedbox sftp-key add|list|remove' ;;
             esac
             ;;
         sftp-password)
-            sb_require_installed
-            sb_set_sftp_password "${1-}"
-            ;;
-        sftp-config)
-            sb_require_installed
-            case ${1-} in
-                "" | filezilla) sb_sftp_config "${1-}" ;;
-                *) die "Usage : finalcut seedbox sftp-config [filezilla]" ;;
-            esac
+            seedbox_require_installed
+            seedbox_set_sftp_password "${1-}"
             ;;
         bans)
-            sb_require_installed
-            sb_bans_print
+            seedbox_require_installed
+            fail2ban_bans_print
             ;;
         unban)
-            sb_require_installed
-            sb_unban "${1-}"
+            seedbox_require_installed
+            fail2ban_unban "${1-}"
             ;;
         restart)
-            sb_require_installed
-            sb_restart
+            seedbox_require_installed
+            seedbox_restart
             ;;
         uninstall)
-            sb_require_installed
-            sb_uninstall
+            seedbox_require_installed
+            seedbox_uninstall
             ;;
-        *) die "Commande inconnue : seedbox $cmd   (aide : finalcut help)" ;;
+        *) die 'Unknown command: seedbox %s   (help: seedtunnel help)' "$command" ;;
     esac
 }

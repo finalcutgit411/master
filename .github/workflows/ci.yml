@@ -1,6 +1,6 @@
-# Vérifications automatiques à chaque envoi sur GitHub :
-#   1. analyse du code (shellcheck) et mise en forme (shfmt)
-#   2. installation réelle sur Debian 12 et 13, puis tests de chaque service
+# Automatic checks at every push to GitHub:
+#   1. code analysis (shellcheck), formatting (shfmt), translations, unit tests
+#   2. real installation on Debian 12 and 13, then tests of every service
 name: CI
 
 on:
@@ -14,22 +14,28 @@ permissions:
 
 jobs:
   lint:
-    name: Analyse du code
+    name: Code analysis and unit tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
-      - name: Installation de shellcheck et shfmt
-        run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck shfmt
+      - name: Install shellcheck, shfmt and inotify-tools
+        run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck shfmt inotify-tools
 
-      - name: shellcheck (pièges bash)
+      - name: shellcheck (bash pitfalls)
         run: make lint
 
-      - name: shfmt (mise en forme)
+      - name: shfmt (formatting)
         run: make fmt-check
 
+      - name: Every message translated into French
+        run: make i18n
+
+      - name: Unit tests
+        run: make unit
+
   integration:
-    name: Tests sur Debian ${{ matrix.debian }}
+    name: Tests on Debian ${{ matrix.debian }}
     needs: lint
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -40,44 +46,44 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Modules du noyau (WireGuard, nftables)
+      - name: Kernel modules (WireGuard, nftables)
         run: sudo modprobe -a wireguard nf_tables
 
-      - name: Construction de l'image Debian ${{ matrix.debian }}
-        run: docker build --build-arg DEBIAN=${{ matrix.debian }} -t finalcut-test tests/
+      - name: Build the Debian ${{ matrix.debian }} image
+        run: docker build --build-arg DEBIAN=${{ matrix.debian }} -t seedtunnel-test tests/
 
-      - name: Démarrage du serveur de test (systemd)
+      - name: Start the test server (systemd)
         run: |
-          docker run -d --name fc --hostname finalcut-ci --privileged --cgroupns=host \
-            -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$PWD":/opt/finalcut:ro finalcut-test
-          docker exec fc systemctl is-system-running --wait || true
+          docker run -d --name st --hostname seedtunnel-ci --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$PWD":/opt/seedtunnel:ro seedtunnel-test
+          docker exec st systemctl is-system-running --wait || true
 
-      - name: Phase 1 — VPN, seedbox, SFTP, clés SSH, pare-feu
-        run: docker exec fc /opt/finalcut/tests/integration.sh phase1
+      - name: Phase 1 — VPN, seedbox, links, SFTP, SSH keys, firewall, full disk
+        run: docker exec st /opt/seedtunnel/tests/integration.sh phase1
 
-      - name: Pare-feu vu de l'extérieur
+      - name: Firewall seen from the outside
         run: |
-          ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fc)
-          # un service non autorisé écoute sur 8080 : il doit rester injoignable
-          docker exec -d fc nc -lk 8080
+          ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' st)
+          # a service that is not allowed listens on 8080: it must stay unreachable
+          docker exec -d st nc -lk 8080
           sleep 1
-          nc -z -w 3 "$ip" 22 && echo "✔ SSH joignable"
-          nc -z -w 3 "$ip" 443 && echo "✔ HTTPS joignable"
+          nc -z -w 3 "$ip" 22 && echo "✔ SSH reachable"
+          nc -z -w 3 "$ip" 443 && echo "✔ HTTPS reachable"
           if nc -z -w 3 "$ip" 8080; then
-            echo "✘ le port 8080 est joignable : le pare-feu ne bloque pas"
+            echo "✘ port 8080 is reachable: the firewall does not block"
             exit 1
           fi
-          echo "✔ port 8080 bloqué par le pare-feu"
+          echo "✔ port 8080 blocked by the firewall"
 
-      - name: Phase 2 — diagnostic, sauvegarde, restauration, désinstallation
-        run: docker exec fc /opt/finalcut/tests/integration.sh phase2
+      - name: Phase 2 — diagnostics, backups, restore, removal
+        run: docker exec st /opt/seedtunnel/tests/integration.sh phase2
 
-      - name: Journaux (en cas d'échec)
+      - name: Logs (on failure)
         if: failure()
         run: |
-          docker exec fc cat /var/log/finalcut.log || true
-          docker exec fc journalctl --no-pager -n 300 || true
-          # fin des journaux aussi en annotations, lisibles depuis le résumé
+          docker exec st cat /var/log/seedtunnel.log || true
+          docker exec st journalctl --no-pager -n 300 || true
+          # end of the logs also as annotations, readable from the summary
           annotate() {
             local t=$1 b
             b=$(cat)
@@ -85,5 +91,5 @@ jobs:
             b=${b//$'\n'/'%0A'}
             echo "::error title=$t::$b"
           }
-          docker exec fc tail -n 60 /var/log/finalcut.log 2>&1 | annotate "finalcut.log (${{ matrix.debian }})"
-          docker exec fc journalctl --no-pager -p warning -n 40 2>&1 | annotate "journal système (${{ matrix.debian }})"
+          docker exec st tail -n 60 /var/log/seedtunnel.log 2>&1 | annotate "seedtunnel.log (${{ matrix.debian }})"
+          docker exec st journalctl --no-pager -p warning -n 40 2>&1 | annotate "system journal (${{ matrix.debian }})"

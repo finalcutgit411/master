@@ -1,254 +1,285 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  finalcut — diagnostic (« finalcut doctor »)
+#  seedtunnel — diagnostics (« seedtunnel doctor »)
 #
-#  Vérifie d'un coup ce qui cause la plupart des pannes : services arrêtés,
-#  DNS qui ne pointe pas sur le serveur, certificat bientôt expiré, port
-#  fermé, disque plein, horloge fausse… Chaque ligne dit quoi faire.
-#  Code de sortie : 0 si aucun problème, 1 sinon (utilisable dans un script).
+#  Checks in one go what causes most breakdowns: stopped services, DNS not
+#  pointing to the server, certificate about to expire, closed port, full
+#  disk, wrong clock, missing backups… Each line says what to do.
+#  Exit status: 0 if there is no problem, 1 otherwise (usable in a script).
+#  It changes nothing, so it also runs while a menu is open elsewhere.
 # =============================================================================
 
-DOC_FAIL=0
-DOC_WARN=0
+DOCTOR_ERRORS=0
+DOCTOR_WARNINGS=0
 
-d_ok() { ok "$*"; }
-d_warn() {
-    DOC_WARN=$((DOC_WARN + 1))
-    printf '%s!%s %s\n' "$C_YEL" "$C_END" "$*"
+doctor_ok() { ok "$@"; }
+doctor_warn() {
+    DOCTOR_WARNINGS=$((DOCTOR_WARNINGS + 1))
+    printf '%s!%s %s\n' "$C_YELLOW" "$C_RESET" "$(t "$@")"
 }
-d_fail() {
-    DOC_FAIL=$((DOC_FAIL + 1))
-    printf '%s✘%s %s\n' "$C_RED" "$C_END" "$*"
+doctor_error() {
+    DOCTOR_ERRORS=$((DOCTOR_ERRORS + 1))
+    printf '%s✘%s %s\n' "$C_RED" "$C_RESET" "$(t "$@")"
 }
-d_title() { printf '\n%s%s%s\n' "$C_BLD" "$*" "$C_END"; }
+doctor_title() { printf '\n%s%s%s\n' "$C_BOLD" "$(t "$@")" "$C_RESET"; }
 
-d_svc() {
+# doctor_service SERVICE "Name shown"
+doctor_service() {
     if systemctl is-active --quiet "$1"; then
-        d_ok "$2 : actif"
+        doctor_ok '%s: running' "$2"
     else
-        d_fail "$2 : arrêté   → journalctl -u $1 -n 30"
+        doctor_error '%s: stopped   → journalctl -u %s -n 30' "$2" "$1"
     fi
 }
 
-# Jours restants avant expiration d'un certificat (vide si illisible)
-d_cert_days() {
-    local end e n
+# Days left before a certificate expires (empty if unreadable)
+certificate_days_left() {
+    local end expires now
     end=$(openssl x509 -in "$1" -noout -enddate 2>/dev/null | cut -d= -f2 || true)
     [[ -n $end ]] || return 0
-    e=$(date -d "$end" +%s 2>/dev/null) || return 0
-    n=$(date +%s)
-    printf '%s' "$(((e - n) / 86400))"
-}
-
-# Espace libre en Go sur la partition d'un dossier
-d_free_gb() {
-    df -Pk "$1" 2>/dev/null | awk 'NR == 2 { printf "%d", $4 / 1048576 }'
+    expires=$(date -d "$end" +%s 2>/dev/null) || return 0
+    now=$(date +%s)
+    printf '%s' "$(((expires - now) / 86400))"
 }
 
 doctor_system() {
-    local free sync redir
-    d_title "Système"
-    d_ok "$FC_OS_DESC, finalcut $FC_VERSION"
-    free=$(d_free_gb /)
+    local free synced redirects
+    doctor_title 'System'
+    doctor_ok '%s, seedtunnel %s' "$APP_OS_DESCRIPTION" "$APP_VERSION"
+    free=$(disk_free_gb /)
     if [[ -z $free ]]; then
-        d_warn "Espace disque de / illisible"
+        doctor_warn 'Free space of / unreadable'
     elif ((free < 2)); then
-        d_fail "Disque presque plein : ${free} Go libres sur /"
+        doctor_error 'Disk almost full: %s GB free on /' "$free"
     else
-        d_ok "Espace libre sur / : ${free} Go"
+        doctor_ok 'Free space on /: %s GB' "$free"
     fi
     if grep -qs 'Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades; then
-        d_ok "Mises à jour de sécurité automatiques activées"
+        doctor_ok 'Automatic security updates on'
     else
-        d_warn "Mises à jour de sécurité automatiques désactivées"
+        doctor_warn 'Automatic security updates off'
     fi
-    if [[ -f $FC_SYSCTL_NET ]]; then
-        redir=$(sysctl -n net.ipv4.conf.all.accept_redirects net.ipv4.conf.all.send_redirects 2>/dev/null | tr -d '\n' || true)
-        if [[ $redir == 00 ]]; then
-            d_ok "Réglages réseau du noyau durcis"
+    if [[ -f $NET_HARDENING_FILE ]]; then
+        redirects=$(sysctl -n net.ipv4.conf.all.accept_redirects net.ipv4.conf.all.send_redirects 2>/dev/null | tr -d '\n' || true)
+        if [[ $redirects == 00 ]]; then
+            doctor_ok 'Kernel network settings hardened'
         else
-            d_warn "Réglages réseau du noyau non appliqués   → finalcut apply"
+            doctor_warn 'Kernel network settings not applied   → seedtunnel apply'
         fi
     fi
     if [[ -e /run/reboot-required ]]; then
-        d_warn "Redémarrage conseillé (mise à jour du noyau ou d'une bibliothèque)"
+        doctor_warn 'Restart advised (update of the kernel or of a library)'
     fi
-    sync=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)
-    if [[ $sync == yes ]]; then
-        d_ok "Horloge synchronisée"
+    synced=$(timedatectl show -p NTPSynchronized --value 2>/dev/null || true)
+    if [[ $synced == yes ]]; then
+        doctor_ok 'Clock synchronized'
     else
-        d_warn "Horloge non synchronisée : les certificats et WireGuard en dépendent (timedatectl)"
+        doctor_warn 'Clock not synchronized: certificates and WireGuard depend on it (timedatectl)'
     fi
 }
 
 doctor_vpn() {
     local ip=$1 ips
-    d_title "VPN WireGuard"
-    d_svc "wg-quick@$VPN_IF" "Service WireGuard"
-    if [[ $(wg show "$VPN_IF" listen-port 2>/dev/null || true) == "$VPN_PORT" ]]; then
-        d_ok "Écoute sur le port $VPN_PORT/udp"
+    doctor_title 'WireGuard VPN'
+    doctor_service "wg-quick@$VPN_INTERFACE" 'WireGuard service'
+    if [[ $(wg show "$VPN_INTERFACE" listen-port 2>/dev/null || true) == "$VPN_PORT" ]]; then
+        doctor_ok 'Listening on port %s/udp' "$VPN_PORT"
     else
-        d_fail "WireGuard n'écoute pas sur le port $VPN_PORT/udp   → finalcut vpn restart"
+        doctor_error 'WireGuard is not listening on port %s/udp   → seedtunnel vpn restart' "$VPN_PORT"
     fi
     if [[ $(sysctl -n net.ipv4.ip_forward 2>/dev/null) == 1 ]]; then
-        d_ok "Routage IPv4 activé"
+        doctor_ok 'IPv4 routing on'
     else
-        d_fail "Routage IPv4 désactivé : les clients n'auront pas Internet   → finalcut vpn install --config …"
+        doctor_error 'IPv4 routing off: the clients will have no Internet   → seedtunnel apply'
     fi
-    if nft list table ip finalcut &>/dev/null; then
-        d_ok "Règles NAT en place"
+    if nft list table ip seedtunnel &>/dev/null; then
+        doctor_ok 'NAT rules in place'
     else
-        d_fail "Règles NAT absentes   → finalcut vpn restart"
+        doctor_error 'NAT rules missing   → seedtunnel vpn restart'
     fi
-    if is_ipv4 "$VPN_ENDPOINT"; then
-        if [[ $VPN_ENDPOINT == "$ip" ]]; then
-            d_ok "Adresse des clients ($VPN_ENDPOINT) = IP publique du serveur"
+    if is_ipv4 "$VPN_PUBLIC_ADDRESS"; then
+        if [[ $VPN_PUBLIC_ADDRESS == "$ip" ]]; then
+            doctor_ok 'Address of the clients (%s) = public IP of the server' "$VPN_PUBLIC_ADDRESS"
         else
-            d_warn "Les clients se connectent à $VPN_ENDPOINT, mais l'IP publique est ${ip:-inconnue}"
+            doctor_warn 'The clients connect to %s, but the public IP is %s' "$VPN_PUBLIC_ADDRESS" "${ip:-$(t 'unknown')}"
         fi
     else
-        ips=$(sb_dns_ips "$VPN_ENDPOINT")
+        ips=$(dns_ipv4_addresses "$VPN_PUBLIC_ADDRESS")
         if [[ -n $ip ]] && grep -qxF "$ip" <<<"$ips"; then
-            d_ok "« $VPN_ENDPOINT » pointe vers ce serveur"
+            doctor_ok '"%s" points to this server' "$VPN_PUBLIC_ADDRESS"
         else
-            d_warn "« $VPN_ENDPOINT » pointe vers ${ips:-rien} et non vers ${ip:-ce serveur}"
+            doctor_warn '"%s" points to %s and not to %s' "$VPN_PUBLIC_ADDRESS" "${ips:-$(t 'nothing')}" "${ip:-$(t 'this server')}"
         fi
     fi
-    d_ok "Clients : $(vpn_count_clients), dont $(vpn_connected_count) connecté(s) en ce moment"
-    echo "  (le port UDP ne peut pas être testé de l'extérieur depuis le serveur : en cas de"
-    echo "   doute, vérifiez le pare-feu du panneau de l'hébergeur)"
+    doctor_ok 'Clients: %s, %s connected right now' "$(vpn_count_clients)" "$(vpn_connected_count)"
+    say "  (the UDP port cannot be tested from outside by the server itself: if in"
+    say "   doubt, check the firewall in the control panel of the provider)"
 }
 
 doctor_seedbox() {
-    local ip=$1 crt days code free t
-    d_title "Seedbox"
-    d_svc transmission-daemon "Transmission"
-    d_svc nginx "nginx"
-    d_svc fail2ban "fail2ban"
-    d_svc ssh.service "SSH / SFTP"
-
-    if is_ipv4 "$SB_DOMAIN"; then
-        d_warn "Pas de nom de domaine (accès par IP, certificat auto-signé)"
-    elif sb_dns_points_here "$SB_DOMAIN" "$ip"; then
-        d_ok "« $SB_DOMAIN » pointe vers ce serveur ($ip)"
+    local ip=$1 crt days code free settings
+    doctor_title 'Seedbox'
+    if diskguard_stopped; then
+        doctor_error 'Transmission stopped: disk almost full (%s GB free). Free some space: it restarts by itself above %s GB.' \
+            "$(disk_free_gb "$SEEDBOX_DATA_DIR")" "$DISKGUARD_START_ABOVE_GB"
     else
-        d_fail "« $SB_DOMAIN » ne pointe pas vers ce serveur (${ip:-IP inconnue}) : vérifiez le DNS"
+        doctor_service transmission-daemon 'Transmission'
+    fi
+    doctor_service nginx 'nginx'
+    doctor_service fail2ban 'fail2ban'
+    doctor_service ssh.service 'SSH / SFTP'
+    if systemctl is-active --quiet seedtunnel-diskguard.timer; then
+        doctor_ok 'Full disk protection on (Transmission stopped under %s GB free)' "$DISKGUARD_STOP_BELOW_GB"
+    else
+        doctor_warn 'Full disk protection off   → seedtunnel apply'
     fi
 
-    if [[ $SB_CERT == selfsigned ]]; then crt="$SB_SSL/selfsigned.crt"; else crt="$SB_LE_DIR/cert.pem"; fi
-    days=$(d_cert_days "$crt")
+    if is_ipv4 "$SEEDBOX_DOMAIN"; then
+        doctor_warn 'No domain name (access by IP, self-signed certificate)'
+    elif dns_points_here "$SEEDBOX_DOMAIN" "$ip"; then
+        doctor_ok '"%s" points to this server (%s)' "$SEEDBOX_DOMAIN" "$ip"
+    else
+        doctor_error '"%s" does not point to this server (%s): check the DNS' "$SEEDBOX_DOMAIN" "${ip:-$(t 'IP unknown')}"
+    fi
+
+    if [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then crt="$SEEDBOX_SSL_DIR/selfsigned.crt"; else crt="$LETSENCRYPT_DIR/cert.pem"; fi
+    days=$(certificate_days_left "$crt")
     if [[ -z $days ]]; then
-        d_fail "Certificat illisible : $crt   → finalcut seedbox domain $SB_DOMAIN"
-    elif [[ $SB_CERT == selfsigned ]]; then
-        d_warn "Certificat auto-signé (alerte du navigateur)   → finalcut seedbox domain $SB_DOMAIN"
+        doctor_error 'Certificate unreadable: %s   → seedtunnel seedbox domain %s' "$crt" "$SEEDBOX_DOMAIN"
+    elif [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then
+        doctor_warn 'Self-signed certificate (browser warning)   → seedtunnel seedbox domain %s' "$SEEDBOX_DOMAIN"
     elif ((days < 7)); then
-        d_fail "Certificat Let's Encrypt : expire dans $days jour(s), le renouvellement échoue   → certbot renew"
+        doctor_error "Let's Encrypt certificate: expires in %s day(s), the renewal fails   → certbot renew" "$days"
     elif ((days < 21)); then
-        d_warn "Certificat Let's Encrypt : expire dans $days jours (il aurait dû être renouvelé)"
+        doctor_warn "Let's Encrypt certificate: expires in %s days (it should have been renewed)" "$days"
     else
-        d_ok "Certificat $(sb_cert_label) : encore $days jours"
+        doctor_ok 'Certificate %s: %s days left' "$(seedbox_certificate_label)" "$days"
     fi
-    if [[ $SB_CERT != selfsigned ]]; then
+    if [[ $SEEDBOX_CERTIFICATE != selfsigned ]]; then
         if systemctl is-active --quiet certbot.timer; then
-            d_ok "Renouvellement automatique programmé (certbot.timer)"
+            doctor_ok 'Automatic renewal scheduled (certbot.timer)'
         else
-            d_fail "certbot.timer inactif : le certificat ne sera pas renouvelé   → systemctl enable --now certbot.timer"
+            doctor_error 'certbot.timer inactive: the certificate will not be renewed   → systemctl enable --now certbot.timer'
         fi
     fi
 
-    code=$(sb_http_code /transmission/web/)
+    code=$(seedbox_http_code /transmission/web/)
     if [[ $code == 401 ]]; then
-        d_ok "Interface web en ligne et protégée par mot de passe"
+        doctor_ok 'Web interface online and protected by a password'
     else
-        d_fail "Interface web : réponse inattendue (code ${code:-aucun}) sur https://$SB_DOMAIN/"
+        doctor_error 'Web interface: unexpected answer (code %s) on %s' "${code:-$(t 'none')}" "https://$SEEDBOX_DOMAIN/"
     fi
     if [[ -n $ip ]]; then
         code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 8 \
-            --resolve "$SB_DOMAIN:443:$ip" "https://$SB_DOMAIN/transmission/web/" 2>/dev/null || true)
+            --resolve "$SEEDBOX_DOMAIN:443:$ip" "https://$SEEDBOX_DOMAIN/transmission/web/" 2>/dev/null || true)
         if [[ $code == 401 ]]; then
-            d_ok "HTTPS joignable par l'IP publique (test depuis le serveur lui-même)"
+            doctor_ok 'HTTPS reachable through the public IP (tested from the server itself)'
         else
-            d_warn "HTTPS injoignable par l'IP publique $ip (code ${code:-aucun}) : pare-feu ?"
+            doctor_warn 'HTTPS unreachable through the public IP %s (code %s): firewall?' "$ip" "${code:-$(t 'none')}"
         fi
     fi
 
-    t=$(sshd -T -C "user=$SB_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
-    if [[ $t == *"chrootdirectory $SB_DATA"* ]]; then
-        d_ok "SFTP enfermé dans $SB_DATA"
+    settings=$(sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
+    if [[ $settings == *"chrootdirectory $SEEDBOX_DATA_DIR"* ]]; then
+        doctor_ok 'SFTP locked in %s' "$SEEDBOX_DATA_DIR"
     else
-        d_fail "Règle SFTP inactive pour $SB_USER   → finalcut seedbox install --config … ou menu"
+        doctor_error 'SFTP rule inactive for %s   → seedtunnel apply' "$SEEDBOX_USER"
     fi
-    if sb_check_data_path "$SB_DATA" 2>/dev/null; then
-        d_ok "Droits du dossier des données corrects"
+    if seedbox_check_data_dir "$SEEDBOX_DATA_DIR" 2>/dev/null; then
+        doctor_ok 'Permissions of the data folder correct'
     else
-        d_fail "Droits du dossier $SB_DATA incompatibles avec le SFTP enfermé"
+        doctor_error 'Permissions of the folder %s incompatible with the locked SFTP' "$SEEDBOX_DATA_DIR"
     fi
-    free=$(d_free_gb "$SB_DATA")
+    free=$(disk_free_gb "$SEEDBOX_DATA_DIR")
     if [[ -n $free ]] && ((free < 5)); then
-        d_warn "Peu d'espace pour les téléchargements : ${free} Go libres"
+        doctor_warn 'Little space left for downloads: %s GB free' "$free"
     elif [[ -n $free ]]; then
-        d_ok "Espace libre pour les téléchargements : ${free} Go"
+        doctor_ok 'Free space for downloads: %s GB' "$free"
     fi
-    t=$(fail2ban-client status 2>/dev/null || true)
-    if [[ $t == *sshd* && $t == *nginx-http-auth* && $t == *recidive* ]]; then
-        d_ok "fail2ban surveille SSH, l'interface web et les récidivistes"
+    settings=$(fail2ban-client status 2>/dev/null || true)
+    if [[ $settings == *sshd* && $settings == *nginx-http-auth* && $settings == *recidive* ]]; then
+        doctor_ok 'fail2ban watches SSH, the web interface and repeat offenders'
     else
-        d_warn "Règles fail2ban incomplètes   → finalcut seedbox restart"
-    fi
-    if [[ -z $SB_HASH_WEB ]]; then
-        d_warn "Empreintes du mot de passe absentes (installation 2.0)   → finalcut seedbox password"
+        doctor_warn 'fail2ban rules incomplete   → seedtunnel seedbox restart'
     fi
 }
 
 doctor_firewall() {
     local rules port open
-    d_title "Pare-feu"
-    if fw_enabled; then
-        rules=$(nft list table inet "$FW_TABLE" 2>/dev/null || true)
+    doctor_title 'Firewall'
+    if firewall_enabled; then
+        rules=$(nft list table inet "$FIREWALL_TABLE" 2>/dev/null || true)
         if [[ -z $rules ]]; then
-            d_fail "Pare-feu activé mais règles absentes   → finalcut firewall enable --yes"
+            doctor_error 'Firewall enabled but rules missing   → seedtunnel firewall enable --yes'
         else
-            d_ok "Actif — ouvertures : $(fw_summary)"
-            # Port SSH changé sans mettre le pare-feu à jour : on serait enfermé
-            # dehors à la prochaine connexion (ou au prochain redémarrage de SSH)
-            open=" $(fw_open_tcp_ports <<<"$rules" | tr '\n' ' ') "
-            for port in $(fw_sshd_ports); do
+            doctor_ok 'On — open: %s' "$(firewall_summary)"
+            # SSH port changed without updating the firewall: one would be
+            # locked out at the next connection (or the next restart of SSH)
+            open=" $(firewall_open_tcp_ports <<<"$rules" | tr '\n' ' ') "
+            for port in $(firewall_sshd_ports); do
                 if [[ $open == *" $port "* ]]; then
-                    d_ok "Port SSH $port ouvert dans le pare-feu"
+                    doctor_ok 'SSH port %s open in the firewall' "$port"
                 else
-                    d_fail "SSH utilise le port $port, fermé par le pare-feu : risque de rester dehors   → finalcut firewall enable"
+                    doctor_error 'SSH uses port %s, closed by the firewall: risk of being locked out   → seedtunnel firewall enable' "$port"
                 fi
             done
         fi
     else
-        d_warn "Pare-feu finalcut désactivé   → finalcut firewall enable"
+        doctor_warn 'seedtunnel firewall off   → seedtunnel firewall enable'
     fi
     if systemctl is-enabled --quiet nftables.service 2>/dev/null \
         && grep -qs 'flush ruleset' /etc/nftables.conf; then
-        d_warn "nftables.service est activé et vide toutes les règles au démarrage (/etc/nftables.conf)"
+        doctor_warn 'nftables.service is enabled and empties all the rules at boot (/etc/nftables.conf)'
+    fi
+}
+
+doctor_backup() {
+    local latest age
+    doctor_title 'Backups'
+    if backup_auto_enabled; then
+        latest=$(ls -1t "$BACKUP_DIR"/*-auto.tar.gz.enc 2>/dev/null | head -n 1 || true)
+        age=$(file_age_days "$latest")
+        if [[ -z $age ]]; then
+            doctor_ok 'Weekly backup on (the first one comes within a week)'
+        elif ((age > 8)); then
+            doctor_warn 'Last automatic backup %s days ago: the weekly backup seems to fail   → journalctl -u seedtunnel-backup' "$age"
+        else
+            doctor_ok 'Weekly backup on, last one %s day(s) ago' "$age"
+        fi
+    else
+        doctor_warn 'Weekly backup off   → seedtunnel backup auto on'
+    fi
+    age=$(file_age_days "$BACKUP_DOWNLOADED_MARK")
+    if [[ -z $age ]]; then
+        doctor_warn 'No backup downloaded to your computer yet   → seedtunnel backup share'
+    elif ((age > 30)); then
+        doctor_warn 'Last backup downloaded %s days ago   → seedtunnel backup share' "$age"
+    else
+        doctor_ok 'Backup downloaded to your computer %s day(s) ago' "$age"
     fi
 }
 
 doctor_main() {
     local ip
-    DOC_FAIL=0
-    DOC_WARN=0
-    titre
-    section "DIAGNOSTIC"
-    printf "Recherche de l'adresse IP publique… "
+    DOCTOR_ERRORS=0
+    DOCTOR_WARNINGS=0
+    banner
+    section 'DIAGNOSTICS'
+    printf '%s ' "$(t 'Looking for the public IP address…')"
     ip=$(public_ipv4)
-    echo "${ip:-introuvable}"
+    echo "${ip:-$(t 'not found')}"
     doctor_system
     if vpn_installed; then doctor_vpn "$ip"; fi
-    if sb_installed; then doctor_seedbox "$ip"; fi
+    if seedbox_installed; then doctor_seedbox "$ip"; fi
     doctor_firewall
+    if vpn_installed || seedbox_installed; then doctor_backup; fi
     echo
-    if ((DOC_FAIL)); then
-        err "$DOC_FAIL problème(s), $DOC_WARN avertissement(s)."
-    elif ((DOC_WARN)); then
-        warn "Aucun problème bloquant, $DOC_WARN avertissement(s)."
+    if ((DOCTOR_ERRORS)); then
+        err '%s problem(s), %s warning(s).' "$DOCTOR_ERRORS" "$DOCTOR_WARNINGS"
+    elif ((DOCTOR_WARNINGS)); then
+        warn 'No blocking problem, %s warning(s).' "$DOCTOR_WARNINGS"
     else
-        ok "Tout est en ordre."
+        ok 'Everything is fine.'
     fi
     pause
 }

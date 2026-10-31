@@ -1,12 +1,13 @@
-# Image de test : une Debian vierge avec systemd, comme sur un vrai serveur.
-# Construite et lancée par .github/workflows/ci.yml (une fois en 12, une fois en 13).
+# Test image: a fresh Debian with systemd, like a real server.
+# Built and started by .github/workflows/ci.yml (once with Debian 12, once
+# with Debian 13).
 ARG DEBIAN=bookworm
 FROM debian:${DEBIAN}
 
 ENV container=docker
 
-# Le minimum d'un VPS fraîchement installé (systemd, SSH), plus les outils
-# dont les tests ont besoin pour jouer le rôle d'un client (sshpass, ping, nc).
+# The minimum of a freshly installed VPS (systemd, SSH), plus the tools the
+# tests need to play the part of a client (sshpass, ping, nc).
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         systemd systemd-sysv dbus iproute2 procps kmod ca-certificates curl \

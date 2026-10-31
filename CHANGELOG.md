@@ -1,82 +1,76 @@
-# Historique des versions
+# Changelog
 
-Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
-numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
+Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
-## [2.2.2] - 2026-10-31
+## [1.0.0] - 2026-10-31
 
-### Modifié
-- `finalcut seedbox sftp-config` est pensé d'abord pour WinSCP : l'adresse à coller contient l'empreinte du serveur, que WinSCP vérifie tout seul (plus de question « faire confiance à ce serveur ? » à la première connexion). Le fichier FileZilla n'est plus créé que sur demande : `finalcut seedbox sftp-config filezilla`, ou en répondant oui dans le menu.
+**seedtunnel is the new name of finalcut** (versions 1.0.0 to 2.2.2 below),
+rewritten for an English-speaking audience, with French still available.
 
-## [2.2.1] - 2026-10-31
+### Added
+- **Messages in English and French**, chosen for each server: question at the first start of the menu, `seedtunnel language en|fr`, `L` in the menu, `LANGUAGE` key of the configuration file, or `SEEDTUNNEL_LANG` in the environment.
+- **Weekly backup**: `seedtunnel backup auto on` makes an encrypted backup every week and keeps the last 4. `seedtunnel backup auto off|status`.
+- **`seedtunnel backup share`**: one-time link to download the latest backup onto your computer.
+- **The backup includes the state of Transmission**: list of torrents, progress and settings, put back by `seedtunnel restore`.
+- **`seedtunnel doctor` watches the backups**: warning when the weekly backup is off, when the last automatic backup is more than 8 days old, and when no backup was downloaded for 30 days.
+- **Full disk protection**: every 5 minutes, under 3 GB free in the data folder, Transmission is stopped cleanly; it starts again by itself above 5 GB. The menu and `seedtunnel doctor` show it.
+- **Unit tests** (`make unit`) and a translation check (`make i18n`), run at every push.
 
-### Modifié
-- Menu principal : l'espace disque indique aussi la taille totale (« 36Go libres sur 40Go »), en couleur comme le reste de l'état (vert, jaune sous 10 % ou 5 Go, rouge sous 2 Go), et précise si la partition sert au système et aux téléchargements.
+### Changed
+- New name everywhere: the `seedtunnel` command, `/opt/seedtunnel`, `/etc/seedtunnel`, `/var/log/seedtunnel.log`. Backups go to `/var/backups/seedtunnel`. Download links are served under `/share/`.
+- Full words instead of abbreviations in the configuration file:
 
-## [2.2.0] - 2026-10-31
+  | finalcut | seedtunnel |
+  |---|---|
+  | `VPN_ENDPOINT` | `VPN_PUBLIC_ADDRESS` |
+  | `SB_USER` | `SEEDBOX_USER` |
+  | `SB_PASSWORD`, `SB_PASSWORD_FILE` | `SEEDBOX_PASSWORD`, `SEEDBOX_PASSWORD_FILE` |
+  | `SB_DOMAIN` | `SEEDBOX_DOMAIN` |
+  | `SB_DATA` | `SEEDBOX_DATA_DIR` |
+  | `SB_LETSENCRYPT` | `SEEDBOX_LETSENCRYPT` |
+  | `SB_ACME` | `SEEDBOX_LETSENCRYPT_SERVER` |
+  | `SB_SSH_KEYS_FILE` | `SEEDBOX_SSH_KEYS_FILE` |
+  | `SB_SFTP_PASSWORD` | `SEEDBOX_SFTP_PASSWORD` |
 
-### Ajouté
-- **`finalcut vpn share NOM`** : lien de téléchargement de la configuration d'un client, pour l'importer sur un ordinateur sans `scp`. Le lien ne sert qu'une fois et expire au bout de 10 minutes (il passe par le site HTTPS de la seedbox).
-- **`finalcut seedbox sftp-config`** : réglages SFTP prêts à l'emploi. Adresse à coller dans WinSCP, fichier à importer dans FileZilla, et empreinte du serveur à vérifier à la première connexion.
-- **État du serveur en tête du menu** : clients VPN connectés, espace disque libre, services arrêtés.
-- **`finalcut apply`** : réapplique toute la configuration enregistrée. `finalcut update` le lance automatiquement après une mise à jour.
-- **Réglages réseau du noyau durcis** (`/etc/sysctl.d/90-finalcut-reseau.conf`) : redirections ICMP ignorées et non envoyées, routage par la source refusé.
+- `seedtunnel backup` and `seedtunnel doctor` no longer wait for a menu left open in another window. When the script is already running, the message says which process, since when, and how to stop it.
+- Removing both the VPN and the seedbox also turns the weekly backup off (the existing backups are kept).
 
-### Corrigé
-- fail2ban ne bannissait les attaquants de SSH que du port 22 : si SSH écoutait sur un autre port, le bannissement n'avait aucun effet. Ils sont désormais bannis de tous les ports.
-- `finalcut doctor` vérifie précisément que le port sur lequel SSH écoute (ou écoutera après son redémarrage) est ouvert dans le pare-feu, pour ne pas se retrouver enfermé dehors après un changement de port.
+### Fixed
+- A VPN change refused by WireGuard showed « ok »: only the result of the last step was checked. Every step is now checked.
+- A configuration file could be replaced by a half-written one if its generation failed (full disk). The previous version is now kept.
+- A one-time link could be used more than once, with another form of the address (`?x` at the end) or with partial downloads. The file is now deleted as soon as it is opened, and served whole to one connection at a time.
 
-### Pour passer de 2.1.x à 2.2.0
-Après `finalcut update`, lancez une fois `finalcut apply` pour appliquer les corrections (les versions suivantes le feront toutes seules).
+### Moving from finalcut
+There is no automatic migration. Remove finalcut (`finalcut seedbox uninstall`, `finalcut vpn uninstall`, `finalcut firewall disable`, then delete `/opt/finalcut`, `/etc/finalcut` and `/usr/local/bin/finalcut`), install seedtunnel, then import the new configurations of the VPN clients.
 
-## [2.1.3] - 2026-10-31
+## finalcut (former name)
 
-### Modifié
-- Le dépôt s'appelle désormais `finalcutgit411/finalcut` : adresse mise à jour pour `finalcut update` et dans le README. L'ancienne adresse reste redirigée par GitHub.
+### [2.2.2] - 2026-10-31
+- `finalcut seedbox sftp-config` is made for WinSCP first: the address to paste holds the fingerprint of the server, which WinSCP checks by itself. The FileZilla file is only created on request.
 
-## [2.1.2] - 2026-10-31
+### [2.2.1] - 2026-10-31
+- Main menu: the disk space also shows the total size, in color, and whether the partition holds both the system and the downloads.
 
-### Corrigé
-- Pare-feu activé avant la seedbox : les ports 80/443 n'étaient ouverts qu'à la fin de l'installation, après la demande de certificat, que Let's Encrypt ne pouvait donc pas valider (« Timeout during connect »). Les ports sont maintenant ouverts dès le début, pour la seedbox comme pour le VPN.
-- La commande `finalcut` est installée dans `/usr/local/bin`, présent dans le PATH même après un `su` sans tiret.
+### [2.2.0] - 2026-10-31
+- Added `finalcut vpn share NAME` (one-time download link), `finalcut seedbox sftp-config`, the state of the server at the top of the menu, `finalcut apply`, and hardened kernel network settings.
+- Fixed: fail2ban only banned attackers of SSH from port 22; `finalcut doctor` checks that the SSH port is open in the firewall.
 
-## [2.1.1] - 2026-10-31
+### [2.1.3] - 2026-10-31
+- The repository is renamed `finalcutgit411/finalcut`.
 
-### Corrigé
-- `sysctl: command not found` après un `su` sans tiret : sur Debian, le PATH n'inclut alors pas `/usr/sbin`. Le script complète désormais le PATH lui-même, et les tests automatiques tournent dans ces conditions.
-- Une installation du VPN interrompue est reprise au lancement suivant, au lieu d'afficher le menu de gestion d'un VPN incomplet.
+### [2.1.2] - 2026-10-31
+- Fixed: ports 80/443 opened too late when the firewall was on before the seedbox (Let's Encrypt could not validate). The `finalcut` command goes into `/usr/local/bin`.
 
-## [2.1.0] - 2026-10-31
+### [2.1.1] - 2026-10-31
+- Fixed: `sysctl: command not found` after a `su` without a dash. An interrupted VPN installation is resumed.
 
-### Ajouté
-- **Commandes** utilisables sans menu (`finalcut vpn add`, `finalcut seedbox password`…), voir `finalcut help`.
-- **Fichier de configuration** (`--config`, modèle dans `examples/finalcut.conf`) pour installer sans répondre aux questions.
-- **Installation idempotente** : relancer avec la même configuration ne redémarre rien et ne change rien.
-- **Let's Encrypt en mode test** (`--staging`), sans limite de 5 certificats par semaine.
-- **Clés SSH pour le SFTP**, avec possibilité de refuser le mot de passe en SFTP.
-- **Pare-feu nftables** « tout refusé sauf le nécessaire », avec annulation automatique au bout de 2 minutes sans confirmation.
-- **Transmission enfermé par systemd** : en cas de faille, il ne peut écrire que dans ses dossiers.
-- **`finalcut doctor`** : diagnostic complet (services, DNS, certificat, ports, disque, horloge…).
-- **`finalcut backup` / `restore`** : sauvegarde chiffrée, restauration sur un serveur neuf sans que les clients VPN aient à se reconfigurer.
-- **`finalcut update`** : mise à jour vers la dernière version publiée, empreinte SHA-256 vérifiée.
-- **Tests automatiques** sur GitHub Actions : shellcheck, shfmt, et installation réelle sur Debian 12 et 13.
-- **Publication automatique** d'une version à l'envoi d'une étiquette `vX.Y.Z`.
+### [2.1.0] - 2026-10-31
+- Commands without the menu, configuration file, idempotent installation, Let's Encrypt test servers, SSH keys for SFTP, nftables firewall with automatic undo, Transmission locked down by systemd, `finalcut doctor`, encrypted backup and restore, `finalcut update` with a SHA-256 check, automatic tests and releases on GitHub.
+- Seedbox passwords kept as hashes only.
 
-### Modifié
-- Les mots de passe de la seedbox sont conservés sous forme d'empreintes dans `/etc/finalcut/seedbox.secrets` (jamais en clair). Les installations 2.0 doivent redéfinir le mot de passe une fois : `finalcut seedbox password`.
-- Le certificat Let's Encrypt existant est réutilisé tant qu'il est valide ; le renouvellement automatique (`certbot.timer`) est vérifié.
+### [2.0.0] - 2026-10-31
+- Full rewrite for Debian 12/13: WireGuard instead of OpenVPN, SFTP instead of vsftpd, nftables instead of iptables, certbot from Debian, detailed log.
 
-## [2.0.0] - 2026-10-31
-
-### Modifié
-- Réécriture complète pour Debian 12/13 :
-  - WireGuard remplace OpenVPN ;
-  - SFTP remplace vsftpd ;
-  - nftables remplace iptables et rc.local ;
-  - certbot passe par les paquets Debian ;
-  - gestion des erreurs avec journal détaillé ;
-  - fail2ban consultable depuis le menu.
-
-## [1.0.0]
-
-- Version d'origine : Debian 7/8, OpenVPN + sslh, Transmission, vsftpd, Let's Encrypt (`certbot-auto`).
+### [1.0.0] - 2016
+- First version: Debian 7/8, OpenVPN + sslh, Transmission, vsftpd, Let's Encrypt (`certbot-auto`).

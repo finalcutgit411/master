@@ -1,0 +1,1546 @@
+# seedtunnel — traductions françaises des messages
+#
+# Chaque message anglais du code (ligne « en: ») est suivi de sa traduction
+# (ligne « fr: »). Les %s (et %d) doivent rester dans le même ordre ; \n est un
+# retour à la ligne. Les textes longs sont dans lang/fr.sh.
+# Vérification : tests/i18n_check.py (lancé par « make check » et sur GitHub).
+
+# --- Menu principal ---------------------------------------------------------------
+
+en: %s connected of %s client(s)
+fr: %s connecté(s) sur %s client(s)
+
+en: not installed
+fr: non installé
+
+en: stopped: disk almost full
+fr: arrêté : disque presque plein
+
+en: nginx stopped
+fr: nginx arrêté
+
+en: (system and downloads)
+fr: (système et téléchargements)
+
+en: system %s · downloads %s
+fr: système %s · téléchargements %s
+
+en: on
+fr: actif
+
+en: off
+fr: désactivé
+
+en: Disk
+fr: Disque
+
+en: Firewall
+fr: Pare-feu
+
+en: 1) Manage the VPN
+fr: 1) Gérer le VPN
+
+en: 1) Install the VPN
+fr: 1) Installer le VPN
+
+en: 2) Manage the seedbox
+fr: 2) Gérer la seedbox
+
+en: 2) Install the seedbox
+fr: 2) Installer la seedbox
+
+en: 3) Firewall
+fr: 3) Pare-feu
+
+en: 4) Diagnostics
+fr: 4) Diagnostic
+
+en: 5) Backup / restore
+fr: 5) Sauvegarder / restaurer
+
+en: 6) Update seedtunnel
+fr: 6) Mettre à jour seedtunnel
+
+en: 7) Restart the server
+fr: 7) Redémarrer le serveur
+
+en: Q) Quit
+fr: Q) Quitter
+
+en: Your choice
+fr: Votre choix
+
+en: See you soon!
+fr: À bientôt !
+
+en: The option %s needs a value.
+fr: L'option %s attend une valeur.
+
+en: Unknown option: %s   (help: seedtunnel help)
+fr: Option inconnue : %s   (aide : seedtunnel help)
+
+en: Unknown command: %s   (help: seedtunnel help)
+fr: Commande inconnue : %s   (aide : seedtunnel help)
+
+# --- Sauvegarde et restauration -----------------------------------------------------
+
+en: Nothing to back up: neither VPN, nor seedbox, nor firewall installed.
+fr: Rien à sauvegarder : ni VPN, ni seedbox, ni pare-feu installés.
+
+en: Passphrase file not found: %s
+fr: Fichier de phrase de passe introuvable : %s
+
+en: Passphrase of the backup:
+fr: Phrase de passe de la sauvegarde :
+
+en: Type it again:
+fr: Confirmez-la :
+
+en: The two entries differ.
+fr: Les deux saisies sont différentes.
+
+en: Without a terminal, give the passphrase with --passphrase-file FILE.
+fr: Sans terminal, indiquez la phrase de passe avec --passphrase-file FICHIER.
+
+en: Passphrase: at least 12 characters.
+fr: Phrase de passe : 12 caractères minimum.
+
+en: Empty passphrase.
+fr: Phrase de passe vide.
+
+en: Creating the encrypted archive
+fr: Création de l'archive chiffrée
+
+en: BACKUP
+fr: SAUVEGARDE
+
+en: Backup: %s
+fr: Sauvegarde : %s
+
+en: No backup yet in %s.
+fr: Aucune sauvegarde pour l'instant dans %s.
+
+en: No backup yet:  seedtunnel backup
+fr: Aucune sauvegarde pour l'instant :  seedtunnel backup
+
+en: Without a seedbox, copy it with WinSCP or scp: %s
+fr: Sans seedbox, copiez-la avec WinSCP ou scp : %s
+
+en: DOWNLOAD THE LATEST BACKUP
+fr: TÉLÉCHARGER LA DERNIÈRE SAUVEGARDE
+
+en: Backup of %s.
+fr: Sauvegarde du %s.
+
+en: seedtunnel backup
+fr: Sauvegarde seedtunnel
+
+en: The backup is encrypted: it cannot be read without its passphrase.
+fr: La sauvegarde est chiffrée : impossible de la lire sans sa phrase de passe.
+
+en: Reloading systemd
+fr: Rechargement de systemd
+
+en: Enabling the weekly backup
+fr: Activation de la sauvegarde hebdomadaire
+
+en: WEEKLY BACKUP
+fr: SAUVEGARDE HEBDOMADAIRE
+
+en: Weekly backup on: the last %s are kept in %s.
+fr: Sauvegarde hebdomadaire activée : les %s dernières sont gardées dans %s.
+
+en: Write the passphrase down somewhere else: without it, no backup can be restored.
+fr: Notez la phrase de passe ailleurs : sans elle, aucune sauvegarde ne peut être restaurée.
+
+en: Weekly backup off (the existing backups are kept in %s).
+fr: Sauvegarde hebdomadaire désactivée (les sauvegardes existantes restent dans %s).
+
+en: No saved passphrase:  seedtunnel backup auto on
+fr: Aucune phrase de passe enregistrée :  seedtunnel backup auto on
+
+en: Automatic backup done.
+fr: Sauvegarde automatique terminée.
+
+en: Weekly backup: on (the last %s are kept in %s)
+fr: Sauvegarde hebdomadaire : activée (les %s dernières sont gardées dans %s)
+
+en:   Last one: %s
+fr:   Dernière : %s
+
+en: Weekly backup: off   (seedtunnel backup auto on)
+fr: Sauvegarde hebdomadaire : désactivée   (seedtunnel backup auto on)
+
+en: Last download of a backup: %s day(s) ago
+fr: Dernier téléchargement d'une sauvegarde : il y a %s jour(s)
+
+en: No backup downloaded yet   (seedtunnel backup share)
+fr: Aucune sauvegarde téléchargée pour l'instant   (seedtunnel backup share)
+
+en: Usage: seedtunnel backup auto on|off|status
+fr: Utilisation : seedtunnel backup auto on|off|status
+
+en: Usage: seedtunnel backup [list|share|auto on|off|status]
+fr: Utilisation : seedtunnel backup [list|share|auto on|off|status]
+
+en: BACKUP / RESTORE
+fr: SAUVEGARDER / RESTAURER
+
+en: 1) Create an encrypted backup now
+fr: 1) Créer une sauvegarde chiffrée maintenant
+
+en: 2) Download the latest backup (one-time link)
+fr: 2) Télécharger la dernière sauvegarde (lien à usage unique)
+
+en: 3) Turn the weekly backup on / off
+fr: 3) Activer / désactiver la sauvegarde hebdomadaire
+
+en: 4) Restore a backup
+fr: 4) Restaurer une sauvegarde
+
+en: Q) Back
+fr: Q) Retour
+
+en: Path of the backup file
+fr: Chemin du fichier de sauvegarde
+
+en: Stopping Transmission
+fr: Arrêt de Transmission
+
+en: List of torrents restored (%s torrent(s)).
+fr: Liste des torrents restaurée (%s torrent(s)).
+
+en: Usage: seedtunnel restore FILE
+fr: Utilisation : seedtunnel restore FICHIER
+
+en: File not found: %s
+fr: Fichier introuvable : %s
+
+en: RESTORE
+fr: RESTAURATION
+
+en: Cannot decrypt: wrong passphrase or damaged file.
+fr: Déchiffrement impossible : phrase de passe incorrecte ou fichier abîmé.
+
+en: Unreadable archive.
+fr: Archive illisible.
+
+en: Archive refused: unexpected path "%s"
+fr: Archive refusée : chemin inattendu « %s »
+
+en: The backup contains:
+fr: La sauvegarde contient :
+
+en:   - the VPN and its clients
+fr:   - le VPN et ses clients
+
+en:   - the seedbox (settings, passwords, certificates)
+fr:   - la seedbox (réglages, mots de passe, certificats)
+
+en:   - the list of torrents
+fr:   - la liste des torrents
+
+en:   - the firewall
+fr:   - le pare-feu
+
+en: Restore? The current settings of seedtunnel will be replaced
+fr: Restaurer ? Les réglages actuels de seedtunnel seront remplacés
+
+en: Extracting the archive
+fr: Extraction de l'archive
+
+en: Previous settings moved to %s
+fr: Anciens réglages mis de côté dans %s
+
+en: Restore finished.
+fr: Restauration terminée.
+
+# --- Bibliothèque commune ---------------------------------------------------------------
+
+en: WireGuard VPN + seedbox
+fr: VPN WireGuard + seedbox
+
+en: Press [Enter] to continue…
+fr: Appuyez sur [Entrée] pour continuer…
+
+en: running
+fr: actif
+
+en: stopped
+fr: arrêté
+
+en: missing
+fr: absent
+
+en: Unexpected error (code %s) in %s, line %s:
+fr: Erreur inattendue (code %s) dans %s, ligne %s :
+
+en: Detailed log: %s
+fr: Journal détaillé : %s
+
+en: ok
+fr: ok
+
+en: failed
+fr: échec
+
+en: "%s" failed (code %s). Full log: %s
+fr: « %s » a échoué (code %s). Journal complet : %s
+
+en: This action is interactive: run it from a terminal, or use --config.
+fr: Cette action est interactive : lancez-la depuis un terminal, ou utilisez --config.
+
+en: Question asked outside interactive mode: %s
+fr: Question hors mode interactif : %s
+
+en: %s → run again with --yes to confirm.
+fr: %s → relancez avec --yes pour confirmer.
+
+en: [Y/n]
+fr: [O/n]
+
+en: [y/N]
+fr: [o/N]
+
+en: Password (leave empty to generate one):
+fr: Mot de passe (laisser vide pour en générer un) :
+
+en: Generated password: %s  ← write it down
+fr: Mot de passe généré : %s  ← notez-le
+
+en: At least 10 characters.
+fr: 10 caractères minimum.
+
+en: Type the password again:
+fr: Confirmez le mot de passe :
+
+en: The two entries differ, try again.
+fr: Les deux saisies sont différentes, recommencez.
+
+en: Cannot write %s (disk full?).
+fr: Impossible d'écrire %s (disque plein ?).
+
+en: Cannot create a temporary file next to %s.
+fr: Impossible de créer un fichier temporaire à côté de %s.
+
+en: Cannot generate %s (disk full?). The file was not changed.
+fr: Impossible de produire %s (disque plein ?). Le fichier n'a pas été modifié.
+
+en: Cannot set the permissions of %s.
+fr: Impossible de régler les droits de %s.
+
+en: Cannot replace %s: the previous version was kept.
+fr: Impossible de remplacer %s : la version précédente est conservée.
+
+en: Configuration file not found: %s
+fr: Fichier de configuration introuvable : %s
+
+en: %s can be read by other users: run  chmod 600 %s
+fr: %s est lisible par d'autres utilisateurs : faites  chmod 600 %s
+
+en: %s, line %s: expected format KEY=value
+fr: %s, ligne %s : format attendu CLÉ=valeur
+
+en: %s, line %s: unknown key "%s"
+fr: %s, ligne %s : clé inconnue « %s »
+
+en: %s: LANGUAGE must be en or fr.
+fr: %s : LANGUAGE doit valoir en ou fr.
+
+en: This script must run as root:  sudo %s
+fr: Ce script doit être lancé en root :  sudo %s
+
+en: Unknown system (no /etc/os-release file).
+fr: Système non reconnu (fichier /etc/os-release absent).
+
+en: This script only works on Debian (detected: %s).
+fr: Ce script ne fonctionne que sur Debian (système détecté : %s).
+
+en: Debian 12 (bookworm) or 13 (trixie) required — detected: %s.
+fr: Debian 12 (bookworm) ou 13 (trixie) requis — système détecté : %s.
+
+en: systemd is required.
+fr: systemd est requis.
+
+en: seedtunnel is already running (process %s, started %s min ago, terminal %s).\n  If that window is gone, stop it with:  kill %s
+fr: seedtunnel est déjà en cours d'exécution (processus %s, lancé il y a %s min, terminal %s).\n  Si cette fenêtre n'existe plus, arrêtez-le avec :  kill %s
+
+en: seedtunnel is already running in another terminal.
+fr: seedtunnel est déjà en cours d'exécution dans un autre terminal.
+
+en: Updating the package list
+fr: Mise à jour de la liste des paquets
+
+en: Installing %s
+fr: Installation de %s
+
+en: Removing %s
+fr: Suppression de %s
+
+en: Removing unused dependencies
+fr: Nettoyage des dépendances inutiles
+
+en: Automatic security updates enabled
+fr: Mises à jour de sécurité automatiques activées
+
+en: Kernel network settings hardened (ICMP redirects, source routing)
+fr: Réglages réseau du noyau durcis (redirections ICMP, routage par la source)
+
+en: Kernel network settings not applied (details in %s).
+fr: Réglages réseau du noyau non appliqués (détails dans %s).
+
+en: %s free%s of %s
+fr: %s libres%s sur %s
+
+en: B
+fr: o
+
+en: Restart the server now?
+fr: Redémarrer le serveur maintenant ?
+
+# --- Protection du disque -----------------------------------------------------------------
+
+en: Enabling the full disk protection
+fr: Activation de la protection contre le disque plein
+
+en: Transmission started again: %s GB free.
+fr: Transmission relancé : %s Go libres.
+
+en: Transmission stopped: disk almost full (%s GB free).
+fr: Transmission arrêté : disque presque plein (%s Go libres).
+
+# --- Diagnostic ---------------------------------------------------------------------------
+
+en: %s: running
+fr: %s : actif
+
+en: %s: stopped   → journalctl -u %s -n 30
+fr: %s : arrêté   → journalctl -u %s -n 30
+
+en: System
+fr: Système
+
+en: %s, seedtunnel %s
+fr: %s, seedtunnel %s
+
+en: Free space of / unreadable
+fr: Espace disque de / illisible
+
+en: Disk almost full: %s GB free on /
+fr: Disque presque plein : %s Go libres sur /
+
+en: Free space on /: %s GB
+fr: Espace libre sur / : %s Go
+
+en: Automatic security updates on
+fr: Mises à jour de sécurité automatiques activées
+
+en: Automatic security updates off
+fr: Mises à jour de sécurité automatiques désactivées
+
+en: Kernel network settings hardened
+fr: Réglages réseau du noyau durcis
+
+en: Kernel network settings not applied   → seedtunnel apply
+fr: Réglages réseau du noyau non appliqués   → seedtunnel apply
+
+en: Restart advised (update of the kernel or of a library)
+fr: Redémarrage conseillé (mise à jour du noyau ou d'une bibliothèque)
+
+en: Clock synchronized
+fr: Horloge synchronisée
+
+en: Clock not synchronized: certificates and WireGuard depend on it (timedatectl)
+fr: Horloge non synchronisée : les certificats et WireGuard en dépendent (timedatectl)
+
+en: WireGuard VPN
+fr: VPN WireGuard
+
+en: Listening on port %s/udp
+fr: Écoute sur le port %s/udp
+
+en: WireGuard is not listening on port %s/udp   → seedtunnel vpn restart
+fr: WireGuard n'écoute pas sur le port %s/udp   → seedtunnel vpn restart
+
+en: IPv4 routing on
+fr: Routage IPv4 activé
+
+en: IPv4 routing off: the clients will have no Internet   → seedtunnel apply
+fr: Routage IPv4 désactivé : les clients n'auront pas Internet   → seedtunnel apply
+
+en: NAT rules in place
+fr: Règles NAT en place
+
+en: NAT rules missing   → seedtunnel vpn restart
+fr: Règles NAT absentes   → seedtunnel vpn restart
+
+en: Address of the clients (%s) = public IP of the server
+fr: Adresse des clients (%s) = IP publique du serveur
+
+en: The clients connect to %s, but the public IP is %s
+fr: Les clients se connectent à %s, mais l'IP publique est %s
+
+en: unknown
+fr: inconnue
+
+en: "%s" points to this server
+fr: « %s » pointe vers ce serveur
+
+en: "%s" points to %s and not to %s
+fr: « %s » pointe vers %s et non vers %s
+
+en: nothing
+fr: rien
+
+en: this server
+fr: ce serveur
+
+en: Clients: %s, %s connected right now
+fr: Clients : %s, dont %s connecté(s) en ce moment
+
+en:   (the UDP port cannot be tested from outside by the server itself: if in
+fr:   (le port UDP ne peut pas être testé de l'extérieur depuis le serveur : en cas de
+
+en:    doubt, check the firewall in the control panel of the provider)
+fr:    doute, vérifiez le pare-feu du panneau de l'hébergeur)
+
+en: Seedbox
+fr: Seedbox
+
+en: Transmission stopped: disk almost full (%s GB free). Free some space: it restarts by itself above %s GB.
+fr: Transmission arrêté : disque presque plein (%s Go libres). Libérez de la place : il redémarre tout seul au-dessus de %s Go.
+
+en: Full disk protection on (Transmission stopped under %s GB free)
+fr: Protection contre le disque plein active (Transmission arrêté sous %s Go libres)
+
+en: Full disk protection off   → seedtunnel apply
+fr: Protection contre le disque plein inactive   → seedtunnel apply
+
+en: No domain name (access by IP, self-signed certificate)
+fr: Pas de nom de domaine (accès par IP, certificat auto-signé)
+
+en: "%s" points to this server (%s)
+fr: « %s » pointe vers ce serveur (%s)
+
+en: "%s" does not point to this server (%s): check the DNS
+fr: « %s » ne pointe pas vers ce serveur (%s) : vérifiez le DNS
+
+en: IP unknown
+fr: IP inconnue
+
+en: Certificate unreadable: %s   → seedtunnel seedbox domain %s
+fr: Certificat illisible : %s   → seedtunnel seedbox domain %s
+
+en: Self-signed certificate (browser warning)   → seedtunnel seedbox domain %s
+fr: Certificat auto-signé (alerte du navigateur)   → seedtunnel seedbox domain %s
+
+en: Let's Encrypt certificate: expires in %s day(s), the renewal fails   → certbot renew
+fr: Certificat Let's Encrypt : expire dans %s jour(s), le renouvellement échoue   → certbot renew
+
+en: Let's Encrypt certificate: expires in %s days (it should have been renewed)
+fr: Certificat Let's Encrypt : expire dans %s jours (il aurait dû être renouvelé)
+
+en: Certificate %s: %s days left
+fr: Certificat %s : encore %s jours
+
+en: Automatic renewal scheduled (certbot.timer)
+fr: Renouvellement automatique programmé (certbot.timer)
+
+en: certbot.timer inactive: the certificate will not be renewed   → systemctl enable --now certbot.timer
+fr: certbot.timer inactif : le certificat ne sera pas renouvelé   → systemctl enable --now certbot.timer
+
+en: Web interface online and protected by a password
+fr: Interface web en ligne et protégée par mot de passe
+
+en: Web interface: unexpected answer (code %s) on %s
+fr: Interface web : réponse inattendue (code %s) sur %s
+
+en: none
+fr: aucun
+
+en: HTTPS reachable through the public IP (tested from the server itself)
+fr: HTTPS joignable par l'IP publique (test depuis le serveur lui-même)
+
+en: HTTPS unreachable through the public IP %s (code %s): firewall?
+fr: HTTPS injoignable par l'IP publique %s (code %s) : pare-feu ?
+
+en: SFTP locked in %s
+fr: SFTP enfermé dans %s
+
+en: SFTP rule inactive for %s   → seedtunnel apply
+fr: Règle SFTP inactive pour %s   → seedtunnel apply
+
+en: Permissions of the data folder correct
+fr: Droits du dossier des données corrects
+
+en: Permissions of the folder %s incompatible with the locked SFTP
+fr: Droits du dossier %s incompatibles avec le SFTP enfermé
+
+en: Little space left for downloads: %s GB free
+fr: Peu d'espace pour les téléchargements : %s Go libres
+
+en: Free space for downloads: %s GB
+fr: Espace libre pour les téléchargements : %s Go
+
+en: fail2ban watches SSH, the web interface and repeat offenders
+fr: fail2ban surveille SSH, l'interface web et les récidivistes
+
+en: fail2ban rules incomplete   → seedtunnel seedbox restart
+fr: Règles fail2ban incomplètes   → seedtunnel seedbox restart
+
+en: Firewall enabled but rules missing   → seedtunnel firewall enable --yes
+fr: Pare-feu activé mais règles absentes   → seedtunnel firewall enable --yes
+
+en: On — open: %s
+fr: Actif — ouvertures : %s
+
+en: SSH port %s open in the firewall
+fr: Port SSH %s ouvert dans le pare-feu
+
+en: SSH uses port %s, closed by the firewall: risk of being locked out   → seedtunnel firewall enable
+fr: SSH utilise le port %s, fermé par le pare-feu : risque de rester dehors   → seedtunnel firewall enable
+
+en: seedtunnel firewall off   → seedtunnel firewall enable
+fr: Pare-feu seedtunnel désactivé   → seedtunnel firewall enable
+
+en: nftables.service is enabled and empties all the rules at boot (/etc/nftables.conf)
+fr: nftables.service est activé et vide toutes les règles au démarrage (/etc/nftables.conf)
+
+en: Backups
+fr: Sauvegardes
+
+en: Weekly backup on (the first one comes within a week)
+fr: Sauvegarde hebdomadaire activée (la première arrive d'ici une semaine)
+
+en: Last automatic backup %s days ago: the weekly backup seems to fail   → journalctl -u seedtunnel-backup
+fr: Dernière sauvegarde automatique il y a %s jours : la sauvegarde hebdomadaire semble échouer   → journalctl -u seedtunnel-backup
+
+en: Weekly backup on, last one %s day(s) ago
+fr: Sauvegarde hebdomadaire activée, la dernière il y a %s jour(s)
+
+en: Weekly backup off   → seedtunnel backup auto on
+fr: Sauvegarde hebdomadaire désactivée   → seedtunnel backup auto on
+
+en: No backup downloaded to your computer yet   → seedtunnel backup share
+fr: Aucune sauvegarde téléchargée sur votre ordinateur pour l'instant   → seedtunnel backup share
+
+en: Last backup downloaded %s days ago   → seedtunnel backup share
+fr: Dernière sauvegarde téléchargée il y a %s jours   → seedtunnel backup share
+
+en: Backup downloaded to your computer %s day(s) ago
+fr: Sauvegarde téléchargée sur votre ordinateur il y a %s jour(s)
+
+en: DIAGNOSTICS
+fr: DIAGNOSTIC
+
+en: Looking for the public IP address…
+fr: Recherche de l'adresse IP publique…
+
+en: not found
+fr: introuvable
+
+en: %s problem(s), %s warning(s).
+fr: %s problème(s), %s avertissement(s).
+
+en: No blocking problem, %s warning(s).
+fr: Aucun problème bloquant, %s avertissement(s).
+
+en: Everything is fine.
+fr: Tout est en ordre.
+
+# --- Pare-feu ---------------------------------------------------------------------------
+
+en: web (80, 443/tcp), BitTorrent (%s)
+fr: web (80, 443/tcp), BitTorrent (%s)
+
+en: Applying the rules
+fr: Application des règles
+
+en: Enabling at boot
+fr: Activation au démarrage
+
+en: FIREWALL
+fr: PARE-FEU
+
+en: Checking the rules
+fr: Vérification des règles
+
+en:   Open: %s
+fr:   Ouvertures : %s
+
+en: For safety, the firewall will undo itself in 2 minutes unless you
+fr: Par sécurité, le pare-feu sera annulé tout seul dans 2 minutes si vous ne
+
+en: confirm from a NEW SSH connection.
+fr: confirmez pas depuis une NOUVELLE connexion SSH.
+
+en: Enable the firewall?
+fr: Activer le pare-feu ?
+
+en: Scheduling the automatic undo (2 min)
+fr: Programmation de l'annulation automatique (2 min)
+
+en: Applying the rules (temporarily)
+fr: Application des règles (provisoire)
+
+en: Now open a NEW SSH connection to this server, without closing this one.
+fr: Ouvrez maintenant une NOUVELLE connexion SSH vers ce serveur, sans fermer celle-ci.
+
+en: Does it work? Type "yes" to keep the firewall:
+fr: Elle fonctionne ? Tapez « oui » pour garder le pare-feu :
+
+en: Firewall cancelled: nothing was kept.
+fr: Pare-feu annulé : rien n'a été conservé.
+
+en: Firewall on: everything not allowed is refused.
+fr: Pare-feu actif : tout ce qui n'est pas autorisé est refusé.
+
+en: Turn the firewall off?
+fr: Désactiver le pare-feu ?
+
+en: Firewall off.
+fr: Pare-feu désactivé.
+
+en: Updating the firewall
+fr: Mise à jour du pare-feu
+
+en: Firewall on — open: %s
+fr: Pare-feu actif — ouvertures : %s
+
+en: Firewall enabled but rules missing:  seedtunnel firewall enable --yes
+fr: Pare-feu activé mais règles absentes :  seedtunnel firewall enable --yes
+
+en: seedtunnel firewall off (everything is open, apart from the fail2ban rules).
+fr: Pare-feu seedtunnel désactivé (tout est ouvert, hors règles de fail2ban).
+
+en: 1) Enable / update the firewall
+fr: 1) Activer / mettre à jour le pare-feu
+
+en: 2) Turn the firewall off
+fr: 2) Désactiver le pare-feu
+
+en: Without a terminal:  seedtunnel firewall enable --yes
+fr: Sans terminal :  seedtunnel firewall enable --yes
+
+en: Usage: seedtunnel firewall enable|disable|status
+fr: Utilisation : seedtunnel firewall enable|disable|status
+
+# --- Langue ------------------------------------------------------------------------------
+
+en: Language: %s   (change it with: seedtunnel language en|fr)
+fr: Langue : %s   (pour la changer : seedtunnel language en|fr)
+
+en: Language: %s.
+fr: Langue : %s.
+
+en: English
+fr: français
+
+en: Usage: seedtunnel language en|fr
+fr: Utilisation : seedtunnel language en|fr
+
+# --- Seedbox ------------------------------------------------------------------------------
+
+en: The seedbox is not installed:  seedtunnel seedbox install
+fr: La seedbox n'est pas installée :  seedtunnel seedbox install
+
+en: Let's Encrypt (test server, not trusted by browsers)
+fr: Let's Encrypt (serveur de test, non reconnu par les navigateurs)
+
+en: self-signed
+fr: auto-signé
+
+en: Invalid path: /folder/subfolder (letters, digits, . _ -).
+fr: Chemin invalide : /dossier/sous-dossier (lettres, chiffres, . _ -).
+
+en: Choose a subfolder, not a system folder (e.g. %s/seedbox).
+fr: Choisissez un sous-dossier, pas un dossier système (ex. %s/seedbox).
+
+en: %s exists but is not a folder.
+fr: %s existe mais n'est pas un dossier.
+
+en: %s must belong to root and be writable only by root (needed by the locked SFTP).
+fr: %s doit appartenir à root et n'être modifiable que par lui (exigence du SFTP enfermé).
+
+en: Ports 80/443 are already used by another program:\n%s\n  Stop it (apache2 for example) before installing the seedbox.
+fr: Les ports 80/443 sont déjà utilisés par un autre logiciel :\n%s\n  Arrêtez-le (apache2 par exemple) avant d'installer la seedbox.
+
+en: User name (web and SFTP)
+fr: Nom d'utilisateur (web et SFTP)
+
+en: Lowercase letters, digits, - and _ only (32 characters at most).
+fr: Minuscules, chiffres, - et _ uniquement (32 caractères maximum).
+
+en: "%s" already exists on this system: choose another name.
+fr: « %s » existe déjà sur ce système : choisissez un autre nom.
+
+en: Domain name or IP
+fr: Nom de domaine ou IP
+
+en: Invalid domain name.
+fr: Nom de domaine invalide.
+
+en: "%s" does not point to any IPv4 address.
+fr: « %s » ne pointe vers aucune adresse IPv4.
+
+en: "%s" points to %s, not to this server (%s).
+fr: « %s » pointe vers %s et non vers ce serveur (%s).
+
+en: "%s" points to this server (%s).
+fr: « %s » pointe bien vers ce serveur (%s).
+
+en:   Let's Encrypt will not be able to issue a certificate for this name.
+fr:   Let's Encrypt ne pourra pas délivrer de certificat pour ce nom.
+
+en:   (after a DNS change, allow a few minutes to a few hours)
+fr:   (après une modification DNS, comptez de quelques minutes à quelques heures)
+
+en:   R) Try again    C) Continue with a self-signed certificate
+fr:   R) Recommencer    C) Continuer avec un certificat auto-signé
+
+en: Creating the user %s
+fr: Création de l'utilisateur %s
+
+en: No known password for %s: set one with  seedtunnel seedbox password
+fr: Aucun mot de passe connu pour %s : définissez-en un avec  seedtunnel seedbox password
+
+en: Cannot read %s (invalid JSON?).
+fr: Impossible de lire %s (JSON invalide ?).
+
+en: Starting Transmission
+fr: Démarrage de Transmission
+
+en: Creating a self-signed certificate (fallback)
+fr: Création d'un certificat auto-signé (solution de secours)
+
+en: (test server)
+fr: (serveur de test)
+
+en: Requesting the Let's Encrypt certificate%s for %s
+fr: Demande du certificat Let's Encrypt%s pour %s
+
+en: Checking the nginx configuration
+fr: Vérification de la configuration nginx
+
+en: Reloading nginx
+fr: Rechargement de nginx
+
+en: "%s" does not point to this server (%s): self-signed certificate.
+fr: « %s » ne pointe pas vers ce serveur (%s) : certificat auto-signé.
+
+en: Let's Encrypt certificate installed, renewed automatically.
+fr: Certificat Let's Encrypt installé, renouvelé automatiquement.
+
+en: Let's Encrypt did not answer, the existing certificate (still valid) is kept.
+fr: Let's Encrypt n'a pas répondu, le certificat existant (encore valide) est conservé.
+
+en: Let's Encrypt did not issue a certificate: the self-signed one stays in place.
+fr: Let's Encrypt n'a pas délivré de certificat : l'auto-signé reste en place.
+
+en: Enabling automatic renewal
+fr: Activation du renouvellement automatique
+
+en: No SSH key saved: the SFTP password stays allowed.
+fr: Aucune clé SSH enregistrée : le mot de passe SFTP reste autorisé.
+
+en: sshd refuses the generated configuration (details in %s). SSH was not changed.
+fr: sshd refuse la configuration générée (détails dans %s). SSH n'a pas été modifié.
+
+en: Reloading SSH
+fr: Rechargement de SSH
+
+en: The SFTP rule does not seem to apply: /etc/ssh/sshd_config must contain
+fr: La règle SFTP ne semble pas prise en compte : /etc/ssh/sshd_config doit contenir
+
+en: "Include /etc/ssh/sshd_config.d/*.conf" (there by default on Debian).
+fr: « Include /etc/ssh/sshd_config.d/*.conf » (présent par défaut sur Debian).
+
+en: Your SSH uses AllowUsers/AllowGroups: add %s to it so that it can connect.
+fr: Votre SSH utilise AllowUsers/AllowGroups : ajoutez-y %s pour qu'il puisse se connecter.
+
+en: Restarting fail2ban
+fr: Redémarrage de fail2ban
+
+en: Login test on the web interface: passed
+fr: Test de connexion à l'interface web : réussi
+
+en: Login test: credentials refused (details in %s).
+fr: Test de connexion : identifiants refusés (détails dans %s).
+
+en: Login test: nginx cannot reach Transmission (journalctl -u transmission-daemon).
+fr: Test de connexion : nginx ne joint pas Transmission (journalctl -u transmission-daemon).
+
+en: Login test: unexpected answer (code %s).
+fr: Test de connexion : réponse inattendue (code %s).
+
+en: nginx is stopped:  seedtunnel seedbox restart
+fr: nginx est arrêté :  seedtunnel seedbox restart
+
+en: SFTP connection to the seedbox (FileZilla)
+fr: Connexion SFTP à la seedbox (FileZilla)
+
+en: The file holds no password.
+fr: Le fichier ne contient pas de mot de passe.
+
+en: (SSH key only)
+fr: (clé SSH uniquement)
+
+en: SFTP CONNECTION TO THE SEEDBOX
+fr: CONNEXION SFTP À LA SEEDBOX
+
+en:   Protocol    : SFTP
+fr:   Protocole   : SFTP
+
+en:   Host        : %s
+fr:   Hôte        : %s
+
+en:   Port        : %s
+fr:   Port        : %s
+
+en:   User        : %s
+fr:   Utilisateur : %s
+
+en:   Fingerprint : %s
+fr:   Empreinte   : %s
+
+en: Also create a link to a file to import into FileZilla?
+fr: Créer aussi un lien vers un fichier à importer dans FileZilla ?
+
+en: FileZilla: file to import with  seedtunnel seedbox sftp-config filezilla
+fr: FileZilla : fichier à importer avec  seedtunnel seedbox sftp-config filezilla
+
+en: Invalid SSH key: %s…
+fr: Clé SSH invalide : %s…
+
+en: %s SSH key(s) added for %s.
+fr: %s clé(s) SSH ajoutée(s) pour %s.
+
+en: Key(s) already saved for %s.
+fr: Clé(s) déjà enregistrée(s) pour %s.
+
+en: No SSH key saved for %s.
+fr: Aucune clé SSH enregistrée pour %s.
+
+en: Give the number of the key (seedtunnel seedbox sftp-key list).
+fr: Indiquez le numéro de la clé (seedtunnel seedbox sftp-key list).
+
+en: Key number %s not found.
+fr: Clé n°%s introuvable.
+
+en: No key left: the SFTP password is allowed again.
+fr: Plus aucune clé : le mot de passe SFTP est de nouveau autorisé.
+
+en: Key number %s removed.
+fr: Clé n°%s supprimée.
+
+en: Add an SSH key first (seedtunnel seedbox sftp-key add FILE).
+fr: Ajoutez d'abord une clé SSH (seedtunnel seedbox sftp-key add FICHIER).
+
+en: Usage: seedtunnel seedbox sftp-password on|off
+fr: Utilisation : seedtunnel seedbox sftp-password on|off
+
+en: SFTP: password allowed.
+fr: SFTP : mot de passe autorisé.
+
+en: SFTP: SSH keys only (the password still works for the web interface).
+fr: SFTP : clés SSH uniquement (le mot de passe reste valable pour l'interface web).
+
+en: SSH KEYS FOR SFTP
+fr: CLÉS SSH POUR LE SFTP
+
+en: An SSH key is a good replacement for the password in SFTP.
+fr: Une clé SSH remplace avantageusement le mot de passe pour le SFTP.
+
+en: Paste the PUBLIC key (.pub file, starts with ssh-ed25519 or ssh-rsa).
+fr: Collez la clé PUBLIQUE (fichier .pub, commence par ssh-ed25519 ou ssh-rsa).
+
+en: allowed
+fr: autorisé
+
+en: refused (keys only)
+fr: refusé (clés uniquement)
+
+en:   SFTP password: %s
+fr:   Mot de passe SFTP : %s
+
+en: 1) Add a key
+fr: 1) Ajouter une clé
+
+en: 2) Remove a key
+fr: 2) Supprimer une clé
+
+en: 3) Allow / refuse the password in SFTP
+fr: 3) Autoriser / refuser le mot de passe pour le SFTP
+
+en: Public key
+fr: Clé publique
+
+en: Number of the key to remove
+fr: Numéro de la clé à supprimer
+
+en: SEEDBOX INSTALLATION
+fr: INSTALLATION DE LA SEEDBOX
+
+en: Data folder
+fr: Dossier des données
+
+en: Let's Encrypt (test server)
+fr: Let's Encrypt (serveur de test)
+
+en: Summary:
+fr: Récapitulatif :
+
+en:   Address     : %s
+fr:   Adresse     : %s
+
+en:   Certificate : %s
+fr:   Certificat  : %s
+
+en:   Data        : %s
+fr:   Données     : %s
+
+en: Start the installation?
+fr: Lancer l'installation ?
+
+en: SEEDBOX INSTALLED — no restart needed
+fr: SEEDBOX INSTALLÉE — aucun redémarrage nécessaire
+
+en: Invalid SEEDBOX_USER: "%s"
+fr: SEEDBOX_USER invalide : « %s »
+
+en: SEEDBOX_USER: the user "%s" already exists on this system.
+fr: SEEDBOX_USER : l'utilisateur « %s » existe déjà sur ce système.
+
+en: Renaming the user goes through:  seedtunnel seedbox password --user %s
+fr: Renommer l'utilisateur passe par :  seedtunnel seedbox password --user %s
+
+en: SEEDBOX_DATA_DIR refused: "%s"
+fr: SEEDBOX_DATA_DIR refusé : « %s »
+
+en: Invalid SEEDBOX_DOMAIN: "%s"
+fr: SEEDBOX_DOMAIN invalide : « %s »
+
+en: SEEDBOX_LETSENCRYPT: auto, yes or no
+fr: SEEDBOX_LETSENCRYPT : auto, yes ou no
+
+en: SEEDBOX_LETSENCRYPT_SERVER: production or staging
+fr: SEEDBOX_LETSENCRYPT_SERVER : production ou staging
+
+en: SEEDBOX_SFTP_PASSWORD: yes or no
+fr: SEEDBOX_SFTP_PASSWORD : yes ou no
+
+en: SEEDBOX_PASSWORD_FILE not found: %s
+fr: SEEDBOX_PASSWORD_FILE introuvable : %s
+
+en: Seedbox password: at least 10 characters.
+fr: Mot de passe de la seedbox : 10 caractères minimum.
+
+en: SEEDBOX_SSH_KEYS_FILE not found: %s
+fr: SEEDBOX_SSH_KEYS_FILE introuvable : %s
+
+en: Password generated automatically: write it down, it will not be shown again.
+fr: Mot de passe généré automatiquement : notez-le, il ne sera plus affiché.
+
+en: Invalid user name: "%s"
+fr: Nom d'utilisateur invalide : « %s »
+
+en: "%s" already exists on this system.
+fr: « %s » existe déjà sur ce système.
+
+en: Renaming %s to %s
+fr: Renommage de %s en %s
+
+en: Renaming the group %s
+fr: Renommage du groupe %s
+
+en: USER AND PASSWORD
+fr: UTILISATEUR ET MOT DE PASSE
+
+en: Password: at least 10 characters (read from standard input).
+fr: Mot de passe : 10 caractères minimum (lu sur l'entrée standard).
+
+en: Credentials updated for %s.
+fr: Identifiants mis à jour pour %s.
+
+en: Invalid domain name: "%s"
+fr: Nom de domaine invalide : « %s »
+
+en: Seedbox available at %s (certificate %s)
+fr: Seedbox accessible sur %s (certificat %s)
+
+en: DOMAIN NAME AND HTTPS CERTIFICATE
+fr: NOM DE DOMAINE ET CERTIFICAT HTTPS
+
+en: Right now: %s (certificate %s)
+fr: Actuellement : %s (certificat %s)
+
+en: %s%-16s%s banned: %-4s since start: %s
+fr: %s%-16s%s bannies : %-4s depuis le démarrage : %s
+
+en:   sshd = SSH/SFTP · nginx-http-auth = web interface · recidive = banned 1 week
+fr:   sshd = SSH/SFTP · nginx-http-auth = interface web · recidive = bannis 1 semaine
+
+en: Invalid IP address: "%s"
+fr: Adresse IP invalide : « %s »
+
+en: Unbanning %s
+fr: Débannissement de %s
+
+en: BANNED IP ADDRESSES (fail2ban)
+fr: ADRESSES IP BANNIES (fail2ban)
+
+en: IP to unban (empty to go back)
+fr: IP à débannir (vide pour revenir)
+
+en: Restarting %s
+fr: Redémarrage de %s
+
+en: Transmission stays stopped: the disk is almost full (%s GB free). It restarts by itself above %s GB.
+fr: Transmission reste arrêté : le disque est presque plein (%s Go libres). Il redémarre tout seul au-dessus de %s Go.
+
+en: REMOVING THE SEEDBOX
+fr: DÉSINSTALLATION DE LA SEEDBOX
+
+en: Remove the seedbox?
+fr: Désinstaller la seedbox ?
+
+en: ALSO delete all the data in %s?
+fr: Supprimer AUSSI toutes les données de %s ?
+
+en: Cannot delete the user %s (SFTP session open?).
+fr: Impossible de supprimer l'utilisateur %s (session SFTP ouverte ?).
+
+en: Deleting the data
+fr: Suppression des données
+
+en: Seedbox and data deleted.
+fr: Seedbox et données supprimées.
+
+en: Seedbox removed. Your data stays in %s.
+fr: Seedbox désinstallée. Vos données restent dans %s.
+
+en: (option 2 to try Let's Encrypt again)
+fr: (option 2 pour retenter Let's Encrypt)
+
+en: SEEDBOX MANAGEMENT
+fr: GESTION DE LA SEEDBOX
+
+en:   Web interface : %s
+fr:   Interface web : %s
+
+en:   Certificate   : %s
+fr:   Certificat    : %s
+
+en:   SFTP          : %s — %s
+fr:   SFTP          : %s — %s
+
+en:   Services      : transmission %s · nginx %s · fail2ban %s
+fr:   Services      : transmission %s · nginx %s · fail2ban %s
+
+en: 1) Change the user or the password
+fr: 1) Changer l'utilisateur ou le mot de passe
+
+en: 2) Domain name and HTTPS certificate
+fr: 2) Nom de domaine et certificat HTTPS
+
+en: 3) SSH keys for SFTP
+fr: 3) Clés SSH pour le SFTP
+
+en: 4) SFTP connection: settings for WinSCP and FileZilla
+fr: 4) Connexion SFTP : réglages pour WinSCP et FileZilla
+
+en: 5) Banned IP addresses (fail2ban)
+fr: 5) Adresses IP bannies (fail2ban)
+
+en: 6) Restart the services
+fr: 6) Redémarrer les services
+
+en: 7) Remove the seedbox
+fr: 7) Désinstaller la seedbox
+
+en: The seedbox is already installed (seedtunnel seedbox to manage it).
+fr: La seedbox est déjà installée (seedtunnel seedbox pour la gérer).
+
+en: Usage: seedtunnel seedbox domain NAME [--staging]
+fr: Utilisation : seedtunnel seedbox domain NOM [--staging]
+
+en: Usage: seedtunnel seedbox sftp-config [filezilla]
+fr: Utilisation : seedtunnel seedbox sftp-config [filezilla]
+
+en: Usage: seedtunnel seedbox sftp-key add FILE.pub   (- for standard input)
+fr: Utilisation : seedtunnel seedbox sftp-key add FICHIER.pub   (- pour l'entrée standard)
+
+en: Usage: seedtunnel seedbox sftp-key add|list|remove
+fr: Utilisation : seedtunnel seedbox sftp-key add|list|remove
+
+en: Unknown command: seedbox %s   (help: seedtunnel help)
+fr: Commande inconnue : seedbox %s   (aide : seedtunnel help)
+
+# --- Liens de téléchargement ----------------------------------------------------------------
+
+en: Download links go through the HTTPS site of the seedbox, which is not installed.\n  %s
+fr: Les liens de téléchargement passent par le site HTTPS de la seedbox, qui n'est pas installée.\n  %s
+
+en: Download %s
+fr: Télécharger %s
+
+en: This link works only once and expires after %s minutes.
+fr: Ce lien ne fonctionne qu'une fois et expire au bout de %s minutes.
+
+en: Cannot start the watcher of the link (details in %s).
+fr: Impossible de lancer la surveillance du lien (détails dans %s).
+
+en: Download link (%sone time only, for %s minutes%s):
+fr: Lien de téléchargement (%sune seule fois, pendant %s minutes%s) :
+
+en: Self-signed certificate: the browser will show a warning, to accept.
+fr: Certificat auto-signé : le navigateur affichera une alerte, à accepter.
+
+# --- Mise à jour -------------------------------------------------------------------------
+
+en: Cannot find the latest version published on github.com/%s.
+fr: Impossible de connaître la dernière version publiée sur github.com/%s.
+
+en: seedtunnel is up to date (version %s).
+fr: seedtunnel est à jour (version %s).
+
+en: Installed version: %s → available: %s
+fr: Version installée : %s → disponible : %s
+
+en:   What is new: %s
+fr:   Nouveautés : %s
+
+en: Update?
+fr: Mettre à jour ?
+
+en: Downloading seedtunnel %s
+fr: Téléchargement de seedtunnel %s
+
+en: Downloading the fingerprints
+fr: Téléchargement des empreintes
+
+en: Checking the SHA-256 fingerprint
+fr: Vérification de l'empreinte SHA-256
+
+en: Extracting
+fr: Extraction
+
+en: Checking the syntax
+fr: Contrôle de la syntaxe
+
+en: seedtunnel updated to version %s (see %s).
+fr: seedtunnel mis à jour en version %s (voir %s).
+
+en: The folder %s has local changes: update cancelled.
+fr: Le dossier %s contient des modifications locales : mise à jour annulée.
+
+en: Fetching the published versions
+fr: Récupération des versions publiées
+
+en: No published version (vX.Y.Z tag) in the repository.
+fr: Aucune version publiée (étiquette vX.Y.Z) dans le dépôt.
+
+en: Switching to version %s
+fr: Passage à la version %s
+
+en: UPDATING SEEDTUNNEL
+fr: MISE À JOUR DE SEEDTUNNEL
+
+en: APPLYING THE CONFIGURATION
+fr: APPLICATION DE LA CONFIGURATION
+
+en: Configuration up to date (seedtunnel %s).
+fr: Configuration à jour (seedtunnel %s).
+
+en: Nothing to apply: neither VPN, nor seedbox, nor firewall.
+fr: Rien à appliquer : ni VPN, ni seedbox, ni pare-feu.
+
+# --- VPN ---------------------------------------------------------------------------------
+
+en: The VPN is not installed:  seedtunnel vpn install
+fr: Le VPN n'est pas installé :  seedtunnel vpn install
+
+en: Invalid client name: "%s".
+fr: Nom de client invalide : « %s ».
+
+en: Client "%s" not found (seedtunnel vpn list).
+fr: Client « %s » introuvable (seedtunnel vpn list).
+
+en: The kernel cannot create a WireGuard interface.\n  On a container VPS (OpenVZ, LXC), ask the provider to enable WireGuard,\n  or choose a KVM plan.
+fr: Le noyau ne permet pas de créer une interface WireGuard.\n  Sur un VPS en conteneur (OpenVZ, LXC), demandez à l'hébergeur d'activer\n  WireGuard, ou choisissez une offre KVM.
+
+en: Main network interface not found (no default route?).
+fr: Interface réseau principale introuvable (pas de route par défaut ?).
+
+en: Enabling IPv4 routing
+fr: Activation du routage IPv4
+
+en: Starting the VPN
+fr: Démarrage du VPN
+
+en: Restarting the VPN (new port)
+fr: Redémarrage du VPN (nouveau port)
+
+en: Applying the configuration
+fr: Application de la configuration
+
+en: Invalid client name: "%s" (letters, digits, - and _, 15 characters at most).
+fr: Nom de client invalide : « %s » (lettres, chiffres, - et _, 15 caractères max).
+
+en: Client "%s" already exists.
+fr: Le client « %s » existe déjà.
+
+en: Maximum number of clients reached (%s).
+fr: Nombre maximum de clients atteint (%s).
+
+en: Client "%s" created: IP %s, open port %s, file %s
+fr: Client « %s » créé : IP %s, port ouvert %s, fichier %s
+
+en: Client "%s" revoked: its key can no longer connect.
+fr: Client « %s » révoqué : sa clé ne peut plus se connecter.
+
+en: VPN CLIENT "%s"
+fr: CLIENT VPN « %s »
+
+en: Show the content of the file (to copy and paste)?
+fr: Afficher le contenu du fichier (pour un copier-coller) ?
+
+en: Without a seedbox:  seedtunnel vpn show %s  (QR code, or content to copy and paste).
+fr: Sans seedbox :  seedtunnel vpn show %s  (QR code, ou contenu à copier-coller).
+
+en: VPN configuration "%s"
+fr: Configuration VPN « %s »
+
+en: This file holds the secret key of "%s": delete it once imported.
+fr: Ce fichier contient la clé secrète de « %s » : supprimez-le une fois importé.
+
+en: No client yet.
+fr: Aucun client pour l'instant.
+
+en: %s (number or name, empty to cancel)
+fr: %s (numéro ou nom, vide pour annuler)
+
+en: Invalid name.
+fr: Nom invalide.
+
+en: Client "%s" not found.
+fr: Client « %s » introuvable.
+
+en: Client name (e.g. phone, laptop)
+fr: Nom du client (ex. telephone, pc-salon)
+
+en: Letters, digits, - and _ only, 15 characters at most.
+fr: Lettres, chiffres, - et _ uniquement, 15 caractères maximum.
+
+en: CLIENT
+fr: CLIENT
+
+en: RECEIVED / SENT
+fr: REÇU / ENVOYÉ
+
+en: LAST CONNECTION
+fr: DERNIÈRE CONNEXION
+
+en: never
+fr: jamais
+
+en: connected
+fr: connecté
+
+en: (%s s)
+fr: (%s s)
+
+en: %s min ago
+fr: il y a %s min
+
+en: %s h ago
+fr: il y a %s h
+
+en: %s days ago
+fr: il y a %s j
+
+en: DNS servers used by the VPN clients:
+fr: DNS utilisés par les clients du VPN :
+
+en:   1) Quad9      — blocks malicious domains (Swiss foundation)
+fr:   1) Quad9      — bloque les domaines malveillants (fondation suisse)
+
+en:   2) Cloudflare — usually the fastest
+fr:   2) Cloudflare — généralement le plus rapide
+
+en:   3) Other      — type the addresses
+fr:   3) Autre      — saisie manuelle
+
+en: Your choice [1-3]
+fr: Votre choix [1-3]
+
+en: DNS IP address(es), separated by commas
+fr: Adresse(s) IP des DNS, séparées par des virgules
+
+en: Expected format: 9.9.9.9, 149.112.112.112
+fr: Format attendu : 9.9.9.9, 149.112.112.112
+
+en: Public address of the server (IP or domain name)
+fr: Adresse publique du serveur (IP ou nom de domaine)
+
+en: Invalid address.
+fr: Adresse invalide.
+
+en: UDP port of the VPN
+fr: Port UDP du VPN
+
+en: Invalid port (1 to 65535).
+fr: Port invalide (1 à 65535).
+
+en: UDP port %s is already used on this server.
+fr: Le port UDP %s est déjà utilisé sur ce serveur.
+
+en:   Address : %s
+fr:   Adresse : %s
+
+en:   Port    : %s/udp
+fr:   Port    : %s/udp
+
+en:   DNS     : %s
+fr:   DNS     : %s
+
+en:   Out     : interface %s
+fr:   Sortie  : interface %s
+
+en: Is that right?
+fr: C'est bon ?
+
+en: WIREGUARD VPN INSTALLATION
+fr: INSTALLATION DU VPN WIREGUARD
+
+en: VPN installed — no restart needed.
+fr: VPN installé — aucun redémarrage nécessaire.
+
+en: Invalid VPN_PUBLIC_ADDRESS: "%s"
+fr: VPN_PUBLIC_ADDRESS invalide : « %s »
+
+en: Invalid VPN_PORT: "%s"
+fr: VPN_PORT invalide : « %s »
+
+en: Invalid VPN_DNS: "%s"
+fr: VPN_DNS invalide : « %s »
+
+en: VPN_CLIENTS: invalid name "%s"
+fr: VPN_CLIENTS : nom invalide « %s »
+
+en: VPN ready: %s, %s client(s) in %s
+fr: VPN prêt : %s, %s client(s) dans %s
+
+en: VPN SETTINGS
+fr: RÉGLAGES DU VPN
+
+en: After a change, every client will have to import its configuration again.
+fr: Après modification, chaque client devra réimporter sa configuration.
+
+en: Settings saved. Show the clients again to get their new QR codes.
+fr: Réglages enregistrés. Réaffichez les clients pour récupérer leurs nouveaux QR codes.
+
+en: REMOVING THE VPN
+fr: DÉSINSTALLATION DU VPN
+
+en: All the clients (%s) will be deleted for good.
+fr: Tous les clients (%s) seront supprimés définitivement.
+
+en: Remove the VPN?
+fr: Désinstaller le VPN ?
+
+en: VPN removed (IPv4 routing will be turned off at the next restart).
+fr: VPN désinstallé (le routage IPv4 sera désactivé au prochain redémarrage).
+
+en: VPN MANAGEMENT
+fr: GESTION DU VPN
+
+en:   State   : %s
+fr:   État    : %s
+
+en:   Address : %s (UDP)
+fr:   Adresse : %s (UDP)
+
+en:   Clients : %s (%s connected right now)
+fr:   Clients : %s (%s connecté(s) en ce moment)
+
+en: 1) Add a client
+fr: 1) Ajouter un client
+
+en: 2) Show a client (QR code, file)
+fr: 2) Afficher un client (QR code, fichier)
+
+en: 3) Download link for a client (one time only)
+fr: 3) Lien de téléchargement d'un client (usage unique)
+
+en: 4) Revoke a client
+fr: 4) Révoquer un client
+
+en: 5) Clients and connections
+fr: 5) Clients et connexions
+
+en: 6) Change the settings (address, port, DNS)
+fr: 6) Modifier les réglages (adresse, port, DNS)
+
+en: 7) Restart the VPN
+fr: 7) Redémarrer le VPN
+
+en: 8) Remove the VPN
+fr: 8) Désinstaller le VPN
+
+en: ADD A CLIENT
+fr: AJOUTER UN CLIENT
+
+en: SHOW A CLIENT
+fr: AFFICHER UN CLIENT
+
+en: Client to show
+fr: Client à afficher
+
+en: DOWNLOAD LINK
+fr: LIEN DE TÉLÉCHARGEMENT
+
+en: Links go through the HTTPS site of the seedbox, which is not installed:
+fr: Les liens passent par le site HTTPS de la seedbox, qui n'est pas installée :
+
+en: use "Show a client" instead (QR code, or content to copy and paste).
+fr: utilisez « Afficher un client » (QR code, ou contenu à copier-coller).
+
+en: Client to send
+fr: Client à envoyer
+
+en: REVOKE A CLIENT
+fr: RÉVOQUER UN CLIENT
+
+en: Client to revoke
+fr: Client à révoquer
+
+en: Revoke "%s" for good?
+fr: Révoquer définitivement « %s » ?
+
+en: CLIENTS AND CONNECTIONS
+fr: CLIENTS ET CONNEXIONS
+
+en: Restarting the VPN
+fr: Redémarrage du VPN
+
+en: The previous installation of the VPN was interrupted: starting it again.
+fr: L'installation précédente du VPN s'est interrompue : on la reprend.
+
+en: The VPN is already installed (seedtunnel vpn to manage it).
+fr: Le VPN est déjà installé (seedtunnel vpn pour le gérer).
+
+en: Usage: seedtunnel vpn add NAME [--qr]
+fr: Utilisation : seedtunnel vpn add NOM [--qr]
+
+en: Usage: seedtunnel vpn remove NAME --yes
+fr: Utilisation : seedtunnel vpn remove NOM --yes
+
+en: Usage: seedtunnel vpn show NAME
+fr: Utilisation : seedtunnel vpn show NOM
+
+en: Usage: seedtunnel vpn share NAME
+fr: Utilisation : seedtunnel vpn share NOM
+
+en: Unknown command: vpn %s   (help: seedtunnel help)
+fr: Commande inconnue : vpn %s   (aide : seedtunnel help)
