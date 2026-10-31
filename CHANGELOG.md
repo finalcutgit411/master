@@ -1,0 +1,39 @@
+# Historique des versions
+
+Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
+numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
+
+## [2.1.0] - 2026-10-31
+
+### Ajouté
+- **Commandes** utilisables sans menu (`finalcut vpn add`, `finalcut seedbox password`…), voir `finalcut help`.
+- **Fichier de configuration** (`--config`, modèle dans `examples/finalcut.conf`) pour installer sans répondre aux questions.
+- **Installation idempotente** : relancer avec la même configuration ne redémarre rien et ne change rien.
+- **Let's Encrypt en mode test** (`--staging`), sans limite de 5 certificats par semaine.
+- **Clés SSH pour le SFTP**, avec possibilité de refuser le mot de passe en SFTP.
+- **Pare-feu nftables** « tout refusé sauf le nécessaire », avec annulation automatique au bout de 2 minutes sans confirmation.
+- **Transmission enfermé par systemd** : en cas de faille, il ne peut écrire que dans ses dossiers.
+- **`finalcut doctor`** : diagnostic complet (services, DNS, certificat, ports, disque, horloge…).
+- **`finalcut backup` / `restore`** : sauvegarde chiffrée, restauration sur un serveur neuf sans que les clients VPN aient à se reconfigurer.
+- **`finalcut update`** : mise à jour vers la dernière version publiée, empreinte SHA-256 vérifiée.
+- **Tests automatiques** sur GitHub Actions : shellcheck, shfmt, et installation réelle sur Debian 12 et 13.
+- **Publication automatique** d'une version à l'envoi d'une étiquette `vX.Y.Z`.
+
+### Modifié
+- Les mots de passe de la seedbox sont conservés sous forme d'empreintes dans `/etc/finalcut/seedbox.secrets` (jamais en clair). Les installations 2.0 doivent redéfinir le mot de passe une fois : `finalcut seedbox password`.
+- Le certificat Let's Encrypt existant est réutilisé tant qu'il est valide ; le renouvellement automatique (`certbot.timer`) est vérifié.
+
+## [2.0.0] - 2026-10-31
+
+### Modifié
+- Réécriture complète pour Debian 12/13 :
+  - WireGuard remplace OpenVPN ;
+  - SFTP remplace vsftpd ;
+  - nftables remplace iptables et rc.local ;
+  - certbot passe par les paquets Debian ;
+  - gestion des erreurs avec journal détaillé ;
+  - fail2ban consultable depuis le menu.
+
+## [1.0.0]
+
+- Version d'origine : Debian 7/8, OpenVPN + sslh, Transmission, vsftpd, Let's Encrypt (`certbot-auto`).

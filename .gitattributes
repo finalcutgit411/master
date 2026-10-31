@@ -1,0 +1,12 @@
+# Fins de ligne Unix obligatoires : un script bash enregistré sous Windows
+# (CRLF) ne fonctionne plus sur le serveur.
+* text=auto eol=lf
+
+# Exclus des archives de publication (git archive) : utiles au développement
+# seulement.
+.github export-ignore
+tests export-ignore
+Makefile export-ignore
+.shellcheckrc export-ignore
+.editorconfig export-ignore
+.gitattributes export-ignore

@@ -1,0 +1,89 @@
+# Vérifications automatiques à chaque envoi sur GitHub :
+#   1. analyse du code (shellcheck) et mise en forme (shfmt)
+#   2. installation réelle sur Debian 12 et 13, puis tests de chaque service
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Analyse du code
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Installation de shellcheck et shfmt
+        run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck shfmt
+
+      - name: shellcheck (pièges bash)
+        run: make lint
+
+      - name: shfmt (mise en forme)
+        run: make fmt-check
+
+  integration:
+    name: Tests sur Debian ${{ matrix.debian }}
+    needs: lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        debian: [bookworm, trixie]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Modules du noyau (WireGuard, nftables)
+        run: sudo modprobe -a wireguard nf_tables
+
+      - name: Construction de l'image Debian ${{ matrix.debian }}
+        run: docker build --build-arg DEBIAN=${{ matrix.debian }} -t finalcut-test tests/
+
+      - name: Démarrage du serveur de test (systemd)
+        run: |
+          docker run -d --name fc --hostname finalcut-ci --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$PWD":/opt/finalcut:ro finalcut-test
+          docker exec fc systemctl is-system-running --wait || true
+
+      - name: Phase 1 — VPN, seedbox, SFTP, clés SSH, pare-feu
+        run: docker exec fc /opt/finalcut/tests/integration.sh phase1
+
+      - name: Pare-feu vu de l'extérieur
+        run: |
+          ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' fc)
+          # un service non autorisé écoute sur 8080 : il doit rester injoignable
+          docker exec -d fc nc -lk 8080
+          sleep 1
+          nc -z -w 3 "$ip" 22 && echo "✔ SSH joignable"
+          nc -z -w 3 "$ip" 443 && echo "✔ HTTPS joignable"
+          if nc -z -w 3 "$ip" 8080; then
+            echo "✘ le port 8080 est joignable : le pare-feu ne bloque pas"
+            exit 1
+          fi
+          echo "✔ port 8080 bloqué par le pare-feu"
+
+      - name: Phase 2 — diagnostic, sauvegarde, restauration, désinstallation
+        run: docker exec fc /opt/finalcut/tests/integration.sh phase2
+
+      - name: Journaux (en cas d'échec)
+        if: failure()
+        run: |
+          docker exec fc cat /var/log/finalcut.log || true
+          docker exec fc journalctl --no-pager -n 300 || true
+          # fin des journaux aussi en annotations, lisibles depuis le résumé
+          annotate() {
+            local t=$1 b
+            b=$(cat)
+            b=${b//'%'/'%25'}
+            b=${b//$'\n'/'%0A'}
+            echo "::error title=$t::$b"
+          }
+          docker exec fc tail -n 60 /var/log/finalcut.log 2>&1 | annotate "finalcut.log (${{ matrix.debian }})"
+          docker exec fc journalctl --no-pager -p warning -n 40 2>&1 | annotate "journal système (${{ matrix.debian }})"
