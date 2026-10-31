@@ -22,11 +22,11 @@ Sur une Debian fraîchement installée, en root.
 
 ### Version publiée (recommandé)
 
-On télécharge une version publiée et on vérifie son empreinte avant de la lancer. Les commandes sont enchaînées par `&&` : à la moindre erreur, tout s'arrête avec un message clair.
+On télécharge une version publiée et on vérifie son checksum (SHA-256) avant de la lancer. Les commandes sont enchaînées par `&&` : à la moindre erreur, tout s'arrête avec un message clair.
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.1.1
+V=1.1.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -52,7 +52,7 @@ Dans ce cas, `seedtunnel update` passe à la dernière version publiée (étique
 
 Le code est fait pour être lu : n'hésitez pas à parcourir `seedtunnel.sh` et `lib/` avant de le lancer.
 
-Ensuite, la commande `seedtunnel` relance le menu. `seedtunnel update` passe à la version suivante en vérifiant son empreinte, puis réapplique la configuration pour que ses corrections prennent effet.
+Ensuite, la commande `seedtunnel` relance le menu. `seedtunnel update` passe à la version suivante en vérifiant son checksum, puis réapplique la configuration pour que ses corrections prennent effet.
 
 ## Utilisation
 
@@ -169,12 +169,12 @@ Il renvoie le code 1 s'il trouve un problème : il peut tourner dans une tâche 
 
 `seedtunnel backup` crée une archive chiffrée (AES-256) dans `/var/backups/seedtunnel`, contenant :
 - les clés et clients du VPN ;
-- les réglages et empreintes des mots de passe de la seedbox ;
+- les réglages et hash des mots de passe de la seedbox ;
 - les certificats et les clés SSH du SFTP ;
 - le pare-feu ;
 - l'état de Transmission : liste des torrents, progression, réglages.
 
-`seedtunnel backup auto on` fait une sauvegarde chiffrée **chaque semaine** et garde les 4 dernières. Sa phrase de passe est enregistrée sur le serveur (lisible par root uniquement) pour qu'elle tourne seule : notez-la aussi ailleurs.
+`seedtunnel backup auto on` fait une sauvegarde chiffrée **chaque semaine** et garde les 4 dernières. Sa passphrase est enregistrée sur le serveur (lisible par root uniquement) pour qu'elle tourne seule : notez-la aussi ailleurs.
 
 Une sauvegarde restée sur le serveur disparaît avec lui : `seedtunnel backup share` donne un lien à usage unique pour télécharger la dernière sur votre ordinateur. `seedtunnel doctor` vous le rappelle quand la sauvegarde hebdomadaire est désactivée ou échoue, et quand aucune sauvegarde n'a été téléchargée depuis un mois.
 
@@ -186,7 +186,7 @@ Les fichiers téléchargés ne sont pas dans la sauvegarde : copiez-les avec `rs
 
 - Transmission n'écoute que sur `127.0.0.1`. Seul nginx est exposé, et le mot de passe est vérifié deux fois : par nginx, puis par Transmission.
 - Transmission est **enfermé par systemd** (`ProtectSystem=strict`…) : il ne peut écrire que dans ses dossiers.
-- Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seules leurs empreintes sont gardées. Seule exception : la phrase de passe de la sauvegarde hebdomadaire, si vous l'activez, enregistrée lisible par root uniquement pour que la sauvegarde tourne seule.
+- Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seuls leurs hash sont gardés. Seule exception : la passphrase de la sauvegarde hebdomadaire, si vous l'activez, enregistrée lisible par root uniquement pour que la sauvegarde tourne seule.
 - L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel.
 - fail2ban bannit les attaquants de SSH de **tous les ports**, quel que soit le port de SSH.
 - Réglages réseau du noyau durcis (`/etc/sysctl.d/90-seedtunnel-network.conf`) : redirections ICMP ignorées, routage par la source refusé.

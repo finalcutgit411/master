@@ -154,7 +154,7 @@ EOF
 
 text_fr_backup_contents() {
     cat <<'EOF'
-Contenu : clés et clients du VPN, réglages et empreintes des mots de passe de la
+Contenu : clés et clients du VPN, réglages et hash des mots de passe de la
 seedbox, pare-feu, certificats, liste des torrents. Les fichiers téléchargés ne
 sont pas inclus.
 EOF
@@ -163,7 +163,7 @@ EOF
 text_fr_backup_after() {
     cat <<'EOF'
   Récupérez-la sur votre ordinateur, hors de ce serveur :  seedtunnel backup share
-  Sans la phrase de passe, elle est irrécupérable.
+  Sans la passphrase, elle est irrécupérable.
 EOF
 }
 
@@ -177,7 +177,7 @@ EOF
 text_fr_backup_auto_help() {
     cat <<EOF
 Chaque semaine, une sauvegarde chiffrée se fait toute seule dans $BACKUP_DIR ;
-les $BACKUP_KEEP dernières sont gardées. Sa phrase de passe est enregistrée sur le
+les $BACKUP_KEEP dernières sont gardées. Sa passphrase est enregistrée sur le
 serveur (root uniquement) pour qu'elle puisse tourner seule : notez-la aussi ailleurs.
 EOF
 }

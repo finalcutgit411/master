@@ -88,10 +88,10 @@ en: Nothing to back up: neither VPN, nor seedbox, nor firewall installed.
 fr: Rien à sauvegarder : ni VPN, ni seedbox, ni pare-feu installés.
 
 en: Passphrase file not found: %s
-fr: Fichier de phrase de passe introuvable : %s
+fr: Fichier de passphrase introuvable : %s
 
 en: Passphrase of the backup:
-fr: Phrase de passe de la sauvegarde :
+fr: Passphrase de la sauvegarde :
 
 en: Type it again:
 fr: Confirmez-la :
@@ -100,13 +100,13 @@ en: The two entries differ.
 fr: Les deux saisies sont différentes.
 
 en: Without a terminal, give the passphrase with --passphrase-file FILE.
-fr: Sans terminal, indiquez la phrase de passe avec --passphrase-file FICHIER.
+fr: Sans terminal, indiquez la passphrase avec --passphrase-file FICHIER.
 
 en: Passphrase: at least 12 characters.
-fr: Phrase de passe : 12 caractères minimum.
+fr: Passphrase : 12 caractères minimum.
 
 en: Empty passphrase.
-fr: Phrase de passe vide.
+fr: Passphrase vide.
 
 en: Creating the encrypted archive
 fr: Création de l'archive chiffrée
@@ -136,7 +136,7 @@ en: seedtunnel backup
 fr: Sauvegarde seedtunnel
 
 en: The backup is encrypted: it cannot be read without its passphrase.
-fr: La sauvegarde est chiffrée : impossible de la lire sans sa phrase de passe.
+fr: La sauvegarde est chiffrée : impossible de la lire sans sa passphrase.
 
 en: Reloading systemd
 fr: Rechargement de systemd
@@ -151,13 +151,13 @@ en: Weekly backup on: the last %s are kept in %s.
 fr: Sauvegarde hebdomadaire activée : les %s dernières sont gardées dans %s.
 
 en: Write the passphrase down somewhere else: without it, no backup can be restored.
-fr: Notez la phrase de passe ailleurs : sans elle, aucune sauvegarde ne peut être restaurée.
+fr: Notez la passphrase ailleurs : sans elle, aucune sauvegarde ne peut être restaurée.
 
 en: Weekly backup off (the existing backups are kept in %s).
 fr: Sauvegarde hebdomadaire désactivée (les sauvegardes existantes restent dans %s).
 
 en: No saved passphrase:  seedtunnel backup auto on
-fr: Aucune phrase de passe enregistrée :  seedtunnel backup auto on
+fr: Aucune passphrase enregistrée :  seedtunnel backup auto on
 
 en: Automatic backup done.
 fr: Sauvegarde automatique terminée.
@@ -220,7 +220,7 @@ en: RESTORE
 fr: RESTAURATION
 
 en: Cannot decrypt: wrong passphrase or damaged file.
-fr: Déchiffrement impossible : phrase de passe incorrecte ou fichier abîmé.
+fr: Déchiffrement impossible : passphrase incorrecte ou fichier abîmé.
 
 en: Unreadable archive.
 fr: Archive illisible.
@@ -1271,10 +1271,10 @@ en: Downloading seedtunnel %s
 fr: Téléchargement de seedtunnel %s
 
 en: Downloading the fingerprints
-fr: Téléchargement des empreintes
+fr: Téléchargement des checksums
 
 en: Checking the SHA-256 fingerprint
-fr: Vérification de l'empreinte SHA-256
+fr: Vérification du checksum SHA-256
 
 en: Extracting
 fr: Extraction

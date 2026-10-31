@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.1.2] - 2026-10-31
+
+### Changed
+- French messages and README: the English words French people actually use in computing, instead of literal translations: « passphrase » (was « phrase de passe »), « hash » for the passwords and « checksum » for the archives (was « empreinte »). « Empreinte » stays for the SSH key of the server, as in WinSCP.
+
 ## [1.1.1] - 2026-10-31
 
 ### Fixed

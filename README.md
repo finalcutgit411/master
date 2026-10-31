@@ -26,7 +26,7 @@ Download a published version and check its fingerprint before running it. The co
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.1.1
+V=1.1.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
