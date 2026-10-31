@@ -223,3 +223,7 @@ Le dépôt interrogé par `finalcut update` est défini par `FC_REPO` dans `lib/
 `finalcut seedbox uninstall`, `finalcut vpn uninstall`, `finalcut firewall disable`, ou les options du menu.
 
 Les données téléchargées sont conservées, sauf avec `--purge-data`.
+
+## Licence
+
+[MIT](LICENSE) : vous pouvez utiliser, modifier et redistribuer ce script librement, à condition de conserver la mention de l'auteur. Il est fourni sans aucune garantie.
