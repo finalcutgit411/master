@@ -87,11 +87,13 @@ backup_read_passphrase() {
 
 # Compressed tar archive, then encrypted; the passphrase goes through a file
 # descriptor, never as an argument (invisible in « ps »). The archive is
-# written next to its final name, checked by decrypting it, and only renamed
+# written to a new temporary file next to its final name (mktemp: unique name,
+# never an existing file or link), checked by decrypting it, and only renamed
 # once complete: a backup that fails never becomes « the latest backup ».
 backup_create_archive() {
-    local out=$1 partial="$1.partial"
+    local out=$1 partial
     shift
+    partial=$(mktemp "$(dirname -- "$out")/.seedtunnel-backup.XXXXXX") || return 1
     if tar -czf - --numeric-owner -C / "$@" \
         | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass fd:3 -out "$partial" 3<<<"$BACKUP_PASSPHRASE" \
         && openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass fd:3 -in "$partial" 3<<<"$BACKUP_PASSPHRASE" \
@@ -103,14 +105,26 @@ backup_create_archive() {
     fi
 }
 
+# The folder of a backup must belong to root and be writable by root only:
+# nobody else can then prepare a file or a link in it
+backup_check_folder() {
+    local owner="" mode=""
+    read -r owner mode < <(stat -L -c '%u %a' -- "$1" 2>/dev/null) || true
+    [[ -n $owner ]] || die 'Folder not found: %s' "$1"
+    if ((owner != EUID || (8#$mode & 8#022))); then
+        die 'The folder %s must belong to root and be writable by root only.' "$1"
+    fi
+}
+
 # backup_write FILE — encrypted archive with BACKUP_PASSPHRASE
 backup_write() {
     local out=$1 old_umask
     local -a paths=()
     mapfile -t paths < <(backup_paths)
     install -d -m 700 "$BACKUP_DIR"
+    backup_check_folder "$(dirname -- "$out")"
     # left by a backup interrupted the hard way (power cut)
-    find "$BACKUP_DIR" -maxdepth 1 -name '*.partial' -mmin +1440 -delete 2>/dev/null || true
+    find "$(dirname -- "$out")" -maxdepth 1 -name '.seedtunnel-backup.*' -mmin +1440 -delete 2>/dev/null || true
     old_umask=$(umask)
     umask 077
     run 'Creating the encrypted archive' backup_create_archive "$out" "${paths[@]}"
@@ -169,8 +183,10 @@ backup_list() {
 # One-time link to the latest backup; the download is recorded for the
 # reminder of « seedtunnel doctor »
 backup_share() {
-    local file
+    local file size
     file=$(backup_latest) || die 'No backup yet:  seedtunnel backup'
+    # shown on the download page, to check that the file arrived whole
+    size=$(human_size "$(stat -c %s "$file")")
     share_require "$(t 'Without a seedbox, copy it with WinSCP or scp: %s' "$file")"
     banner
     section 'DOWNLOAD THE LATEST BACKUP'
@@ -277,7 +293,7 @@ backup_auto_status() {
     fi
     age=$(file_age_days "$BACKUP_DOWNLOADED_MARK")
     if [[ -n $age ]]; then
-        say 'Last download of a backup: %s day(s) ago' "$age"
+        say 'Last download of a backup started: %s day(s) ago' "$age"
     else
         say 'No backup downloaded yet   (seedtunnel backup share)'
     fi
@@ -377,6 +393,10 @@ restore_main() {
     section 'RESTORE'
     backup_read_passphrase 0
     BACKUP_TMP_DIR=$(mktemp -d)
+    # the decrypted archive holds secrets: deleted whatever happens (an error
+    # that stops the script, Ctrl+C)
+    trap 'backup_cleanup' EXIT
+    trap 'exit 130' INT TERM
     if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$file" -out "$BACKUP_TMP_DIR/backup.tar.gz" \
         -pass fd:3 3<<<"$BACKUP_PASSPHRASE" 2>>"$APP_LOG"; then
         backup_cleanup
@@ -401,6 +421,7 @@ restore_main() {
     echo
     if ! confirm 'Restore? The current settings of seedtunnel will be replaced' n; then
         backup_cleanup
+        trap - EXIT INT TERM
         return 0
     fi
     echo
@@ -437,6 +458,7 @@ restore_main() {
     if firewall_enabled; then firewall_enable; fi
     if [[ -r $BACKUP_PASSPHRASE_FILE ]]; then backup_auto_install_units; fi
     backup_cleanup
+    trap - EXIT INT TERM
     INTERACTIVE=$was
     echo
     ok 'Restore finished.'

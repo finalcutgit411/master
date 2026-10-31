@@ -48,7 +48,7 @@ Server
 Options
   -c, --config FILE      settings read from a file (see examples/seedtunnel.conf)
   -y, --yes              answer yes to the confirmations
-  --staging              Let's Encrypt test servers (no limit, untrusted certificate)
+  --staging              Let's Encrypt test servers (higher limits, untrusted certificate)
 EOF
 }
 
@@ -169,8 +169,9 @@ EOF
 }
 
 text_en_share_steps_backup() {
-    cat <<'EOF'
+    cat <<EOF
 <li>Keep this file on your computer, or on a USB drive.</li>
+<li>Its size must be <b>$size</b>. If the download stopped before the end, the link is used up anyway: create a new one with <code>seedtunnel backup share</code>.</li>
 <li>To restore it on a new server: install seedtunnel, copy the file onto it, then run <code>seedtunnel restore FILE</code>.</li>
 EOF
 }

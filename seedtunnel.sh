@@ -191,7 +191,7 @@ check_system
 # Commands that change nothing (or only add a backup file) do not wait for the
 # lock: they work even if a menu was left open in another window.
 case "${1-} ${2-} ${3-}" in
-    "doctor  " | "diskguard-check  " | "backup  " | "backup list " | "backup auto run" | "backup auto status" | "backup auto ") ;;
+    "doctor  " | "diskguard-check  " | "diskguard-prestart  " | "backup  " | "backup list " | "backup auto run" | "backup auto status" | "backup auto ") ;;
     *) take_lock ;;
 esac
 install_shortcut
@@ -218,5 +218,6 @@ case ${1-} in
     apply) apply_main ;;
     language) language_cli "${2-}" ;;
     diskguard-check) diskguard_check ;;
+    diskguard-prestart) diskguard_prestart || exit 1 ;;
     *) die 'Unknown command: %s   (help: seedtunnel help)' "$1" ;;
 esac

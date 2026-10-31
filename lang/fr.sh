@@ -47,7 +47,7 @@ Serveur
 Options
   -c, --config FICHIER   réglages lus dans un fichier (voir examples/seedtunnel.conf)
   -y, --yes              répondre oui aux confirmations
-  --staging              serveurs de test de Let's Encrypt (pas de limite, certificat non reconnu)
+  --staging              serveurs de test de Let's Encrypt (limites plus hautes, certificat non reconnu)
 EOF
 }
 
@@ -168,8 +168,9 @@ EOF
 }
 
 text_fr_share_steps_backup() {
-    cat <<'EOF'
+    cat <<EOF
 <li>Gardez ce fichier sur votre ordinateur, ou sur une clé USB.</li>
+<li>Sa taille doit être de <b>$size</b>. Si le téléchargement s'est arrêté avant la fin, le lien est quand même consommé : créez-en un autre avec <code>seedtunnel backup share</code>.</li>
 <li>Pour le restaurer sur un nouveau serveur : installez seedtunnel, copiez-y le fichier, puis lancez <code>seedtunnel restore FICHIER</code>.</li>
 EOF
 }

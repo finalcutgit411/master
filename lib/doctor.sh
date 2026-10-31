@@ -234,13 +234,21 @@ doctor_firewall() {
 }
 
 doctor_backup() {
-    local latest age
+    local latest age since
     doctor_title 'Backups'
     if backup_auto_enabled; then
         latest=$(ls -1t "$BACKUP_DIR"/*-auto.tar.gz.enc 2>/dev/null | head -n 1 || true)
         age=$(file_age_days "$latest")
-        if [[ -z $age ]]; then
-            doctor_ok 'Weekly backup on (the first one comes within a week)'
+        if systemctl is-failed --quiet seedtunnel-backup.service 2>/dev/null; then
+            doctor_warn 'The last automatic backup failed   → journalctl -u seedtunnel-backup'
+        elif [[ -z $age ]]; then
+            # turned on when its passphrase was saved
+            since=$(file_age_days "$BACKUP_PASSPHRASE_FILE")
+            if [[ -n $since ]] && ((since > 8)); then
+                doctor_warn 'No automatic backup since it was turned on %s days ago   → journalctl -u seedtunnel-backup' "$since"
+            else
+                doctor_ok 'Weekly backup on (the first one comes within a week)'
+            fi
         elif ((age > 8)); then
             doctor_warn 'Last automatic backup %s days ago: the weekly backup seems to fail   → journalctl -u seedtunnel-backup' "$age"
         else
@@ -253,9 +261,10 @@ doctor_backup() {
     if [[ -z $age ]]; then
         doctor_warn 'No backup downloaded to your computer yet   → seedtunnel backup share'
     elif ((age > 30)); then
-        doctor_warn 'Last backup downloaded %s days ago   → seedtunnel backup share' "$age"
+        doctor_warn 'Last download of a backup started %s days ago   → seedtunnel backup share' "$age"
     else
-        doctor_ok 'Backup downloaded to your computer %s day(s) ago' "$age"
+        # only the start of the download is known, not that it went to the end
+        doctor_ok 'Download of a backup started %s day(s) ago (check its size on your computer)' "$age"
     fi
 }
 

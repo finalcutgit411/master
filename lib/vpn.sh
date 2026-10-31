@@ -92,7 +92,19 @@ vpn_dns_value() {
     esac
 }
 
-vpn_is_valid_dns() { [[ $1 =~ ^[0-9A-Fa-f:.,\ ]+$ ]]; }
+# DNS servers of the clients: IPv4 or IPv6 addresses separated by commas
+vpn_is_valid_dns() {
+    local entry count=0
+    local -a entries
+    IFS=, read -r -a entries <<<"$1"
+    for entry in "${entries[@]}"; do
+        entry=${entry// /}
+        [[ -n $entry ]] || return 1
+        if ! is_ipv4 "$entry" && ! [[ $entry == *:*:* && $entry =~ ^[0-9A-Fa-f:]{2,39}$ ]]; then return 1; fi
+        count=$((count + 1))
+    done
+    ((count > 0))
+}
 
 vpn_is_valid_address() { [[ $1 =~ ^[A-Za-z0-9.:-]+$ ]]; }
 

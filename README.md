@@ -26,7 +26,7 @@ Download a published version and check its fingerprint before running it. The co
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.1.2
+V=1.2.0
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -52,7 +52,7 @@ In that case, `seedtunnel update` moves to the latest published version (tag `vX
 
 The code is meant to be read: feel free to look through `seedtunnel.sh` and `lib/` before running it.
 
-After that, the `seedtunnel` command opens the menu again. `seedtunnel update` moves to the next version after checking its fingerprint, then applies the configuration again so that its fixes take effect.
+After that, the `seedtunnel` command opens the menu again. `seedtunnel update` moves to the next version after checking its checksum, then applies the configuration again so that its fixes take effect. If that fails, the previous version comes back.
 
 ## Usage
 
@@ -151,6 +151,8 @@ The link goes through the HTTPS site of the seedbox. It holds a random token tha
 - the VPN and the seedbox, if installed;
 - the ICMP that IPv6 needs.
 
+This concerns what reaches the server itself. The VPN clients are trusted: what comes from them through the tunnel is accepted.
+
 In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). The rules loaded at boot only change once confirmed.
 
 ### Diagnostics
@@ -184,7 +186,7 @@ Downloaded files are not in the backup: copy them with `rsync`.
 
 ## Security
 
-- Transmission only listens on `127.0.0.1`. Only nginx is exposed, and the password is checked twice: by nginx, then by Transmission.
+- The control interface of Transmission (RPC) only listens on `127.0.0.1`: it is reached through nginx, and the password is checked twice, by nginx then by Transmission. Only its BitTorrent port (60000) is open to the peers.
 - Transmission is **locked down by systemd** (`ProtectSystem=strict`…): it can only write to its own folders.
 - Passwords are **never written in clear**, nor given as an argument to a command. Only their hashes are kept. The one exception is the passphrase of the weekly backup, if you turn it on: it is saved readable by root only, so that the backup can run alone.
 - The SFTP user is locked inside the data folder: no shell, no tunnel.

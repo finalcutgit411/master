@@ -8,7 +8,9 @@
 #    - above 5 GB again, it is started again (the gap avoids stopping and
 #      starting in a loop).
 #  It only starts Transmission again if it stopped it itself: a Transmission
-#  stopped by hand is left alone. Stopping the whole service is needed:
+#  stopped by hand is left alone. Transmission also checks the free space
+#  before starting (boot included): on an almost full disk it does not start,
+#  and the timer starts it once there is room again. Stopping the whole service is needed:
 #  pausing the torrents one by one would require keeping the password of
 #  Transmission in clear, which seedtunnel refuses to do.
 # =============================================================================
@@ -65,6 +67,23 @@ diskguard_remove() {
     systemctl disable --now seedtunnel-diskguard.timer >>"$APP_LOG" 2>&1 || true
     rm -f "$DISKGUARD_SERVICE" "$DISKGUARD_TIMER" "$DISKGUARD_MARKER"
     systemctl daemon-reload 2>/dev/null || true
+}
+
+# Run by systemd before Transmission starts (ExecStartPre of its drop-in, boot
+# included): refuses to start it on an almost full disk. The timer starts it
+# again once there is room (the marker says the guard stopped it).
+diskguard_prestart() {
+    local free stop_below=${SEEDTUNNEL_DISKGUARD_STOP_BELOW_GB:-$DISKGUARD_STOP_BELOW_GB}
+    seedbox_installed || return 0
+    free=$(disk_free_gb "$SEEDBOX_DATA_DIR")
+    [[ $free =~ ^[0-9]+$ ]] || return 0
+    if ((free < stop_below)); then
+        date +%s >"$DISKGUARD_MARKER"
+        logger -t seedtunnel "Transmission not started: disk almost full ($free GB free)" 2>/dev/null || true
+        say 'Transmission not started: disk almost full (%s GB free).' "$free"
+        return 1
+    fi
+    rm -f "$DISKGUARD_MARKER"
 }
 
 # Run by the timer (« seedtunnel diskguard-check »). The thresholds can be

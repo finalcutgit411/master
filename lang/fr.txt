@@ -171,8 +171,8 @@ fr:   Dernière : %s
 en: Weekly backup: off   (seedtunnel backup auto on)
 fr: Sauvegarde hebdomadaire : désactivée   (seedtunnel backup auto on)
 
-en: Last download of a backup: %s day(s) ago
-fr: Dernier téléchargement d'une sauvegarde : il y a %s jour(s)
+en: Last download of a backup started: %s day(s) ago
+fr: Dernier téléchargement d'une sauvegarde commencé : il y a %s jour(s)
 
 en: No backup downloaded yet   (seedtunnel backup share)
 fr: Aucune sauvegarde téléchargée pour l'instant   (seedtunnel backup share)
@@ -624,11 +624,11 @@ fr: Sauvegarde hebdomadaire désactivée   → seedtunnel backup auto on
 en: No backup downloaded to your computer yet   → seedtunnel backup share
 fr: Aucune sauvegarde téléchargée sur votre ordinateur pour l'instant   → seedtunnel backup share
 
-en: Last backup downloaded %s days ago   → seedtunnel backup share
-fr: Dernière sauvegarde téléchargée il y a %s jours   → seedtunnel backup share
+en: Last download of a backup started %s days ago   → seedtunnel backup share
+fr: Dernier téléchargement d'une sauvegarde commencé il y a %s jours   → seedtunnel backup share
 
-en: Backup downloaded to your computer %s day(s) ago
-fr: Sauvegarde téléchargée sur votre ordinateur il y a %s jour(s)
+en: Download of a backup started %s day(s) ago (check its size on your computer)
+fr: Téléchargement d'une sauvegarde commencé il y a %s jour(s) (vérifiez sa taille sur votre ordinateur)
 
 en: DIAGNOSTICS
 fr: DIAGNOSTIC
@@ -1161,9 +1161,6 @@ fr: Désinstaller la seedbox ?
 en: ALSO delete all the data in %s?
 fr: Supprimer AUSSI toutes les données de %s ?
 
-en: Cannot delete the user %s (SFTP session open?).
-fr: Impossible de supprimer l'utilisateur %s (session SFTP ouverte ?).
-
 en: Deleting the data
 fr: Suppression des données
 
@@ -1270,10 +1267,10 @@ fr: Mettre à jour ?
 en: Downloading seedtunnel %s
 fr: Téléchargement de seedtunnel %s
 
-en: Downloading the fingerprints
+en: Downloading the checksums
 fr: Téléchargement des checksums
 
-en: Checking the SHA-256 fingerprint
+en: Checking the SHA-256 checksum
 fr: Vérification du checksum SHA-256
 
 en: Extracting
@@ -1601,3 +1598,33 @@ fr: Utilisation : seedtunnel vpn share NOM
 
 en: Unknown command: vpn %s   (help: seedtunnel help)
 fr: Commande inconnue : vpn %s   (aide : seedtunnel help)
+
+en: Folder not found: %s
+fr: Dossier introuvable : %s
+
+en: The folder %s must belong to root and be writable by root only.
+fr: Le dossier %s doit appartenir à root et n'être modifiable que par root.
+
+en: Transmission not started: disk almost full (%s GB free).
+fr: Transmission non démarré : disque presque plein (%s Go libres).
+
+en: The last automatic backup failed   → journalctl -u seedtunnel-backup
+fr: La dernière sauvegarde automatique a échoué   → journalctl -u seedtunnel-backup
+
+en: No automatic backup since it was turned on %s days ago   → journalctl -u seedtunnel-backup
+fr: Aucune sauvegarde automatique depuis son activation il y a %s jours   → journalctl -u seedtunnel-backup
+
+en: Putting the previous firewall back failed (details in %s). The automatic undo stays scheduled and tries again within 2 minutes.
+fr: Le retour au pare-feu précédent a échoué (détails dans %s). L'annulation automatique reste programmée et réessaie d'ici 2 minutes.
+
+en: Cannot delete the user %s (details in %s). The seedbox was not removed and its SFTP restrictions stay in place: run the removal again.
+fr: Impossible de supprimer l'utilisateur %s (détails dans %s). La seedbox n'a pas été désinstallée et ses restrictions SFTP restent en place : relancez la désinstallation.
+
+en: The watcher of the link did not start (details in %s): link cancelled.
+fr: La surveillance du lien n'a pas démarré (détails dans %s) : lien annulé.
+
+en: Version %s could not apply the configuration: back to version %s.
+fr: La version %s n'a pas pu appliquer la configuration : retour à la version %s.
+
+en: Update cancelled, version %s kept (details in %s).
+fr: Mise à jour annulée, version %s conservée (détails dans %s).

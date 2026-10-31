@@ -242,6 +242,16 @@ share_same_connection_test() {
     cmp "$W/first.conf" /etc/seedtunnel/vpn/clients/phone.conf
 }
 
+# The watcher of a link dies (crash, killed): systemd still deletes the link
+share_watcher_killed_test() {
+    local out path token
+    out=$(app vpn share phone 2>&1) || return 1
+    path=$(share_path "$out") || return 1
+    token=$(cut -d/ -f3 <<<"$path")
+    systemctl kill --signal=KILL "seedtunnel-share-${token:0:12}" || return 1
+    link_gone "${path}phone.conf"
+}
+
 # HEAD is refused without using the link up: the download that follows works
 share_head_test() {
     local out path code
@@ -397,7 +407,14 @@ diskguard_test() {
     [[ -e /run/seedtunnel-diskguard.stopped ]] || return 1
     output_has 'disk almost full' app doctor || return 1
     env SEEDTUNNEL_DISKGUARD_START_ABOVE_GB=0 PATH=/usr/local/bin:/usr/bin:/bin "$APP" diskguard-check </dev/null || return 1
-    systemctl is-active --quiet transmission-daemon && [[ ! -e /run/seedtunnel-diskguard.stopped ]]
+    systemctl is-active --quiet transmission-daemon && [[ ! -e /run/seedtunnel-diskguard.stopped ]] || return 1
+    # Transmission checks the disk before starting (boot included)
+    systemctl show transmission-daemon -p ExecStartPre | grep -q diskguard-prestart || return 1
+    if env SEEDTUNNEL_DISKGUARD_STOP_BELOW_GB=100000 PATH=/usr/local/bin:/usr/bin:/bin "$APP" diskguard-prestart </dev/null; then
+        echo "start allowed on an almost full disk"
+        return 1
+    fi
+    rm -f /run/seedtunnel-diskguard.stopped
 }
 
 # « seedtunnel apply » puts back in order a file changed by hand
@@ -530,6 +547,7 @@ EOF
     check "no partial download (Range ignored)" share_no_range_test
     check "two requests on the same connection: the file only once" share_same_connection_test
     check "HEAD refused (405) without using the link up" share_head_test
+    check "watcher killed: the link is deleted anyway" share_watcher_killed_test
     check "seedbox sftp-config: WinSCP address with fingerprint, FileZilla file" sftp_config_test
     check "list of links impossible" http_is 403 /share/
     check "unknown token: 404" http_is 404 /share/0123456789abcdef0123456789abcdef/

@@ -129,12 +129,25 @@ EOF
 # Rules loaded + loaded again at boot + state saved
 firewall_activate() {
     run 'Applying the rules' nft -f "$FIREWALL_RULES"
+    pending_clear firewall
     if write_if_changed "$FIREWALL_UNIT" 644 root:root firewall_generate_unit; then
         run 'Reloading systemd' systemctl daemon-reload
     fi
     run 'Enabling at boot' systemctl enable --now seedtunnel-firewall.service
     FIREWALL_ENABLED=1
     state_write "$FIREWALL_CONF_FILE" FIREWALL_ENABLED
+}
+
+# Puts the firewall back as it was before a trial: the previous rules (1) or no
+# rules at all (0). Status 1 if that failed.
+firewall_undo() {
+    if (($1)); then
+        nft -f "$FIREWALL_RULES" >>"$APP_LOG" 2>&1
+    else
+        # already gone (the automatic undo was faster) is fine too
+        nft delete table inet "$FIREWALL_TABLE" >>"$APP_LOG" 2>&1 \
+            || ! nft list table inet "$FIREWALL_TABLE" &>/dev/null
+    fi
 }
 
 firewall_enable() {
@@ -177,7 +190,10 @@ firewall_enable() {
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
         else
             echo
-            nft "${undo[@]}" >>"$APP_LOG" 2>&1 || true
+            if ! firewall_undo "$was_on"; then
+                # the automatic undo stays scheduled: it tries again in 2 minutes
+                die 'Putting the previous firewall back failed (details in %s). The automatic undo stays scheduled and tries again within 2 minutes.' "$APP_LOG"
+            fi
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
             rm -f "$FIREWALL_CANDIDATE"
             if ((was_on)); then
@@ -203,6 +219,7 @@ firewall_disable() {
     systemctl disable --now seedtunnel-firewall.service >>"$APP_LOG" 2>&1 || true
     nft delete table inet "$FIREWALL_TABLE" >>"$APP_LOG" 2>&1 || true
     rm -f "$FIREWALL_UNIT" "$FIREWALL_RULES" "$FIREWALL_CANDIDATE" "$FIREWALL_CONF_FILE"
+    pending_clear firewall
     systemctl daemon-reload 2>/dev/null || true
     ok 'Firewall off.'
     pause
@@ -211,8 +228,10 @@ firewall_disable() {
 # Called after every change of the VPN or of the seedbox
 firewall_refresh() {
     firewall_enabled || return 0
-    if write_if_changed "$FIREWALL_RULES" 600 root:root firewall_generate_rules; then
+    if write_if_changed "$FIREWALL_RULES" 600 root:root firewall_generate_rules; then pending_set firewall; fi
+    if pending firewall; then
         run 'Updating the firewall' nft -f "$FIREWALL_RULES"
+        pending_clear firewall
     fi
 }
 

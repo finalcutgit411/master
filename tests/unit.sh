@@ -399,6 +399,276 @@ backup_complete_and_checked() (
         -in "$BACKUP_DIR/test.tar.gz.enc" | tar -tzf - | grep -qx etc/hostname
 )
 
+# --- firewall: a failed undo is never announced as done --------------------------
+
+firewall_undo_failure_keeps_automatic_undo() (
+    firewall_trial_load
+    firewall_was_on
+    systemctl() { echo "systemctl $*" >>"$WORK/fw/calls"; }
+    nft() {
+        echo "nft $*" >>"$WORK/fw/calls"
+        # putting the previous rules back fails
+        [[ "$*" != "-f $FIREWALL_RULES" ]]
+    }
+    if (firewall_enable <<<"no") >"$WORK/fw/out" 2>&1; then return 1; fi
+    cat "$WORK/fw/calls"
+    # once the automatic undo is scheduled, its timer is never stopped
+    ! sed -n '/^systemd-run/,$p' "$WORK/fw/calls" | grep -q "systemctl stop"
+)
+
+# --- a configuration refused once is applied at the next run ----------------------
+# The first application fails, the next ones work: the second run must apply
+# again, although the file did not change since the first one.
+
+retried() { echo call >>"$1" && (($(wc -l <"$1") > 1)); }
+calls() { wc -l <"$1"; }
+
+firewall_refresh_retried_after_failure() (
+    load
+    rm -rf "$APP_STATE_DIR/pending"
+    : >"$WORK/nft-calls"
+    FIREWALL_RULES="$WORK/pending.nft"
+    rm -f "$FIREWALL_RULES"
+    firewall_enabled() { return 0; }
+    firewall_generate_rules() { echo "new rules"; }
+    chown() { :; }
+    nft() { retried "$WORK/nft-calls"; }
+    if (firewall_refresh) &>/dev/null; then return 1; fi
+    firewall_refresh &>/dev/null || return 1
+    (($(calls "$WORK/nft-calls") == 2))
+)
+
+nginx_reload_retried_after_failure() (
+    load
+    rm -rf "$APP_STATE_DIR/pending"
+    : >"$WORK/nginx-reloads"
+    NGINX_SITE="$WORK/nginx-site"
+    NGINX_SITE_LINK="$WORK/nginx-link"
+    NGINX_DEFAULT_SITE="$WORK/nginx-default"
+    rm -f "$NGINX_SITE"
+    ln -sfn "$NGINX_SITE" "$NGINX_SITE_LINK"
+    nginx_generate_site() { echo "server {}"; }
+    chown() { :; }
+    nginx() { return 0; }
+    systemctl() {
+        case $1 in
+            reload-or-restart) retried "$WORK/nginx-reloads" ;;
+            *) return 0 ;;
+        esac
+    }
+    if (seedbox_apply_nginx) &>/dev/null; then return 1; fi
+    seedbox_apply_nginx &>/dev/null || return 1
+    (($(calls "$WORK/nginx-reloads") == 2))
+)
+
+ssh_reload_retried_after_failure() (
+    load
+    rm -rf "$APP_STATE_DIR/pending"
+    : >"$WORK/ssh-reloads"
+    SSHD_SEEDBOX_CONF="$WORK/sshd-seedbox.conf"
+    SFTP_KEYS_DIR="$WORK/sftp-keys"
+    rm -f "$SSHD_SEEDBOX_CONF"
+    SEEDBOX_USER=lancelot
+    SEEDBOX_DATA_DIR="$WORK/data"
+    SEEDBOX_SFTP_PASSWORD=yes
+    sshd_generate_seedbox_conf() { echo "Match User lancelot"; }
+    chown() { :; }
+    sshd() { return 0; }
+    systemctl() { retried "$WORK/ssh-reloads"; }
+    if (seedbox_apply_sftp) &>"$WORK/ssh.out"; then
+        cat "$WORK/ssh.out"
+        return 1
+    fi
+    seedbox_apply_sftp &>>"$WORK/ssh.out" || {
+        cat "$WORK/ssh.out"
+        return 1
+    }
+    (($(calls "$WORK/ssh-reloads") == 2))
+)
+
+# --- seedbox removal: the account goes before its SFTP restrictions ---------------
+
+uninstall_stops_when_user_remains() (
+    load
+    OPT_YES=1
+    local root="$WORK/uninstall" var
+    rm -rf "$root"
+    mkdir -p "$root"
+    SEEDBOX_USER=lancelot
+    SEEDBOX_DATA_DIR="$root/data"
+    for var in SSHD_SEEDBOX_CONF NGINX_SITE NGINX_SITE_LINK NGINX_HTPASSWD FAIL2BAN_JAIL FAIL2BAN_MAIN_CONF \
+        TRANSMISSION_DROPIN SFTP_KEYS_DIR SEEDBOX_SSL_DIR LETSENCRYPT_WEBROOT SHARE_DIR SEEDBOX_SECRETS_FILE; do
+        printf -v "$var" '%s' "$root/$var"
+    done
+    echo "Match User lancelot" >"$SSHD_SEEDBOX_CONF"
+    echo "SEEDBOX_USER=lancelot" >"$SEEDBOX_CONF_FILE"
+    # the account exists and cannot be deleted (« user is currently used by process »)
+    id() { [[ $1 == lancelot ]]; }
+    userdel() { return 8; }
+    pkill() { :; }
+    sleep() { :; }
+    systemctl() { :; }
+    certbot() { :; }
+    apt_purge() { :; }
+    diskguard_remove() { :; }
+    net_hardening_cleanup() { :; }
+    firewall_refresh() { :; }
+    backup_auto_stop_if_unused() { :; }
+    if (seedbox_uninstall) &>"$WORK/uninstall.out"; then return 1; fi
+    cat "$WORK/uninstall.out"
+    # the SFTP restrictions and the state are still there
+    [[ -e $SSHD_SEEDBOX_CONF && -e $SEEDBOX_CONF_FILE ]]
+)
+
+# --- backups: never written through a link prepared in advance -------------------
+
+backup_does_not_follow_prepared_link() (
+    backup_load
+    install -d -m 700 "$BACKUP_DIR"
+    echo "precious" >"$WORK/victim"
+    # links at the names a backup could use
+    ln -s "$WORK/victim" "$BACKUP_DIR/test.tar.gz.enc.partial"
+    backup_write "$BACKUP_DIR/test.tar.gz.enc" </dev/null &>/dev/null || return 1
+    [[ $(<"$WORK/victim") == precious && -f $BACKUP_DIR/test.tar.gz.enc && ! -L $BACKUP_DIR/test.tar.gz.enc ]]
+)
+
+backup_refuses_open_folder() (
+    backup_load
+    mkdir -p "$WORK/shared"
+    chmod 777 "$WORK/shared"
+    if (backup_write "$WORK/shared/test.tar.gz.enc") </dev/null &>"$WORK/open.out"; then return 1; fi
+    cat "$WORK/open.out"
+    [[ -z $(ls -A "$WORK/shared") ]]
+)
+
+# --- one-time links: no link without its watcher ---------------------------------
+
+share_refused_without_watcher() (
+    load
+    SHARE_DIR="$WORK/share-nowatch"
+    rm -rf "$SHARE_DIR"
+    SEEDBOX_DOMAIN=seedbox.example.org
+    echo secret >"$WORK/to-share"
+    apt_install() { :; }
+    seedbox_apply_nginx() { :; }
+    install() {
+        local -a args=()
+        while (($#)); do
+            case $1 in
+                -o | -g) shift 2 ;;
+                *)
+                    args+=("$1")
+                    shift
+                    ;;
+            esac
+        done
+        command install "${args[@]}"
+    }
+    chown() { :; }
+    systemd-run() { :; }
+    systemctl() { echo "systemctl $*" >>"$WORK/share-calls"; }
+    # the watcher never shows up
+    pgrep() { return 1; }
+    sleep() { :; }
+    if (share_create "$WORK/to-share" file.conf Title "" Note) &>"$WORK/share.out"; then
+        cat "$WORK/share.out"
+        return 1
+    fi
+    # no link shown, nothing left to download
+    ! grep -q "https://" "$WORK/share.out" && [[ -z $(ls -A "$SHARE_DIR") ]]
+)
+
+# --- diagnostics: a weekly backup that never worked is reported -------------------
+
+doctor_reports_first_backup_missing() (
+    load
+    BACKUP_DIR="$WORK/doctor-backups"
+    mkdir -p "$BACKUP_DIR"
+    BACKUP_PASSPHRASE_FILE="$WORK/doctor-passphrase"
+    BACKUP_DOWNLOADED_MARK="$WORK/doctor-mark"
+    # turned on 10 days ago, and no automatic backup since
+    touch -d '10 days ago' "$BACKUP_PASSPHRASE_FILE"
+    touch "$BACKUP_DOWNLOADED_MARK"
+    backup_auto_enabled() { return 0; }
+    systemctl() { return 1; }
+    DOCTOR_ERRORS=0
+    DOCTOR_WARNINGS=0
+    doctor_backup >"$WORK/doctor.out" 2>&1
+    cat "$WORK/doctor.out"
+    ((DOCTOR_WARNINGS == 1)) && grep -q "since it was turned on 10 days ago" "$WORK/doctor.out"
+)
+
+# --- restore: no decrypted secrets left after a failure ---------------------------
+
+restore_cleans_up_after_failure() (
+    load
+    local root="$WORK/restore-root"
+    rm -rf "$root" "$WORK/restore-tmp"
+    mkdir -p "$root/etc/seedtunnel" "$WORK/restore-tmp"
+    echo "VPN_PORT=51820" >"$root/etc/seedtunnel/vpn.conf"
+    tar -czf - -C "$root" etc/seedtunnel | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
+        -pass pass:"a test passphrase" -out "$WORK/restore.enc"
+    echo "a test passphrase" >"$WORK/restore-passphrase"
+    OPT_PASSPHRASE_FILE="$WORK/restore-passphrase"
+    OPT_YES=1
+    export TMPDIR="$WORK/restore-tmp"
+    # the extraction fails (disk full…)
+    tar() {
+        if [[ $1 == -xzf ]]; then return 2; fi
+        command tar "$@"
+    }
+    if (restore_main "$WORK/restore.enc") &>"$WORK/restore.out"; then return 1; fi
+    ls -AR "$WORK/restore-tmp"
+    [[ -z $(ls -A "$WORK/restore-tmp") ]]
+)
+
+# --- full disk: Transmission does not start (at boot either) ----------------------
+
+diskguard_refuses_start_on_full_disk() (
+    load
+    DISKGUARD_MARKER="$WORK/diskguard.stopped"
+    rm -f "$DISKGUARD_MARKER"
+    SEEDBOX_DATA_DIR=$WORK
+    seedbox_installed() { return 0; }
+    logger() { :; }
+    disk_free_gb() { echo 1; }
+    if diskguard_prestart &>/dev/null; then return 1; fi
+    [[ -e $DISKGUARD_MARKER ]] || return 1
+    # room again: it may start
+    disk_free_gb() { echo 50; }
+    diskguard_prestart &>/dev/null && [[ ! -e $DISKGUARD_MARKER ]]
+)
+
+# --- update: the installed version stays until the new one works ------------------
+
+update_failed_keeps_previous_version() (
+    load
+    APP_DIR="$WORK/app/seedtunnel"
+    rm -rf "$WORK/app"
+    mkdir -p "$APP_DIR" "$WORK/app/new"
+    printf '#!/bin/sh\necho old >>"%s"\n' "$WORK/app/applied" >"$APP_DIR/seedtunnel.sh"
+    # the new version cannot apply the configuration
+    printf '#!/bin/sh\nexit 7\n' >"$WORK/app/new/seedtunnel.sh"
+    chmod +x "$APP_DIR/seedtunnel.sh" "$WORK/app/new/seedtunnel.sh"
+    if (update_switch "$WORK/app/new" 9.9.9) &>"$WORK/update.out"; then
+        cat "$WORK/update.out"
+        return 1
+    fi
+    # the previous version is back, and it applied its configuration again
+    grep -q "echo old" "$APP_DIR/seedtunnel.sh" && [[ $(<"$WORK/app/applied") == old ]]
+)
+
+# --- validation of addresses and ports ----------------------------------------------
+
+validators_reject_out_of_range() (
+    load
+    is_ipv4 192.168.1.1 && is_ipv4 0.0.0.0 && ! is_ipv4 256.1.2.3 && ! is_ipv4 999.999.999.999 || return 1
+    is_valid_port 1 && is_valid_port 65535 && ! is_valid_port 0 && ! is_valid_port 65536 \
+        && ! is_valid_port 080 && ! is_valid_port 010 || return 1
+    vpn_is_valid_dns "1.1.1.1, 1.0.0.1" && vpn_is_valid_dns "2620:fe::fe" \
+        && ! vpn_is_valid_dns "a" && ! vpn_is_valid_dns "," && ! vpn_is_valid_dns "300.1.1.1"
+)
+
 printf '\033[1m=== Unit tests\033[0m\n'
 check "vpn_sync: WireGuard refusing the configuration shows « failed »" vpn_sync_reports_wg_failure
 check "vpn_sync: a failure of « wg-quick strip » is seen" vpn_sync_reports_strip_failure
@@ -425,6 +695,19 @@ check "firewall: change confirmed → becomes the rules loaded at boot" firewall
 check "VPN: a change refused by WireGuard is applied at the next run" vpn_change_failed_then_retried
 check "backup: a failed backup leaves no file, never « the latest »" backup_failed_leaves_nothing
 check "backup: complete archive, checked, then renamed" backup_complete_and_checked
+check "firewall: a failed undo is reported and the automatic undo kept" firewall_undo_failure_keeps_automatic_undo
+check "firewall: rules refused once are applied at the next run" firewall_refresh_retried_after_failure
+check "nginx: a reload that failed is done at the next run" nginx_reload_retried_after_failure
+check "SSH: a reload that failed is done at the next run" ssh_reload_retried_after_failure
+check "seedbox removal: account not deleted → SFTP restrictions kept" uninstall_stops_when_user_remains
+check "backup: a link prepared in advance is never written through" backup_does_not_follow_prepared_link
+check "backup: refused in a folder others can write to" backup_refuses_open_folder
+check "one-time link: watcher not started → no link" share_refused_without_watcher
+check "diagnostics: no automatic backup since it was turned on → warning" doctor_reports_first_backup_missing
+check "restore: decrypted files deleted after a failure" restore_cleans_up_after_failure
+check "full disk: Transmission refused to start, allowed again with room" diskguard_refuses_start_on_full_disk
+check "update: new version failing → previous version back" update_failed_keeps_previous_version
+check "validation: addresses, ports and DNS out of range refused" validators_reject_out_of_range
 
 printf '\n\033[1m%s passed, %s failed\033[0m\n' "$PASS" "$FAIL"
 ((FAIL == 0))

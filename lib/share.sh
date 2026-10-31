@@ -144,7 +144,7 @@ EOF
 # share_create FILE NAME "Title" "<li>steps…</li>" "Note" [MARK_FILE]
 # Publishes FILE under the name NAME and prints the link.
 share_create() {
-    local source=$1 name=$2 title=$3 steps=$4 note=$5 mark=${6-} token dir i
+    local source=$1 name=$2 title=$3 steps=$4 note=$5 mark=${6-} token dir unit i ready=0
     apt_install inotify-tools
     # the site must know /share/ (if it was installed by an older version)
     seedbox_apply_nginx
@@ -159,18 +159,31 @@ share_create() {
     chmod 640 "$dir/index.html"
 
     printf '\n=== %(%F %T)T · download link for %s\n' -1 "$name" >>"$APP_LOG"
-    if ! systemd-run --quiet --collect --unit="seedtunnel-share-${token:0:12}" \
+    # The watcher runs as a service of its own. Whatever ends it (download,
+    # expiry, crash, killed), systemd deletes the link afterwards
+    # (ExecStopPost); RuntimeMaxSec ends it at the latest after the lifetime.
+    unit="seedtunnel-share-${token:0:12}"
+    if ! systemd-run --quiet --collect --unit="$unit" \
         --property=RuntimeMaxSec=$((SHARE_LIFETIME + 60)) \
+        --property="ExecStopPost=/bin/rm -rf -- $dir" \
         /bin/bash -c "$SHARE_WATCHER" seedtunnel-share \
         "$dir/$name" "$SHARE_LIFETIME" "$dir" "$mark" >>"$APP_LOG" 2>&1; then
         rm -rf "$dir"
         die 'Cannot start the watcher of the link (details in %s).' "$APP_LOG"
     fi
-    # the watch must be in place before the link is shown
-    for i in {1..30}; do
-        if pgrep -f -- "inotifywait.*$dir/$name" >/dev/null; then break; fi
+    # the watch must be in place before the link is shown: otherwise, no link
+    for i in {1..50}; do
+        if pgrep -f -- "inotifywait.*$dir/$name" >/dev/null; then
+            ready=1
+            break
+        fi
         sleep 0.1
     done
+    if ((!ready)); then
+        systemctl stop "$unit" >>"$APP_LOG" 2>&1 || true
+        rm -rf "$dir"
+        die 'The watcher of the link did not start (details in %s): link cancelled.' "$APP_LOG"
+    fi
     sleep 0.2
 
     echo

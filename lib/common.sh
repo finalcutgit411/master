@@ -6,7 +6,7 @@
 # =============================================================================
 
 APP_NAME="seedtunnel"
-APP_VERSION="1.1.2"
+APP_VERSION="1.2.0"
 # GitHub repository used by « seedtunnel update » (owner/project)
 APP_REPO="finalcutgit411/seedtunnel"
 # Server state and secrets (readable by root only)
@@ -243,6 +243,17 @@ state_read() {
 # Returns 0 if FILE was changed, 1 if it was already up to date. Any failure
 # (command, disk full, permissions) stops the script with a clear message and
 # leaves FILE as it was: never a half-written configuration.
+# A configuration written but not applied yet (the service refused it, or the
+# script stopped in between) keeps a mark: the next run applies it again even
+# though the file no longer changes. The mark goes once the service took it.
+#   pending_set NAME · pending NAME (status 0 if waiting) · pending_clear NAME
+pending_set() {
+    install -d -m 700 "$APP_STATE_DIR/pending"
+    : >"$APP_STATE_DIR/pending/$1"
+}
+pending() { [[ -e $APP_STATE_DIR/pending/$1 ]]; }
+pending_clear() { rm -f "$APP_STATE_DIR/pending/$1"; }
+
 write_if_changed() {
     local file=$1 mode=$2 owner=$3 tmp
     shift 3
@@ -457,9 +468,19 @@ disk_free_gb() {
 }
 
 # --- Network ----------------------------------------------------------------------
-is_ipv4() { [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
+# IPv4 address: four numbers from 0 to 255
+is_ipv4() {
+    local IFS=. part
+    local -a parts
+    [[ $1 =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] || return 1
+    read -r -a parts <<<"$1"
+    for part in "${parts[@]}"; do
+        ((10#$part <= 255)) || return 1
+    done
+}
 
-is_valid_port() { [[ $1 =~ ^[0-9]{1,5}$ ]] && (($1 >= 1 && $1 <= 65535)); }
+# Port from 1 to 65535, without leading zero (« 080 » would be read as octal)
+is_valid_port() { [[ $1 =~ ^[1-9][0-9]{0,4}$ ]] && (($1 <= 65535)); }
 
 # Network interface of the default route (eth0, ens3…)
 default_interface() {

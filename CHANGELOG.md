@@ -3,6 +3,27 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.0] - 2026-10-31
+
+Fixes from an independent audit of 1.1.2: what happens when a step fails
+halfway.
+
+### Fixed
+- **Removing the seedbox**: the SSH restrictions of the SFTP account (chroot, no tunnel) were removed before the account itself; if the account could not be deleted (open SFTP session), it stayed without them. The account now goes first (its sessions are closed), and if it cannot be deleted, nothing is removed.
+- **Firewall, nginx, SSH**: a configuration refused once (failed reload) was not applied at the next run, the file being already up to date. It now keeps a mark until the service really took it.
+- **Firewall undo**: a failed return to the previous rules was announced as done, and the automatic undo was cancelled. It is now reported, and the automatic undo stays scheduled.
+- **Backups**: the temporary file had a predictable name, and an existing link at that name was followed. It is now created by `mktemp`, in a folder that must belong to root.
+- **One-time links**: a link was shown even if its watcher had not started, and stayed downloadable if the watcher died. No watcher now means no link, and systemd deletes the link whenever the watcher stops.
+- **Restore**: the decrypted archive could stay on the disk after a failure. It is now deleted whatever happens.
+- **Update**: the previous version was deleted before the new one had applied the configuration. It is now kept until then, and comes back if the new one fails.
+- **Full disk**: after a reboot, Transmission started before the first check. It now checks the free space before starting.
+- **Diagnostics**: a weekly backup that never worked looked like a recent one; `seedtunnel doctor` now warns when no automatic backup came within 8 days of turning it on, or when the last one failed. A download of a backup that was cut short counted as a backup on your computer: the page now gives the expected size, and doctor only says the download started.
+- **Validation**: IPv4 addresses out of range (`256.1.2.3`), ports with a leading zero and invalid DNS lists are refused.
+- The help and the example still said the Let's Encrypt test servers have « no limit »: their limits are higher, not absent.
+
+### Changed
+- README: the RPC of Transmission (not its BitTorrent port) only listens locally; the VPN clients are trusted by the firewall.
+
 ## [1.1.2] - 2026-10-31
 
 ### Changed

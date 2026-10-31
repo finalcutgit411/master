@@ -27,6 +27,8 @@ SEEDBOX_SSL_DIR="$APP_STATE_DIR/ssl"
 NGINX_SITE="/etc/nginx/sites-available/seedtunnel"
 NGINX_SITE_LINK="/etc/nginx/sites-enabled/seedtunnel"
 NGINX_HTPASSWD="/etc/nginx/seedtunnel.htpasswd"
+# site installed by the nginx package, replaced by the seedbox
+NGINX_DEFAULT_SITE="/etc/nginx/sites-enabled/default"
 SSHD_SEEDBOX_CONF="/etc/ssh/sshd_config.d/seedtunnel-seedbox.conf"
 SFTP_KEYS_DIR="/etc/ssh/seedtunnel_authorized_keys"
 FAIL2BAN_JAIL="/etc/fail2ban/jail.d/seedtunnel.local"
@@ -368,6 +370,8 @@ transmission_generate_dropin() {
     cat <<EOF
 # Written by seedtunnel — Transmission locked down by systemd
 [Service]
+# not started on an almost full disk (« + »: this check runs as root)
+ExecStartPre=+$APP_DIR/seedtunnel.sh diskguard-prestart
 UMask=0002
 NoNewPrivileges=yes
 ProtectSystem=strict
@@ -586,19 +590,19 @@ EOF
 }
 
 seedbox_apply_nginx() {
-    local changed=0
-    if write_if_changed "$NGINX_SITE" 644 root:root nginx_generate_site; then changed=1; fi
+    if write_if_changed "$NGINX_SITE" 644 root:root nginx_generate_site; then pending_set nginx; fi
     if [[ ! -L $NGINX_SITE_LINK ]]; then
         ln -sf "$NGINX_SITE" "$NGINX_SITE_LINK"
-        changed=1
+        pending_set nginx
     fi
-    if [[ -e /etc/nginx/sites-enabled/default || -L /etc/nginx/sites-enabled/default ]]; then
-        rm -f /etc/nginx/sites-enabled/default
-        changed=1
+    if [[ -e $NGINX_DEFAULT_SITE || -L $NGINX_DEFAULT_SITE ]]; then
+        rm -f "$NGINX_DEFAULT_SITE"
+        pending_set nginx
     fi
-    if ((changed)) || ! systemctl is-active --quiet nginx; then
+    if pending nginx || ! systemctl is-active --quiet nginx; then
         run 'Checking the nginx configuration' nginx -t
         run 'Reloading nginx' systemctl reload-or-restart nginx
+        pending_clear nginx
     fi
 }
 
@@ -677,7 +681,8 @@ seedbox_apply_sftp() {
         SEEDBOX_SFTP_PASSWORD=yes
     fi
     if [[ -e $SSHD_SEEDBOX_CONF ]]; then cp -p "$SSHD_SEEDBOX_CONF" "$SSHD_SEEDBOX_CONF.previous"; fi
-    if write_if_changed "$SSHD_SEEDBOX_CONF" 644 root:root sshd_generate_seedbox_conf; then
+    if write_if_changed "$SSHD_SEEDBOX_CONF" 644 root:root sshd_generate_seedbox_conf; then pending_set ssh; fi
+    if pending ssh; then
         # SSH is only reloaded if the configuration is valid: no risk of being
         # locked out. Otherwise, back to the previous version.
         if ! sshd -t >>"$APP_LOG" 2>&1; then
@@ -686,9 +691,11 @@ seedbox_apply_sftp() {
             else
                 rm -f "$SSHD_SEEDBOX_CONF"
             fi
+            pending_clear ssh
             die 'sshd refuses the generated configuration (details in %s). SSH was not changed.' "$APP_LOG"
         fi
         run 'Reloading SSH' systemctl try-reload-or-restart ssh.service
+        pending_clear ssh
     fi
     rm -f "$SSHD_SEEDBOX_CONF.previous"
 
@@ -1403,6 +1410,22 @@ seedbox_restart() {
     fi
 }
 
+# Deletes the seedbox account, after closing its open SFTP sessions (they
+# prevent the deletion). Stops the script if the account is still there.
+seedbox_delete_user() {
+    local attempt
+    [[ -n $SEEDBOX_USER ]] && id "$SEEDBOX_USER" &>/dev/null || return 0
+    # the documents stay readable by root once the user is deleted
+    if [[ -d $SEEDBOX_DATA_DIR/documents ]]; then chown -R root:root "$SEEDBOX_DATA_DIR/documents"; fi
+    for attempt in 1 2 3; do
+        pkill -KILL -u "$SEEDBOX_USER" >>"$APP_LOG" 2>&1 || true
+        if userdel "$SEEDBOX_USER" >>"$APP_LOG" 2>&1 || ! id "$SEEDBOX_USER" &>/dev/null; then return 0; fi
+        sleep 1
+    done
+    die 'Cannot delete the user %s (details in %s). The seedbox was not removed and its SFTP restrictions stay in place: run the removal again.' \
+        "$SEEDBOX_USER" "$APP_LOG"
+}
+
 seedbox_uninstall() {
     local delete_data=0
     banner
@@ -1416,19 +1439,18 @@ seedbox_uninstall() {
         delete_data=1
     fi
     echo
+    # The account goes first: its SFTP restrictions (chroot, no tunnel) stay in
+    # force until it is really gone. If it cannot be deleted, nothing else is
+    # removed, so that running the removal again finishes the job.
+    seedbox_delete_user
     diskguard_remove
     systemctl disable --now transmission-daemon >>"$APP_LOG" 2>&1 || true
     if [[ -f $SSHD_SEEDBOX_CONF ]]; then
         rm -f "$SSHD_SEEDBOX_CONF"
         run 'Reloading SSH' systemctl try-reload-or-restart ssh.service
     fi
-    if [[ -n $SEEDBOX_USER ]] && id "$SEEDBOX_USER" &>/dev/null; then
-        # the documents stay readable by root once the user is deleted
-        if [[ -d $SEEDBOX_DATA_DIR/documents ]]; then chown -R root:root "$SEEDBOX_DATA_DIR/documents"; fi
-        if ! userdel "$SEEDBOX_USER" >>"$APP_LOG" 2>&1; then
-            warn 'Cannot delete the user %s (SFTP session open?).' "$SEEDBOX_USER"
-        fi
-    fi
+    pending_clear ssh
+    pending_clear nginx
     if command -v certbot >/dev/null; then
         certbot delete --cert-name "$LETSENCRYPT_CERT_NAME" --non-interactive >>"$APP_LOG" 2>&1 || true
     fi
