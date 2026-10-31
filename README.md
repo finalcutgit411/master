@@ -26,7 +26,7 @@ Download a published version and check its fingerprint before running it. The co
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.1.0
+V=1.1.1
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -127,11 +127,11 @@ The first time the menu opens, it asks for the language: English or French. To c
 | Certificate | Let's Encrypt, or self-signed if no domain name points to the server |
 | Folders | `watch/` (drop a .torrent here), `incomplete/`, `complete/`, `documents/` |
 | Protection | fail2ban on SSH/SFTP, the web password and repeat offenders |
-| Full disk | under 3 GB free, Transmission is stopped cleanly; it starts again by itself above 5 GB |
+| Full disk | checked every 5 minutes: under 3 GB free, Transmission is stopped cleanly; it starts again by itself above 5 GB |
 
 No domain name? Most providers give one (for example `vps-1234abcd.vps.ovh.net`). The script suggests it if it points to the server.
 
-For your tests, `--staging` uses the test servers of Let's Encrypt. They have no limit, but browsers do not trust their certificates.
+For your tests, `--staging` uses the test servers of Let's Encrypt. Their limits are much higher, but browsers do not trust their certificates.
 
 ### One-time download links
 
@@ -142,7 +142,7 @@ No need for `scp` to get a file onto your computer:
 - `seedtunnel seedbox sftp-config` gives an address to paste into WinSCP, with the fingerprint of the server inside: WinSCP checks by itself that it is the right server, without a question at the first connection. With `filezilla`, it also gives a link to a file to import into FileZilla;
 - `seedtunnel seedbox sftp-key new` creates an SSH key and gives a link to it as a .ppk file, ready for WinSCP and FileZilla: SFTP without a password. No copy of the private key stays on the server.
 
-The link goes through the HTTPS site of the seedbox. It holds a random token that cannot be guessed, works **only once** and expires after **10 minutes**. The file is deleted as soon as it is opened: another form of the address or a partial download cannot get it a second time. Opening the page does not count, only downloading the file does, so an automatic link preview in a messaging app does not waste it.
+The link goes through the HTTPS site of the seedbox. It holds a random token that cannot be guessed, works **only once** and expires after **10 minutes**. nginx serves the file once: any other request on it is refused, even right after on the same connection or with another form of the address, never a partial download, and the file is deleted right away. A HEAD request is refused without using the link up. Opening the page does not count, only downloading the file does, so an automatic link preview in a messaging app does not waste it.
 
 ### Firewall
 
@@ -151,7 +151,7 @@ The link goes through the HTTPS site of the seedbox. It holds a random token tha
 - the VPN and the seedbox, if installed;
 - the ICMP that IPv6 needs.
 
-In a terminal, turning it on is **temporary**: without a confirmation from a new SSH connection, everything is undone after 2 minutes. You cannot lock yourself out.
+In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). The rules loaded at boot only change once confirmed.
 
 ### Diagnostics
 
@@ -186,7 +186,7 @@ Downloaded files are not in the backup: copy them with `rsync`.
 
 - Transmission only listens on `127.0.0.1`. Only nginx is exposed, and the password is checked twice: by nginx, then by Transmission.
 - Transmission is **locked down by systemd** (`ProtectSystem=strict`…): it can only write to its own folders.
-- Passwords are **never written in clear**, nor given as an argument to a command. Only their hashes are kept.
+- Passwords are **never written in clear**, nor given as an argument to a command. Only their hashes are kept. The one exception is the passphrase of the weekly backup, if you turn it on: it is saved readable by root only, so that the backup can run alone.
 - The SFTP user is locked inside the data folder: no shell, no tunnel.
 - fail2ban bans attackers of SSH from **every port**, whatever the port of SSH.
 - Hardened kernel network settings (`/etc/sysctl.d/90-seedtunnel-network.conf`): ICMP redirects ignored, source routing refused.

@@ -692,6 +692,9 @@ fr: Elle fonctionne ? Tapez « oui » pour garder le pare-feu :
 en: Firewall cancelled: nothing was kept.
 fr: Pare-feu annulé : rien n'a été conservé.
 
+en: Change cancelled: the previous rules are back.
+fr: Modification annulée : les règles précédentes sont revenues.
+
 en: Firewall on: everything not allowed is refused.
 fr: Pare-feu actif : tout ce qui n'est pas autorisé est refusé.
 
@@ -1328,6 +1331,9 @@ fr: Activation du routage IPv4
 
 en: Starting the VPN
 fr: Démarrage du VPN
+
+en: The running VPN does not match its configuration and cannot be updated (details in %s):  seedtunnel vpn restart
+fr: Le VPN en marche ne correspond pas à sa configuration et ne peut pas être mis à jour (détails dans %s) :  seedtunnel vpn restart
 
 en: Restarting the VPN (new port)
 fr: Redémarrage du VPN (nouveau port)

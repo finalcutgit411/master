@@ -26,7 +26,7 @@ On télécharge une version publiée et on vérifie son empreinte avant de la la
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.1.0
+V=1.1.1
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -127,11 +127,11 @@ Le fichier n'est jamais exécuté : il est seulement lu ligne par ligne, et les 
 | Certificat | Let's Encrypt, ou auto-signé si aucun nom de domaine ne pointe sur le serveur |
 | Dossiers | `watch/` (déposez un .torrent), `incomplete/`, `complete/`, `documents/` |
 | Protection | fail2ban sur SSH/SFTP, le mot de passe web et les récidivistes |
-| Disque plein | sous 3 Go libres, Transmission est arrêté proprement ; il redémarre tout seul au-dessus de 5 Go |
+| Disque plein | contrôlé toutes les 5 minutes : sous 3 Go libres, Transmission est arrêté proprement ; il redémarre tout seul au-dessus de 5 Go |
 
 Pas de nom de domaine ? La plupart des hébergeurs en fournissent un (par exemple `vps-1234abcd.vps.ovh.net`). Le script le propose s'il pointe bien sur le serveur.
 
-Pour vos essais, `--staging` utilise les serveurs de test de Let's Encrypt. Ils n'ont pas de limite, mais leur certificat n'est pas reconnu par les navigateurs.
+Pour vos essais, `--staging` utilise les serveurs de test de Let's Encrypt. Leurs limites sont bien plus hautes, mais leur certificat n'est pas reconnu par les navigateurs.
 
 ### Liens de téléchargement à usage unique
 
@@ -142,7 +142,7 @@ Plus besoin de `scp` pour récupérer un fichier sur son ordinateur :
 - `seedtunnel seedbox sftp-config` donne une adresse à coller dans WinSCP, qui contient l'empreinte du serveur : WinSCP vérifie tout seul que c'est le bon serveur, sans question à la première connexion. Avec `filezilla`, elle crée en plus un lien vers un fichier à importer dans FileZilla ;
 - `seedtunnel seedbox sftp-key new` crée une clé SSH et donne un lien vers elle au format .ppk, prête pour WinSCP et FileZilla : SFTP sans mot de passe. Aucune copie de la clé privée ne reste sur le serveur.
 
-Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire impossible à deviner, ne fonctionne **qu'une fois** et expire au bout de **10 minutes**. Le fichier est supprimé dès qu'il est ouvert : une autre forme de l'adresse ou un téléchargement partiel ne permet pas de le récupérer une deuxième fois. Ouvrir la page ne compte pas, seul le téléchargement du fichier compte : l'aperçu automatique d'une messagerie ne gâche donc pas le lien.
+Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire impossible à deviner, ne fonctionne **qu'une fois** et expire au bout de **10 minutes**. nginx ne sert le fichier qu'une fois : toute autre requête est refusée, même juste après sur la même connexion ou avec une autre forme de l'adresse, jamais de téléchargement partiel, et le fichier est aussitôt supprimé. Une requête HEAD est refusée sans consommer le lien. Ouvrir la page ne compte pas, seul le téléchargement du fichier compte : l'aperçu automatique d'une messagerie ne gâche donc pas le lien.
 
 ### Pare-feu
 
@@ -151,7 +151,7 @@ Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire i
 - le VPN et la seedbox s'ils sont installés ;
 - l'ICMP indispensable à IPv6.
 
-Dans un terminal, l'activation est **provisoire** : sans confirmation depuis une nouvelle connexion SSH, tout est annulé au bout de 2 minutes. Impossible de se retrouver enfermé dehors.
+Dans un terminal, chaque changement est d'abord **à l'essai** : sans confirmation depuis une nouvelle connexion SSH dans les 2 minutes, les règles précédentes reviennent (ou aucune règle, la première fois). Les règles chargées au démarrage ne changent qu'après confirmation.
 
 ### Diagnostic
 
@@ -186,7 +186,7 @@ Les fichiers téléchargés ne sont pas dans la sauvegarde : copiez-les avec `rs
 
 - Transmission n'écoute que sur `127.0.0.1`. Seul nginx est exposé, et le mot de passe est vérifié deux fois : par nginx, puis par Transmission.
 - Transmission est **enfermé par systemd** (`ProtectSystem=strict`…) : il ne peut écrire que dans ses dossiers.
-- Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seules leurs empreintes sont gardées.
+- Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seules leurs empreintes sont gardées. Seule exception : la phrase de passe de la sauvegarde hebdomadaire, si vous l'activez, enregistrée lisible par root uniquement pour que la sauvegarde tourne seule.
 - L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel.
 - fail2ban bannit les attaquants de SSH de **tous les ports**, quel que soit le port de SSH.
 - Réglages réseau du noyau durcis (`/etc/sysctl.d/90-seedtunnel-network.conf`) : redirections ICMP ignorées, routage par la source refusé.

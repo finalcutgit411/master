@@ -61,19 +61,39 @@ jobs:
       - name: Phase 1 — VPN, seedbox, links, SFTP, SSH keys, firewall, full disk
         run: docker exec st /opt/seedtunnel/tests/integration.sh phase1
 
-      - name: Firewall seen from the outside
+      - name: From the outside — firewall, open port of a VPN client
         run: |
           ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' st)
+          # waits until something listens on port $2 ($1: command prefix, e.g.
+          # to look inside the network namespace of the VPN client)
+          wait_listen() {
+            for i in $(seq 1 10); do
+              if docker exec st $1 ss -ltn "sport = :$2" | grep -q LISTEN; then return 0; fi
+              sleep 1
+            done
+            echo "✘ nothing listens on port $2: the test would prove nothing"
+            return 1
+          }
+          nc -z -w 3 "$ip" 22 || { echo "✘ SSH unreachable"; exit 1; }
+          echo "✔ SSH reachable"
+          nc -z -w 3 "$ip" 443 || { echo "✘ HTTPS unreachable"; exit 1; }
+          echo "✔ HTTPS reachable"
           # a service that is not allowed listens on 8080: it must stay unreachable
           docker exec -d st nc -lk 8080
-          sleep 1
-          nc -z -w 3 "$ip" 22 && echo "✔ SSH reachable"
-          nc -z -w 3 "$ip" 443 && echo "✔ HTTPS reachable"
+          wait_listen "" 8080
           if nc -z -w 3 "$ip" 8080; then
             echo "✘ port 8080 is reachable: the firewall does not block"
             exit 1
           fi
           echo "✔ port 8080 blocked by the firewall"
+          # open port of the VPN client « phone » (60001 → 10.8.0.2): a service
+          # listens inside the client, which sends everything through the
+          # tunnel, as with its real configuration (AllowedIPs = 0.0.0.0/0)
+          docker exec st sh -c 'ip netns exec st-client wg set wgc peer "$(ip netns exec st-client wg show wgc peers)" allowed-ips 0.0.0.0/0 && ip -n st-client route replace default dev wgc'
+          docker exec -d st ip netns exec st-client nc -lk 60001
+          wait_listen "ip netns exec st-client" 60001
+          nc -z -w 5 "$ip" 60001 || { echo "✘ port 60001 does not reach the VPN client"; exit 1; }
+          echo "✔ port 60001 reaches the VPN client through the tunnel"
 
       - name: Phase 2 — diagnostics, backups, restore, removal
         run: docker exec st /opt/seedtunnel/tests/integration.sh phase2

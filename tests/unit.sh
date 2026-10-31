@@ -279,6 +279,126 @@ domain_change_applied_once_confirmed() (
     [[ $APPLIED == 1 && $SEEDBOX_DOMAIN == new.example.org ]]
 )
 
+# --- firewall: refusing new rules puts the previous ones back --------------------
+# The answer to « Does it work? » comes from standard input; the nft and
+# systemd-run commands are recorded in $WORK/fw/calls.
+
+firewall_trial_load() {
+    load
+    INTERACTIVE=1
+    rm -rf "$WORK/fw"
+    mkdir -p "$WORK/fw"
+    : >"$WORK/fw/calls"
+    FIREWALL_RULES="$WORK/fw/firewall.nft"
+    FIREWALL_CANDIDATE="$WORK/fw/firewall.nft.new"
+    FIREWALL_CONF_FILE="$WORK/fw/firewall.conf"
+    FIREWALL_UNIT="$WORK/fw/seedtunnel-firewall.service"
+    apt_install() { :; }
+    firewall_generate_rules() { echo "new rules"; }
+    firewall_summary() { echo SSH; }
+    confirm() { return 0; }
+    pause() { :; }
+    clear() { :; }
+    chown() { :; }
+    systemctl() { :; }
+    nft() { echo "nft $*" >>"$WORK/fw/calls"; }
+    systemd-run() { echo "systemd-run $*" >>"$WORK/fw/calls"; }
+}
+
+firewall_was_on() {
+    echo "old rules" >"$FIREWALL_RULES"
+    FIREWALL_ENABLED=1
+    state_write "$FIREWALL_CONF_FILE" FIREWALL_ENABLED
+}
+
+firewall_change_refused_restores_previous_rules() (
+    firewall_trial_load
+    firewall_was_on
+    firewall_enable <<<"no" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/calls"
+    [[ $(<"$FIREWALL_RULES") == "old rules" && ! -e $FIREWALL_CANDIDATE ]] || return 1
+    # undo, now and in 2 minutes: the old rules again, never « no firewall »
+    grep -qx "nft -f $FIREWALL_RULES" "$WORK/fw/calls" \
+        && grep -q "systemd-run .* /usr/sbin/nft -f $FIREWALL_RULES" "$WORK/fw/calls" \
+        && ! grep -q "delete table" "$WORK/fw/calls"
+)
+
+firewall_first_trial_refused_leaves_nothing() (
+    firewall_trial_load
+    firewall_enable <<<"no" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/calls"
+    [[ ! -e $FIREWALL_RULES && ! -e $FIREWALL_CANDIDATE ]] && ! firewall_enabled \
+        && grep -qx "nft delete table inet $FIREWALL_TABLE" "$WORK/fw/calls"
+)
+
+firewall_change_confirmed_becomes_permanent() (
+    firewall_trial_load
+    firewall_was_on
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    [[ $(<"$FIREWALL_RULES") == "new rules" && ! -e $FIREWALL_CANDIDATE ]] && firewall_enabled
+)
+
+# --- VPN: a change that failed is applied at the next run ------------------------
+
+vpn_change_failed_then_retried() (
+    load
+    VPN_PORT=51820
+    : >"$WORK/syncconf"
+    systemctl() { return 0; }
+    wg-quick() { printf '[Interface]\n'; }
+    nft() { return 0; }
+    wg() {
+        case $1 in
+            show) echo 51820 ;;
+            syncconf)
+                echo call >>"$WORK/syncconf"
+                # the first application fails, the next ones work
+                (($(wc -l <"$WORK/syncconf") > 1))
+                ;;
+        esac
+    }
+    # first run: the files changed, WireGuard refuses them → failure reported
+    if (vpn_reconcile 1) </dev/null &>/dev/null; then return 1; fi
+    # next run: the files are already written (nothing changed), yet the
+    # running VPN is put in line with them
+    vpn_reconcile 0 </dev/null &>/dev/null || return 1
+    (($(wc -l <"$WORK/syncconf") == 2))
+)
+
+# --- backups: a failed backup never becomes « the latest backup » ----------------
+
+backup_load() {
+    load
+    BACKUP_DIR="$WORK/backups"
+    rm -rf "$BACKUP_DIR"
+    BACKUP_PASSPHRASE="a test passphrase"
+    backup_paths() { echo etc/hostname; }
+}
+
+backup_failed_leaves_nothing() (
+    backup_load
+    # tar stops halfway (disk error, file gone…)
+    tar() {
+        if [[ $1 == -czf ]]; then
+            printf 'half an archive'
+            return 2
+        fi
+        command tar "$@"
+    }
+    if (backup_write "$BACKUP_DIR/test.tar.gz.enc") </dev/null &>/dev/null; then return 1; fi
+    ls -A "$BACKUP_DIR"
+    [[ -z $(ls -A "$BACKUP_DIR") && -z $(backup_latest) ]]
+)
+
+backup_complete_and_checked() (
+    backup_load
+    backup_write "$BACKUP_DIR/test.tar.gz.enc" </dev/null &>/dev/null || return 1
+    [[ -s $BACKUP_DIR/test.tar.gz.enc && ! -e $BACKUP_DIR/test.tar.gz.enc.partial ]] || return 1
+    [[ $(backup_latest) == "$BACKUP_DIR/test.tar.gz.enc" ]] || return 1
+    openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass pass:"a test passphrase" \
+        -in "$BACKUP_DIR/test.tar.gz.enc" | tar -tzf - | grep -qx etc/hostname
+)
+
 printf '\033[1m=== Unit tests\033[0m\n'
 check "vpn_sync: WireGuard refusing the configuration shows « failed »" vpn_sync_reports_wg_failure
 check "vpn_sync: a failure of « wg-quick strip » is seen" vpn_sync_reports_strip_failure
@@ -299,6 +419,12 @@ check "domain menu: same name, certificate kept without a new request" domain_ch
 check "domain menu: warning and confirmation before replacing the certificate" domain_change_warns_before_replacing_certificate
 check "domain menu: Q goes back when the name points elsewhere" domain_change_back_when_name_points_elsewhere
 check "domain menu: new name applied once confirmed" domain_change_applied_once_confirmed
+check "firewall: change refused → previous rules back, boot file untouched" firewall_change_refused_restores_previous_rules
+check "firewall: first activation refused → no rules left" firewall_first_trial_refused_leaves_nothing
+check "firewall: change confirmed → becomes the rules loaded at boot" firewall_change_confirmed_becomes_permanent
+check "VPN: a change refused by WireGuard is applied at the next run" vpn_change_failed_then_retried
+check "backup: a failed backup leaves no file, never « the latest »" backup_failed_leaves_nothing
+check "backup: complete archive, checked, then renamed" backup_complete_and_checked
 
 printf '\n\033[1m%s passed, %s failed\033[0m\n' "$PASS" "$FAIL"
 ((FAIL == 0))

@@ -86,12 +86,21 @@ backup_read_passphrase() {
 }
 
 # Compressed tar archive, then encrypted; the passphrase goes through a file
-# descriptor, never as an argument (invisible in « ps »).
+# descriptor, never as an argument (invisible in « ps »). The archive is
+# written next to its final name, checked by decrypting it, and only renamed
+# once complete: a backup that fails never becomes « the latest backup ».
 backup_create_archive() {
-    local out=$1
+    local out=$1 partial="$1.partial"
     shift
-    tar -czf - --numeric-owner -C / "$@" \
-        | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass fd:3 -out "$out" 3<<<"$BACKUP_PASSPHRASE"
+    if tar -czf - --numeric-owner -C / "$@" \
+        | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass fd:3 -out "$partial" 3<<<"$BACKUP_PASSPHRASE" \
+        && openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass fd:3 -in "$partial" 3<<<"$BACKUP_PASSPHRASE" \
+        | tar -tzf - >/dev/null; then
+        mv -f "$partial" "$out"
+    else
+        rm -f "$partial"
+        return 1
+    fi
 }
 
 # backup_write FILE — encrypted archive with BACKUP_PASSPHRASE
@@ -100,6 +109,8 @@ backup_write() {
     local -a paths=()
     mapfile -t paths < <(backup_paths)
     install -d -m 700 "$BACKUP_DIR"
+    # left by a backup interrupted the hard way (power cut)
+    find "$BACKUP_DIR" -maxdepth 1 -name '*.partial' -mmin +1440 -delete 2>/dev/null || true
     old_umask=$(umask)
     umask 077
     run 'Creating the encrypted archive' backup_create_archive "$out" "${paths[@]}"

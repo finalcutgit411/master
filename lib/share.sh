@@ -7,11 +7,12 @@
 #  https://<domain>/share/<token>/, a page with a download button. The token
 #  is random (128 bits): impossible to guess.
 #
-#  The file is deleted the moment nginx opens it (inotify): a download that has
-#  started goes to the end, and any later request gets an error, whatever the
-#  form of the address. nginx also allows one download at a time per link, and
-#  never a partial one. An unused link expires after 10 minutes. Everything
-#  lives in /run, which is emptied at boot.
+#  nginx serves the file of a link once: any other request on it is refused on
+#  the spot (even right after, on the same connection, or with another form of
+#  the address), never a partial download, and a HEAD request is refused
+#  without using the link up. The file is also deleted the moment nginx opens
+#  it (inotify). An unused link expires after 10 minutes. Everything lives in
+#  /run, which is emptied at boot.
 #  Opening the page does not count: a messaging app that previews the link
 #  does not use it up.
 # =============================================================================
@@ -31,11 +32,25 @@ fi
 rm -rf -- "$3"
 SH
 
-# nginx directive at the top of the seedbox site (http level)
+# nginx directives at the top of the seedbox site (http level)
 share_generate_nginx_http() {
     cat <<'EOF'
-# One-time links: one download at a time per address (see share_generate_nginx)
-limit_conn_zone $uri zone=seedtunnel_share:1m;
+# One-time links (see the location /share/ below). The file of a link (never
+# its page) is served once: any other request on it gets a 404 for a minute,
+# and by then the file is long gone. nginx decides it on the spot, so two
+# requests one right after the other cannot both get the file.
+map $uri $seedtunnel_share_file {
+    "~^/share/[0-9a-f]{32}/[^/]+$" $uri;
+    default "";
+}
+limit_req_zone $seedtunnel_share_file zone=seedtunnel_share:1m rate=1r/m;
+# Only GET gets the file: HEAD (or anything else) would open it, using the link
+# up, without downloading it
+map "$request_method $uri" $seedtunnel_share_refused {
+    "~^GET " 0;
+    "~^[^ ]+ /share/[0-9a-f]{32}/[^/]+$" 1;
+    default 0;
+}
 EOF
 }
 
@@ -50,8 +65,13 @@ share_generate_nginx() {
         auth_basic off;
         alias $SHARE_DIR/;
         log_not_found off;
-        # one download at a time, always complete (no Range, no cache)
-        limit_conn seedtunnel_share 1;
+        # the file: GET only, served once (see the top of the site), always
+        # whole (no Range, no cache)
+        if (\$seedtunnel_share_refused) {
+            return 405;
+        }
+        limit_req zone=seedtunnel_share;
+        limit_req_status 404;
         max_ranges 0;
         open_file_cache off;
         if_modified_since off;

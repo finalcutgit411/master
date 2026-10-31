@@ -217,7 +217,7 @@ vpn_sync() {
 
 # Puts the server in the state described in /etc/seedtunnel (idempotent)
 vpn_apply() {
-    local interface name changed=0 current_port
+    local interface name changed=0
     apt_install wireguard-tools qrencode
     install -d -m 700 "$VPN_STATE_DIR" "$VPN_CLIENTS_DIR" /etc/wireguard
     if [[ ! -s $VPN_STATE_DIR/server.key ]]; then
@@ -246,18 +246,28 @@ vpn_apply() {
     done < <(vpn_client_names)
     if write_if_changed "$WIREGUARD_CONF" 600 root:root vpn_generate_server_conf; then changed=1; fi
     if write_if_changed "$VPN_NAT_RULES" 600 root:root vpn_generate_nat_rules; then changed=1; fi
+    vpn_reconcile "$changed"
+}
 
+# vpn_reconcile CHANGED — puts the running VPN in line with its files. Even when
+# no file changed, the clients and the NAT are synchronized again (quietly): a
+# change whose application failed earlier (a revoked client, for example) is
+# applied at the next run instead of being forgotten. It cuts no connection.
+vpn_reconcile() {
+    local changed=$1 current_port
     if ! systemctl is-active --quiet "wg-quick@$VPN_INTERFACE"; then
         run 'Starting the VPN' systemctl enable --now "wg-quick@$VPN_INTERFACE"
-    else
-        current_port=$(wg show "$VPN_INTERFACE" listen-port 2>/dev/null || true)
-        if [[ $current_port != "$VPN_PORT" ]]; then
-            run 'Restarting the VPN (new port)' systemctl restart "wg-quick@$VPN_INTERFACE"
-        elif ((changed)); then
-            run 'Applying the configuration' vpn_sync
-        fi
-        systemctl enable --quiet "wg-quick@$VPN_INTERFACE" 2>/dev/null || true
+        return 0
     fi
+    current_port=$(wg show "$VPN_INTERFACE" listen-port 2>/dev/null || true)
+    if [[ $current_port != "$VPN_PORT" ]]; then
+        run 'Restarting the VPN (new port)' systemctl restart "wg-quick@$VPN_INTERFACE"
+    elif ((changed)); then
+        run 'Applying the configuration' vpn_sync
+    elif ! vpn_sync >>"$APP_LOG" 2>&1; then
+        die 'The running VPN does not match its configuration and cannot be updated (details in %s):  seedtunnel vpn restart' "$APP_LOG"
+    fi
+    systemctl enable --quiet "wg-quick@$VPN_INTERFACE" 2>/dev/null || true
 }
 
 vpn_next_client_number() {

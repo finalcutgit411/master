@@ -225,6 +225,42 @@ share_no_range_test() {
     }
 }
 
+# Two requests one right after the other, on the same connection: only the
+# first one gets the file (nginx refuses the second one on the spot, without
+# waiting for the watcher to delete the file)
+share_same_connection_test() {
+    local out path codes
+    out=$(app vpn share phone 2>&1) || return 1
+    path=$(share_path "$out") || return 1
+    codes=$(curl -sk --max-time 10 -w '%{http_code} %{num_connects}\n' \
+        -o "$W/first.conf" "https://127.0.0.1${path}phone.conf" \
+        -o "$W/second.conf" "https://127.0.0.1${path}phone.conf")
+    [[ $codes == $'200 1\n404 0' ]] || {
+        printf 'HTTP code and new connections, for each request:\n%s\n' "$codes"
+        return 1
+    }
+    cmp "$W/first.conf" /etc/seedtunnel/vpn/clients/phone.conf
+}
+
+# HEAD is refused without using the link up: the download that follows works
+share_head_test() {
+    local out path code
+    out=$(app vpn share phone 2>&1) || return 1
+    path=$(share_path "$out") || return 1
+    code=$(curl -sk --max-time 10 -I -o /dev/null -w '%{http_code}' "https://127.0.0.1${path}phone.conf")
+    [[ $code == 405 ]] || {
+        echo "HEAD: $code instead of 405"
+        return 1
+    }
+    sleep 1
+    code=$(curl -sk --max-time 10 -o "$W/after-head.conf" -w '%{http_code}' "https://127.0.0.1${path}phone.conf")
+    [[ $code == 200 ]] || {
+        echo "GET after HEAD: $code instead of 200"
+        return 1
+    }
+    cmp "$W/after-head.conf" /etc/seedtunnel/vpn/clients/phone.conf && link_gone "${path}phone.conf"
+}
+
 # SFTP settings: WinSCP address with the fingerprint of the server (computed
 # here in another way: SHA-256 of the public key, in base64 « URL »), then
 # FileZilla site downloadable
@@ -382,6 +418,13 @@ backup_share_test() {
     path=$(share_path "$out") || return 1
     name=$(curl -sk --max-time 10 "https://127.0.0.1$path" | grep -oE 'href="seedtunnel-[^"]+\.enc"' | cut -d'"' -f2)
     [[ -n $name ]] || return 1
+    # a HEAD request (a link checker) does not count as a download
+    curl -sk --max-time 10 -I -o /dev/null "https://127.0.0.1$path$name" || return 1
+    sleep 1
+    if [[ -e /etc/seedtunnel/backup.downloaded ]]; then
+        echo "a HEAD request was recorded as a download"
+        return 1
+    fi
     curl -skf --max-time 30 -o "$W/downloaded.enc" "https://127.0.0.1$path$name" || return 1
     openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$W/downloaded.enc" -pass file:"$W/passphrase" \
         | tar -tzf - >"$W/content.txt" || return 1
@@ -485,6 +528,8 @@ EOF
     check "vpn share: page, single download, then the link is gone" share_test
     check "another form of the address (?x) also uses up the link" share_variant_test
     check "no partial download (Range ignored)" share_no_range_test
+    check "two requests on the same connection: the file only once" share_same_connection_test
+    check "HEAD refused (405) without using the link up" share_head_test
     check "seedbox sftp-config: WinSCP address with fingerprint, FileZilla file" sftp_config_test
     check "list of links impossible" http_is 403 /share/
     check "unknown token: 404" http_is 404 /share/0123456789abcdef0123456789abcdef/

@@ -9,12 +9,15 @@
 #  The rules live in their own table (inet seedtunnel_fw): fail2ban, Docker or
 #  other tools keep theirs.
 #
-#  Safety when enabling: an automatic undo is scheduled 2 minutes later; the
-#  firewall is only kept if confirmed from a NEW SSH connection.
+#  Safety when enabling: the new rules are tried from their own file, with an
+#  automatic undo 2 minutes later; they are only kept if confirmed from a NEW
+#  SSH connection. Undoing puts back the rules in use before (or no rules if
+#  the firewall was off): the rules loaded at boot only change once confirmed.
 # =============================================================================
 
 FIREWALL_CONF_FILE="$APP_STATE_DIR/firewall.conf"
 FIREWALL_RULES="$APP_STATE_DIR/firewall.nft"
+FIREWALL_CANDIDATE="$APP_STATE_DIR/firewall.nft.new"
 FIREWALL_UNIT="/etc/systemd/system/seedtunnel-firewall.service"
 FIREWALL_TABLE="seedtunnel_fw"
 FIREWALL_ROLLBACK_UNIT="seedtunnel-firewall-rollback"
@@ -135,24 +138,38 @@ firewall_activate() {
 }
 
 firewall_enable() {
-    local answer
+    local answer was_on=0
+    local -a undo
     banner
     section 'FIREWALL'
     apt_install nftables
-    write_if_changed "$FIREWALL_RULES" 600 root:root firewall_generate_rules || true
-    run 'Checking the rules' nft -c -f "$FIREWALL_RULES"
+    if firewall_enabled && [[ -s $FIREWALL_RULES ]]; then was_on=1; fi
+    # the new rules go to their own file: the rules in use, loaded at boot,
+    # stay as they are until the new ones are confirmed
+    rm -f "$FIREWALL_CANDIDATE"
+    write_if_changed "$FIREWALL_CANDIDATE" 600 root:root firewall_generate_rules || true
+    run 'Checking the rules' nft -c -f "$FIREWALL_CANDIDATE"
     say '  Open: %s' "$(firewall_summary)"
     echo
     if ((INTERACTIVE)); then
+        # undo = back to the rules in use before, or to no rules if it was off
+        if ((was_on)); then
+            undo=(-f "$FIREWALL_RULES")
+        else
+            undo=(delete table inet "$FIREWALL_TABLE")
+        fi
         say 'For safety, the firewall will undo itself in 2 minutes unless you'
         say 'confirm from a NEW SSH connection.'
         echo
-        if ! confirm 'Enable the firewall?' y; then return 0; fi
+        if ! confirm 'Enable the firewall?' y; then
+            rm -f "$FIREWALL_CANDIDATE"
+            return 0
+        fi
         systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
         systemctl reset-failed "$FIREWALL_ROLLBACK_UNIT.timer" "$FIREWALL_ROLLBACK_UNIT.service" &>/dev/null || true
         run 'Scheduling the automatic undo (2 min)' \
-            systemd-run --quiet --unit="$FIREWALL_ROLLBACK_UNIT" --on-active=120 /usr/sbin/nft delete table inet "$FIREWALL_TABLE"
-        run 'Applying the rules (temporarily)' nft -f "$FIREWALL_RULES"
+            systemd-run --quiet --unit="$FIREWALL_ROLLBACK_UNIT" --on-active=120 /usr/sbin/nft "${undo[@]}"
+        run 'Applying the rules (temporarily)' nft -f "$FIREWALL_CANDIDATE"
         echo
         say 'Now open a NEW SSH connection to this server, without closing this one.'
         if IFS= read -r -t 110 -p "$(t 'Does it work? Type "yes" to keep the firewall:') " answer \
@@ -160,13 +177,20 @@ firewall_enable() {
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
         else
             echo
-            nft delete table inet "$FIREWALL_TABLE" &>/dev/null || true
+            nft "${undo[@]}" >>"$APP_LOG" 2>&1 || true
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
-            warn 'Firewall cancelled: nothing was kept.'
+            rm -f "$FIREWALL_CANDIDATE"
+            if ((was_on)); then
+                warn 'Change cancelled: the previous rules are back.'
+            else
+                warn 'Firewall cancelled: nothing was kept.'
+            fi
             pause
             return 0
         fi
     fi
+    # confirmed (or --yes): the new rules become the ones loaded at boot
+    mv -f "$FIREWALL_CANDIDATE" "$FIREWALL_RULES"
     firewall_activate
     ok 'Firewall on: everything not allowed is refused.'
     pause
@@ -178,7 +202,7 @@ firewall_disable() {
     if ! confirm 'Turn the firewall off?' n; then return 0; fi
     systemctl disable --now seedtunnel-firewall.service >>"$APP_LOG" 2>&1 || true
     nft delete table inet "$FIREWALL_TABLE" >>"$APP_LOG" 2>&1 || true
-    rm -f "$FIREWALL_UNIT" "$FIREWALL_RULES" "$FIREWALL_CONF_FILE"
+    rm -f "$FIREWALL_UNIT" "$FIREWALL_RULES" "$FIREWALL_CANDIDATE" "$FIREWALL_CONF_FILE"
     systemctl daemon-reload 2>/dev/null || true
     ok 'Firewall off.'
     pause

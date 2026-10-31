@@ -3,6 +3,18 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.1.1] - 2026-10-31
+
+### Fixed
+- **Firewall**: refusing a change, or not confirming it within 2 minutes, removed all the seedtunnel rules instead of putting the previous ones back, and the refused rules were loaded at the next boot. The new rules are now tried from their own file: undoing puts back the rules in use before (or no rules, the first time), and the rules loaded at boot only change once confirmed.
+- **VPN**: after a change refused by WireGuard, running again reported success without applying it, since the files were already up to date. A revoked client could stay connected until the VPN restarted. The running VPN is now put in line with its files at every run.
+- **One-time links**: two requests one right after the other (on the same connection) could both get the file, and a HEAD request used the link up without downloading anything. nginx now serves the file of a link only once, and refuses HEAD without using the link up.
+- **Backups**: a backup that failed left a truncated file, which then counted as the latest backup (`backup share`, diagnostics). A backup is now written to a temporary file, checked by decrypting it, and only then renamed.
+- **Automatic tests**: the checks of the SSH and HTTPS ports from the outside could not fail; now they can. The open port of a VPN client is now tested from the outside, through the tunnel.
+
+### Changed
+- README: more exact wording on the passphrase of the weekly backup (saved on the server, readable by root only), the disk check (every 5 minutes), the limits of the Let's Encrypt test servers and the undo of the firewall.
+
 ## [1.1.0] - 2026-10-31
 
 ### Added
