@@ -10,8 +10,11 @@ SHFMT := shfmt -i 4 -ci -bn
 
 .PHONY: lint fmt fmt-check check
 
+# Exclusions : le script est découpé en fichiers chargés par finalcut.sh (les
+# variables d'un fichier servent dans les autres : SC2034, SC2154) et charge
+# dynamiquement ses fichiers d'état /etc/finalcut/*.conf (SC1090, SC1091).
 lint:
-	shellcheck -x -S warning $(SCRIPTS)
+	shellcheck -x -P SCRIPTDIR -S warning -e SC2034,SC2154,SC1090,SC1091 $(SCRIPTS)
 
 fmt:
 	$(SHFMT) -w $(SCRIPTS)

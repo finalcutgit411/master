@@ -7,6 +7,4 @@
 .github export-ignore
 tests export-ignore
 Makefile export-ignore
-.shellcheckrc export-ignore
-.editorconfig export-ignore
 .gitattributes export-ignore
