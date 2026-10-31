@@ -3,6 +3,11 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.2.1] - 2026-10-31
+
+### Modifié
+- Menu principal : l'espace disque indique aussi la taille totale (« 36Go libres sur 40Go »), en couleur comme le reste de l'état (vert, jaune sous 10 % ou 5 Go, rouge sous 2 Go), et précise si la partition sert au système et aux téléchargements.
+
 ## [2.2.0] - 2026-10-31
 
 ### Ajouté

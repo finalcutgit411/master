@@ -5,7 +5,7 @@
 #  Chargée par finalcut.sh : ce fichier ne s'exécute pas seul.
 # =============================================================================
 
-FC_VERSION="2.2.0"
+FC_VERSION="2.2.1"
 # Dépôt GitHub utilisé par « finalcut update » (compte/projet)
 FC_REPO="finalcutgit411/finalcut"
 # État et secrets du script (lisible par root uniquement)
@@ -385,22 +385,24 @@ net_hardening_cleanup() {
     if ! vpn_installed && ! sb_installed; then rm -f "$FC_SYSCTL_NET"; fi
 }
 
-# Espace libre (en octets) sur la partition d'un dossier
-disk_free_bytes() {
-    df -B1 --output=avail "$1" 2>/dev/null | tail -n 1 | tr -d ' ' || true
-}
-
-# « 38Go libres », en jaune sous 5 Go
+# « 36Go libres sur 40Go » pour la partition d'un dossier. L'espace libre est
+# en vert, en jaune sous 10 % ou 5 Go, en rouge sous 2 Go.
 disk_free_txt() {
-    local b
-    b=$(disk_free_bytes "$1")
-    if [[ ! $b =~ ^[0-9]+$ ]]; then
+    local size="" avail="" color
+    read -r size avail < <(df -B1 --output=size,avail "$1" 2>/dev/null | tail -n 1) || true
+    if [[ ! $size =~ ^[0-9]+$ || ! $avail =~ ^[0-9]+$ ]] || ((size == 0)); then
         printf '?'
-    elif ((b < 5 * 1024 ** 3)); then
-        printf '%s%s libres%s' "$C_YEL" "$(numfmt --to=iec --suffix=o "$b")" "$C_END"
-    else
-        printf '%s libres' "$(numfmt --to=iec --suffix=o "$b")"
+        return 0
     fi
+    if ((avail < 2 * 1024 ** 3)); then
+        color=$C_RED
+    elif ((avail < 5 * 1024 ** 3 || avail * 10 < size)); then
+        color=$C_YEL
+    else
+        color=$C_GRN
+    fi
+    printf '%s%s libres%s sur %s' "$color" "$(numfmt --to=iec --suffix=o "$avail")" "$C_END" \
+        "$(numfmt --to=iec --suffix=o "$size")"
 }
 
 # --- Réseau ---------------------------------------------------------------------

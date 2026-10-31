@@ -100,11 +100,14 @@ menu_status() {
     else
         sb_txt="${C_DIM}non installée${C_END}"
     fi
-    disk_txt="$(disk_free_txt /) sur /"
-    # téléchargements sur une autre partition (second disque) : affichée aussi
-    if sb_installed && [[ -d $SB_DATA ]] \
-        && [[ $(df --output=target "$SB_DATA" 2>/dev/null | tail -n 1) != "$(df --output=target / 2>/dev/null | tail -n 1)" ]]; then
-        disk_txt+=" · $(disk_free_txt "$SB_DATA") dans $SB_DATA"
+    disk_txt=$(disk_free_txt /)
+    if sb_installed && [[ -d $SB_DATA ]]; then
+        if [[ $(df --output=target "$SB_DATA" 2>/dev/null | tail -n 1) == "$(df --output=target / 2>/dev/null | tail -n 1)" ]]; then
+            disk_txt+=" (système et téléchargements)"
+        else
+            # téléchargements sur un autre disque : les deux sont affichés
+            disk_txt="système $disk_txt · téléchargements $(disk_free_txt "$SB_DATA")"
+        fi
     fi
     if fw_enabled; then fw_txt="${C_GRN}actif${C_END}"; else fw_txt="${C_DIM}désactivé${C_END}"; fi
     printf '  VPN       : %s\n' "$vpn_txt"
