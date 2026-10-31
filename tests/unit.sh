@@ -202,6 +202,83 @@ lock_message_names_the_holder() (
     [[ $out == *"process "* && $out == *"pts/9"* && $out == *"kill "* ]]
 )
 
+# --- seedbox: changing the domain can always be cancelled ------------------------
+# A seedbox with a valid Let's Encrypt certificate for old.example.org; the
+# answers typed in the menu come from ANSWERS, « confirm » answers no.
+
+domain_menu_load() {
+    load
+    INTERACTIVE=1
+    SEEDBOX_DOMAIN=old.example.org
+    SEEDBOX_CERTIFICATE=letsencrypt
+    SEEDBOX_LETSENCRYPT=auto
+    SEEDBOX_LETSENCRYPT_SERVER=production
+    APPLIED=0
+    ANSWERS=()
+    # a question asked once more than planned = a menu with no way out
+    exec 3>&2
+    ask() {
+        if ((${#ANSWERS[@]} == 0)); then
+            echo "the menu asks again: no way out of it" >&3
+            exit 1
+        fi
+        printf -v "$1" '%s' "${ANSWERS[0]}"
+        ANSWERS=("${ANSWERS[@]:1}")
+    }
+    confirm() { return 1; }
+    clear() { :; }
+    public_ipv4() { printf 203.0.113.10; }
+    dns_ipv4_addresses() { if [[ $1 == *.example.org ]]; then printf 203.0.113.10; fi; }
+    letsencrypt_usable() { [[ $SEEDBOX_DOMAIN == old.example.org && $1 == production ]]; }
+    letsencrypt_expiry_date() { printf 2027-01-29; }
+    seedbox_apply_https() { APPLIED=1; }
+    seedbox_save() { APPLIED=1; }
+}
+
+# nothing applied, and the domain is still the old one
+domain_untouched() {
+    [[ $APPLIED == 0 && $SEEDBOX_DOMAIN == old.example.org && $SEEDBOX_LETSENCRYPT == auto ]] || {
+        echo "applied: $APPLIED, domain: $SEEDBOX_DOMAIN, letsencrypt: $SEEDBOX_LETSENCRYPT"
+        return 1
+    }
+}
+
+domain_change_empty_answer_goes_back() (
+    domain_menu_load
+    ANSWERS=("")
+    seedbox_change_domain >"$WORK/domain.out" 2>&1
+    domain_untouched && grep -q 'Nothing changed' "$WORK/domain.out"
+)
+
+domain_change_same_name_keeps_certificate() (
+    domain_menu_load
+    ANSWERS=("old.example.org")
+    seedbox_change_domain >"$WORK/domain.out" 2>&1
+    domain_untouched && grep -q 'Nothing to change' "$WORK/domain.out"
+)
+
+domain_change_warns_before_replacing_certificate() (
+    domain_menu_load
+    ANSWERS=("new.example.org")
+    seedbox_change_domain >"$WORK/domain.out" 2>&1
+    domain_untouched && grep -q 'will be deleted' "$WORK/domain.out"
+)
+
+domain_change_back_when_name_points_elsewhere() (
+    domain_menu_load
+    ANSWERS=("elsewhere.test" "q")
+    seedbox_change_domain >"$WORK/domain.out" 2>&1
+    domain_untouched && grep -q 'Nothing changed' "$WORK/domain.out"
+)
+
+domain_change_applied_once_confirmed() (
+    domain_menu_load
+    confirm() { return 0; }
+    ANSWERS=("new.example.org")
+    seedbox_change_domain >"$WORK/domain.out" 2>&1
+    [[ $APPLIED == 1 && $SEEDBOX_DOMAIN == new.example.org ]]
+)
+
 printf '\033[1m=== Unit tests\033[0m\n'
 check "vpn_sync: WireGuard refusing the configuration shows « failed »" vpn_sync_reports_wg_failure
 check "vpn_sync: a failure of « wg-quick strip » is seen" vpn_sync_reports_strip_failure
@@ -217,6 +294,11 @@ check "language: environment, saved choice, system language" language_detection
 check "translation: long texts in French" long_texts_exist_in_french
 check "firewall: open TCP ports read from the rules" firewall_ports_parsing
 check "lock: the message names the process holding it" lock_message_names_the_holder
+check "domain menu: an empty answer goes back, nothing changed" domain_change_empty_answer_goes_back
+check "domain menu: same name, certificate kept without a new request" domain_change_same_name_keeps_certificate
+check "domain menu: warning and confirmation before replacing the certificate" domain_change_warns_before_replacing_certificate
+check "domain menu: Q goes back when the name points elsewhere" domain_change_back_when_name_points_elsewhere
+check "domain menu: new name applied once confirmed" domain_change_applied_once_confirmed
 
 printf '\n\033[1m%s passed, %s failed\033[0m\n' "$PASS" "$FAIL"
 ((FAIL == 0))

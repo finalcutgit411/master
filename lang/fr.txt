@@ -777,6 +777,9 @@ fr: « %s » existe déjà sur ce système : choisissez un autre nom.
 en: Domain name or IP
 fr: Nom de domaine ou IP
 
+en: New domain name or IP (empty to go back)
+fr: Nouveau nom de domaine ou IP (vide pour revenir)
+
 en: Invalid domain name.
 fr: Nom de domaine invalide.
 
@@ -797,6 +800,9 @@ fr:   (après une modification DNS, comptez de quelques minutes à quelques heur
 
 en:   R) Try again    C) Continue with a self-signed certificate
 fr:   R) Recommencer    C) Continuer avec un certificat auto-signé
+
+en:   Q) Back, nothing is changed
+fr:   Q) Revenir, sans rien changer
 
 en: Creating the user %s
 fr: Création de l'utilisateur %s
@@ -1073,6 +1079,27 @@ fr: NOM DE DOMAINE ET CERTIFICAT HTTPS
 
 en: Right now: %s (certificate %s)
 fr: Actuellement : %s (certificat %s)
+
+en:   valid until %s, renewed automatically
+fr:   valable jusqu'au %s, renouvelé automatiquement
+
+en: Nothing changed.
+fr: Rien n'a été changé.
+
+en: Nothing to change: %s keeps its certificate.
+fr: Rien à changer : %s garde son certificat.
+
+en: The Let's Encrypt certificate will no longer be used: browsers will show a warning.
+fr: Le certificat Let's Encrypt ne sera plus utilisé : les navigateurs afficheront une alerte.
+
+en: The certificate of %s will be deleted and a new one requested for %s.
+fr: Le certificat de %s sera supprimé et un nouveau sera demandé pour %s.
+
+en:   Let's Encrypt issues at most 5 certificates a week for the same name: avoid going back and forth.
+fr:   Let's Encrypt délivre au plus 5 certificats par semaine pour un même nom : évitez les allers-retours.
+
+en: Continue?
+fr: Continuer ?
 
 en: %s%-16s%s banned: %-4s since start: %s
 fr: %s%-16s%s bannies : %-4s depuis le démarrage : %s

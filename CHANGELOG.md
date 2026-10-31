@@ -3,6 +3,12 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.0.1] - 2026-10-31
+
+### Fixed
+- Seedbox menu, « Domain name and HTTPS certificate »: once inside, there was no way back. An empty answer (or Q when the name does not point to the server) now goes back without changing anything.
+- Replacing a valid Let's Encrypt certificate is now explained and confirmed before anything is done (Let's Encrypt issues at most 5 certificates a week for the same name). Typing the same name again keeps the certificate, without a new request.
+
 ## [1.0.0] - 2026-10-31
 
 **seedtunnel is the new name of finalcut** (versions 1.0.0 to 2.2.2 below),

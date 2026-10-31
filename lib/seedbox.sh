@@ -256,43 +256,59 @@ seedbox_ask_user() {
 }
 
 # Asks for the domain name and checks that it points to this server.
-# Sets SEEDBOX_LETSENCRYPT: auto if Let's Encrypt has a chance, otherwise no.
+# Sets SEEDBOX_DOMAIN, and SEEDBOX_LETSENCRYPT: auto if Let's Encrypt has a
+# chance, otherwise no. With « change » (seedbox already installed): an empty
+# answer or Q goes back, with status 1, and nothing is changed.
 seedbox_ask_domain() {
-    local ip=$1 ips choice
+    local ip=$1 mode=${2-} ips choice answer default=$SEEDBOX_DOMAIN
+    if [[ $mode == change ]]; then default=""; fi
     text seedbox_domain_help
     echo
     while true; do
-        ask SEEDBOX_DOMAIN 'Domain name or IP' "$SEEDBOX_DOMAIN"
-        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN,,}
-        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN#http://}
-        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN#https://}
-        SEEDBOX_DOMAIN=${SEEDBOX_DOMAIN%/}
-        if ! seedbox_is_valid_domain "$SEEDBOX_DOMAIN"; then
+        if [[ $mode == change ]]; then
+            ask answer 'New domain name or IP (empty to go back)' "$default"
+        else
+            ask answer 'Domain name or IP' "$default"
+        fi
+        answer=${answer,,}
+        answer=${answer#http://}
+        answer=${answer#https://}
+        answer=${answer%/}
+        if [[ -z $answer && $mode == change ]]; then return 1; fi
+        if ! seedbox_is_valid_domain "$answer"; then
             warn 'Invalid domain name.'
             continue
         fi
-        if is_ipv4 "$SEEDBOX_DOMAIN"; then
+        default=$answer
+        if is_ipv4 "$answer"; then
+            SEEDBOX_DOMAIN=$answer
             SEEDBOX_LETSENCRYPT=no
             return 0
         fi
-        ips=$(dns_ipv4_addresses "$SEEDBOX_DOMAIN")
+        ips=$(dns_ipv4_addresses "$answer")
         if [[ -z $ips ]]; then
-            warn '"%s" does not point to any IPv4 address.' "$SEEDBOX_DOMAIN"
+            warn '"%s" does not point to any IPv4 address.' "$answer"
         elif ! grep -qxF "$ip" <<<"$ips"; then
-            warn '"%s" points to %s, not to this server (%s).' "$SEEDBOX_DOMAIN" "${ips//$'\n'/, }" "$ip"
+            warn '"%s" points to %s, not to this server (%s).' "$answer" "${ips//$'\n'/, }" "$ip"
         else
-            ok '"%s" points to this server (%s).' "$SEEDBOX_DOMAIN" "$ip"
+            ok '"%s" points to this server (%s).' "$answer" "$ip"
+            SEEDBOX_DOMAIN=$answer
             SEEDBOX_LETSENCRYPT=auto
             return 0
         fi
         say "  Let's Encrypt will not be able to issue a certificate for this name."
         say '  (after a DNS change, allow a few minutes to a few hours)'
         say '  R) Try again    C) Continue with a self-signed certificate'
+        if [[ $mode == change ]]; then say '  Q) Back, nothing is changed'; fi
         ask choice 'Your choice' "R"
-        if [[ ${choice,,} == c ]]; then
-            SEEDBOX_LETSENCRYPT=no
-            return 0
-        fi
+        case ${choice,,} in
+            c)
+                SEEDBOX_DOMAIN=$answer
+                SEEDBOX_LETSENCRYPT=no
+                return 0
+                ;;
+            q) if [[ $mode == change ]]; then return 1; fi ;;
+        esac
     done
 }
 
@@ -453,6 +469,14 @@ letsencrypt_usable() {
     openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -checkend 86400 &>/dev/null || return 1
     issuer=$(openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -issuer 2>/dev/null || true)
     if [[ $issuer == *STAGING* ]]; then [[ $1 == staging ]]; else [[ $1 == production ]]; fi
+}
+
+# Expiry date of the Let's Encrypt certificate (YYYY-MM-DD), empty if none
+letsencrypt_expiry_date() {
+    local end
+    end=$(openssl x509 -in "$LETSENCRYPT_DIR/cert.pem" -noout -enddate 2>/dev/null | cut -d= -f2 || true)
+    [[ -n $end ]] || return 0
+    date -d "$end" +%F 2>/dev/null || true
 }
 
 seedbox_certificate_mode() {
@@ -1244,19 +1268,53 @@ seedbox_set_domain() {
     ok 'Seedbox available at %s (certificate %s)' "https://$SEEDBOX_DOMAIN/" "$(seedbox_certificate_label)"
 }
 
+# Menu: change the domain. Nothing is touched before the end: an empty answer
+# goes back, and replacing a valid Let's Encrypt certificate is confirmed first
+# (Let's Encrypt limits how many certificates a name can get each week).
 seedbox_change_domain() {
-    local ip
+    local ip server had_letsencrypt=0
+    local old_domain=$SEEDBOX_DOMAIN old_letsencrypt=$SEEDBOX_LETSENCRYPT old_server=$SEEDBOX_LETSENCRYPT_SERVER
     banner
     section 'DOMAIN NAME AND HTTPS CERTIFICATE'
     say 'Right now: %s (certificate %s)' "https://$SEEDBOX_DOMAIN/" "$(seedbox_certificate_label)"
+    if [[ $SEEDBOX_CERTIFICATE != selfsigned ]] && letsencrypt_usable "$SEEDBOX_LETSENCRYPT_SERVER"; then
+        had_letsencrypt=1
+        say '  valid until %s, renewed automatically' "$(letsencrypt_expiry_date)"
+    fi
     echo
     printf '%s ' "$(t 'Looking for the public IP address…')"
     ip=$(public_ipv4)
     echo "${ip:-$(t 'not found')}"
     echo
-    seedbox_ask_domain "$ip"
-    if ((OPT_STAGING)); then SEEDBOX_LETSENCRYPT_SERVER=staging; else SEEDBOX_LETSENCRYPT_SERVER=production; fi
+    if ! seedbox_ask_domain "$ip" change; then
+        say 'Nothing changed.'
+        return 0
+    fi
+    if ((OPT_STAGING)); then server=staging; else server=production; fi
     echo
+    if ((had_letsencrypt)); then
+        if [[ $SEEDBOX_LETSENCRYPT != no ]] && letsencrypt_usable "$server"; then
+            # same name, certificate still valid: nothing to request
+            SEEDBOX_LETSENCRYPT=$old_letsencrypt
+            ok 'Nothing to change: %s keeps its certificate.' "https://$SEEDBOX_DOMAIN/"
+            return 0
+        fi
+        if [[ $SEEDBOX_LETSENCRYPT == no ]]; then
+            warn "The Let's Encrypt certificate will no longer be used: browsers will show a warning."
+        else
+            warn 'The certificate of %s will be deleted and a new one requested for %s.' "$old_domain" "$SEEDBOX_DOMAIN"
+            say "  Let's Encrypt issues at most 5 certificates a week for the same name: avoid going back and forth."
+        fi
+        if ! confirm 'Continue?' n; then
+            SEEDBOX_DOMAIN=$old_domain
+            SEEDBOX_LETSENCRYPT=$old_letsencrypt
+            SEEDBOX_LETSENCRYPT_SERVER=$old_server
+            say 'Nothing changed.'
+            return 0
+        fi
+        echo
+    fi
+    SEEDBOX_LETSENCRYPT_SERVER=$server
     seedbox_apply_https
     seedbox_save
     echo
