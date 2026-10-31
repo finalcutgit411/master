@@ -74,8 +74,10 @@ table inet $FW_TABLE {
         ct state established,related accept
         ct state invalid drop
         iifname "lo" accept
-        # ping et messages ICMP indispensables (IPv6 ne fonctionne pas sans)
-        meta l4proto { icmp, ipv6-icmp } accept
+        # ping et messages ICMP indispensables (IPv6 ne fonctionne pas sans) ;
+        # numéros de protocole (1 = ICMP, 58 = ICMPv6) : les noms dépendent
+        # de /etc/protocols, absent de certaines images minimales
+        meta l4proto { 1, 58 } accept
         # adresse IPv6 obtenue par DHCPv6
         ip6 saddr fe80::/10 udp dport 546 accept
         # SSH et SFTP
