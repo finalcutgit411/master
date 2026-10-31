@@ -5,7 +5,7 @@
 #  Chargée par finalcut.sh : ce fichier ne s'exécute pas seul.
 # =============================================================================
 
-FC_VERSION="2.1.0"
+FC_VERSION="2.1.1"
 # Dépôt GitHub utilisé par « finalcut update » (compte/projet)
 FC_REPO="finalcutgit411/master"
 # État et secrets du script (lisible par root uniquement)
@@ -337,7 +337,7 @@ apt_purge() {
 
 # Paquets de base + mises à jour de sécurité automatiques
 base_setup() {
-    apt_install curl ca-certificates openssl jq nftables unattended-upgrades
+    apt_install curl ca-certificates openssl jq nftables procps iproute2 unattended-upgrades
     if [[ ! -f /etc/apt/apt.conf.d/20auto-upgrades ]]; then
         printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' \
             >/etc/apt/apt.conf.d/20auto-upgrades

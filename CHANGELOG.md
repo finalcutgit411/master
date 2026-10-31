@@ -3,6 +3,12 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.1.1] - 2026-10-31
+
+### Corrigé
+- `sysctl: command not found` après un `su` sans tiret : sur Debian, le PATH n'inclut alors pas `/usr/sbin`. Le script complète désormais le PATH lui-même, et les tests automatiques tournent dans ces conditions.
+- Une installation du VPN interrompue est reprise au lancement suivant, au lieu d'afficher le menu de gestion d'un VPN incomplet.
+
 ## [2.1.0] - 2026-10-31
 
 ### Ajouté

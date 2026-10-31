@@ -609,7 +609,16 @@ EOF
 
 vpn_main() {
     vpn_load
-    if vpn_installed; then vpn_menu; else vpn_install_interactive; fi
+    if vpn_installed && (($(vpn_count_clients) == 0)) && ! systemctl is-active --quiet "wg-quick@$VPN_IF"; then
+        # réglages enregistrés mais ni client ni service : installation interrompue
+        warn "L'installation précédente du VPN s'est interrompue : on la reprend."
+        pause
+        vpn_install_interactive
+    elif vpn_installed; then
+        vpn_menu
+    else
+        vpn_install_interactive
+    fi
 }
 
 # finalcut vpn <commande> …

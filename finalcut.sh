@@ -11,6 +11,11 @@
 # =============================================================================
 set -Eeuo pipefail
 
+# Sur Debian, « su » sans tiret garde le PATH de l'utilisateur, sans
+# /usr/sbin : sysctl, useradd, nft… y seraient introuvables.
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${PATH:+:$PATH}"
+export PATH
+
 FC_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 # shellcheck source=lib/common.sh
 . "$FC_DIR/lib/common.sh"

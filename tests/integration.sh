@@ -73,8 +73,9 @@ check_fails() {
     fi
 }
 
-# finalcut sans terminal, comme dans un script
-fc() { "$FC" "$@" </dev/null; }
+# finalcut sans terminal, comme dans un script, et avec le PATH réduit qu'on a
+# après un « su » sans tiret (sans /usr/sbin) : le script doit s'en sortir seul
+fc() { PATH=/usr/local/bin:/usr/bin:/bin "$FC" "$@" </dev/null; }
 
 # La sortie d'une commande contient-elle un texte ? (sortie capturée d'abord :
 # un « cmd | grep -q » peut échouer à tort avec pipefail)
