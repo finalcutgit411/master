@@ -29,6 +29,8 @@ FC_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 . "$FC_DIR/lib/doctor.sh"
 # shellcheck source=lib/maintenance.sh
 . "$FC_DIR/lib/maintenance.sh"
+# shellcheck source=lib/share.sh
+. "$FC_DIR/lib/share.sh"
 
 trap 'fc_on_error $? $LINENO "$BASH_COMMAND" "${BASH_SOURCE[0]:-}"' ERR
 
@@ -44,6 +46,7 @@ VPN
   vpn remove NOM [--yes]             révoquer un client
   vpn list                           clients et connexions
   vpn show NOM                       QR code et fichier d'un client
+  vpn share NOM                      lien de téléchargement du fichier (usage unique)
   vpn restart | uninstall [--yes]
 
 Seedbox
@@ -51,6 +54,7 @@ Seedbox
   seedbox password [--user NOM]      changer le mot de passe (et le nom)
                                      (lu sur l'entrée standard hors terminal)
   seedbox domain NOM [--staging]     changer de domaine / redemander le certificat
+  seedbox sftp-config                réglages SFTP pour FileZilla et WinSCP
   seedbox sftp-key add FICHIER.pub | list | remove N
   seedbox sftp-password on|off       autoriser le mot de passe en SFTP
   seedbox bans | unban IP            adresses bannies par fail2ban
@@ -62,6 +66,7 @@ Serveur
   backup [--output FICHIER] [--passphrase-file FICHIER]
   restore FICHIER [--passphrase-file FICHIER] [--yes]
   update                             passer à la dernière version publiée
+  apply                              réappliquer la configuration enregistrée
   version | help
 
 Options
@@ -80,27 +85,41 @@ install_shortcut() {
     if [[ -L $old && $(readlink -f "$old") == "$FC_DIR/finalcut.sh" ]]; then rm -f "$old"; fi
 }
 
+# État du serveur en tête du menu principal
+menu_status() {
+    local vpn_txt sb_txt disk_txt fw_txt
+    if vpn_installed; then
+        vpn_txt="$(svc_state "wg-quick@$VPN_IF") · port $VPN_PORT/udp"
+        vpn_txt+=" · $(vpn_connected_count) connecté(s) sur $(vpn_count_clients) client(s)"
+    else
+        vpn_txt="${C_DIM}non installé${C_END}"
+    fi
+    if sb_installed; then
+        sb_txt="$(svc_state transmission-daemon) · https://$SB_DOMAIN/"
+        if ! systemctl is-active --quiet nginx; then sb_txt+=" · ${C_RED}nginx arrêté${C_END}"; fi
+    else
+        sb_txt="${C_DIM}non installée${C_END}"
+    fi
+    disk_txt="$(disk_free_txt /) sur /"
+    # téléchargements sur une autre partition (second disque) : affichée aussi
+    if sb_installed && [[ -d $SB_DATA ]] \
+        && [[ $(df --output=target "$SB_DATA" 2>/dev/null | tail -n 1) != "$(df --output=target / 2>/dev/null | tail -n 1)" ]]; then
+        disk_txt+=" · $(disk_free_txt "$SB_DATA") dans $SB_DATA"
+    fi
+    if fw_enabled; then fw_txt="${C_GRN}actif${C_END}"; else fw_txt="${C_DIM}désactivé${C_END}"; fi
+    printf '  VPN       : %s\n' "$vpn_txt"
+    printf '  Seedbox   : %s\n' "$sb_txt"
+    printf '  Disque    : %s\n' "$disk_txt"
+    printf '  Pare-feu  : %s\n\n' "$fw_txt"
+}
+
 main_menu() {
-    local choix vpn_txt sb_txt fw_txt
+    local choix
     while true; do
         vpn_load
         sb_load
-        if vpn_installed; then
-            vpn_txt="$(svc_state "wg-quick@$VPN_IF") · port $VPN_PORT/udp · $(vpn_count_clients) client(s)"
-        else
-            vpn_txt="${C_DIM}non installé${C_END}"
-        fi
-        if sb_installed; then
-            sb_txt="$(svc_state transmission-daemon) · https://$SB_DOMAIN/"
-        else
-            sb_txt="${C_DIM}non installée${C_END}"
-        fi
-        if fw_enabled; then fw_txt="${C_GRN}actif${C_END}"; else fw_txt="${C_DIM}désactivé${C_END}"; fi
-
         titre
-        printf '  VPN       : %s\n' "$vpn_txt"
-        printf '  Seedbox   : %s\n' "$sb_txt"
-        printf '  Pare-feu  : %s\n\n' "$fw_txt"
+        menu_status
         if vpn_installed; then echo "1) Gérer le VPN"; else echo "1) Installer le VPN"; fi
         if sb_installed; then echo "2) Gérer la seedbox"; else echo "2) Installer la seedbox"; fi
         cat <<EOF
@@ -211,5 +230,6 @@ case ${1-} in
     backup) backup_main ;;
     restore) restore_main "${2-}" ;;
     update) update_main ;;
+    apply) apply_main ;;
     *) die "Commande inconnue : $1   (aide : finalcut help)" ;;
 esac

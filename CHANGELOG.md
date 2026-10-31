@@ -3,6 +3,22 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.2.0] - 2026-10-31
+
+### Ajouté
+- **`finalcut vpn share NOM`** : lien de téléchargement de la configuration d'un client, pour l'importer sur un ordinateur sans `scp`. Le lien ne sert qu'une fois et expire au bout de 10 minutes (il passe par le site HTTPS de la seedbox).
+- **`finalcut seedbox sftp-config`** : réglages SFTP prêts à l'emploi. Adresse à coller dans WinSCP, fichier à importer dans FileZilla, et empreinte du serveur à vérifier à la première connexion.
+- **État du serveur en tête du menu** : clients VPN connectés, espace disque libre, services arrêtés.
+- **`finalcut apply`** : réapplique toute la configuration enregistrée. `finalcut update` le lance automatiquement après une mise à jour.
+- **Réglages réseau du noyau durcis** (`/etc/sysctl.d/90-finalcut-reseau.conf`) : redirections ICMP ignorées et non envoyées, routage par la source refusé.
+
+### Corrigé
+- fail2ban ne bannissait les attaquants de SSH que du port 22 : si SSH écoutait sur un autre port, le bannissement n'avait aucun effet. Ils sont désormais bannis de tous les ports.
+- `finalcut doctor` vérifie précisément que le port sur lequel SSH écoute (ou écoutera après son redémarrage) est ouvert dans le pare-feu, pour ne pas se retrouver enfermé dehors après un changement de port.
+
+### Pour passer de 2.1.x à 2.2.0
+Après `finalcut update`, lancez une fois `finalcut apply` pour appliquer les corrections (les versions suivantes le feront toutes seules).
+
 ## [2.1.3] - 2026-10-31
 
 ### Modifié

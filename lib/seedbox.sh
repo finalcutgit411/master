@@ -539,6 +539,7 @@ server {
 
     # Ajout de fichiers .torrent depuis l'interface web
     client_max_body_size 32m;
+$(share_gen_nginx "${hsts//$'\n    '/$'\n        '}")
 
     location = / {
         return 302 /transmission/web/;
@@ -698,12 +699,14 @@ maxretry  = 5
 banaction = nftables-multiport
 banaction_allports = nftables[type=allports]
 
-# SSH et SFTP : 5 échecs en 10 min → banni 1 h
+# SSH et SFTP : 5 échecs en 10 min → banni 1 h de tous les ports, ce qui
+# reste efficace même si SSH n'écoute pas sur le port 22
 # (Debian 12+ n'a plus /var/log/auth.log : on lit le journal systemd)
 [sshd]
-enabled = true
-backend = systemd
-mode    = aggressive
+enabled   = true
+backend   = systemd
+mode      = aggressive
+banaction = %(banaction_allports)s
 
 # Mot de passe de l'interface web
 [nginx-http-auth]
@@ -738,6 +741,7 @@ sb_apply_fail2ban() {
 # Met la seedbox dans l'état décrit par /etc/finalcut (idempotent)
 sb_apply() {
     apt_install transmission-daemon nginx certbot fail2ban python3-systemd bind9-dnsutils
+    net_hardening_apply
     sb_apply_user
     sb_save
     # ports 80/443 ouverts avant la demande de certificat Let's Encrypt
@@ -812,6 +816,7 @@ sb_recap() {
 
 ${C_BLD}Interface web${C_END} : https://$SB_DOMAIN/   (certificat $(sb_cert_label))
 ${C_BLD}SFTP${C_END}          : $SB_DOMAIN, port ${port:-22} (FileZilla, WinSCP, Cyberduck : protocole SFTP)
+                réglages prêts à importer :  finalcut seedbox sftp-config
 ${C_BLD}Utilisateur${C_END}   : $SB_USER
 EOF
     if [[ -n $SB_PASS ]]; then
@@ -833,6 +838,84 @@ EOF
     if [[ -n $SB_PASS ]]; then
         echo "Notez ces informations : le mot de passe n'est enregistré nulle part en clair."
     fi
+}
+
+# --- Fichier de connexion SFTP (FileZilla, WinSCP) ------------------------------------
+
+# Empreinte de la clé du serveur, que le logiciel SFTP montre à la première
+# connexion (ex. « SHA256:szUj…NT8 ED25519 ») : vide si introuvable
+sb_host_fingerprint() {
+    local f=/etc/ssh/ssh_host_ed25519_key.pub
+    [[ -r $f ]] || return 0
+    ssh-keygen -l -E sha256 -f "$f" 2>/dev/null | awk '{ gsub(/[()]/, "", $NF); print $2, $NF }' || true
+}
+
+# Site à importer dans FileZilla (Fichier → Importer…). Logontype 2 : le
+# mot de passe est demandé à la connexion, il n'est pas dans le fichier.
+sb_gen_filezilla() {
+    cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<FileZilla3>
+    <Servers>
+        <Server>
+            <Host>$SB_DOMAIN</Host>
+            <Port>$1</Port>
+            <Protocol>1</Protocol>
+            <Type>0</Type>
+            <User>$SB_USER</User>
+            <Logontype>2</Logontype>
+            <TimezoneOffset>0</TimezoneOffset>
+            <PasvMode>MODE_DEFAULT</PasvMode>
+            <MaximumMultipleConnections>0</MaximumMultipleConnections>
+            <EncodingType>Auto</EncodingType>
+            <BypassProxy>0</BypassProxy>
+            <Name>Seedbox $SB_DOMAIN</Name>
+            <Comments />
+            <Colour>0</Colour>
+            <LocalDir />
+            <RemoteDir />
+            <SyncBrowsing>0</SyncBrowsing>
+            <DirectoryComparison>0</DirectoryComparison>
+        </Server>
+    </Servers>
+</FileZilla3>
+EOF
+}
+
+# Réglages de connexion SFTP + lien vers le fichier FileZilla
+sb_sftp_config() {
+    local port fp url tmp keys=""
+    port=$(sb_ssh_port)
+    port=${port:-22}
+    fp=$(sb_host_fingerprint)
+    url="sftp://$SB_USER@$SB_DOMAIN:$port/"
+    if [[ $SB_SFTP_PASSWORD == no ]]; then keys=" (clé SSH uniquement)"; fi
+    titre
+    section "CONNEXION SFTP À LA SEEDBOX"
+    printf '  Protocole   : SFTP\n  Hôte        : %s\n  Port        : %s\n  Utilisateur : %s%s\n' \
+        "$SB_DOMAIN" "$port" "$SB_USER" "$keys"
+    if [[ -n $fp ]]; then printf '  Empreinte   : %s\n' "$fp"; fi
+    cat <<EOF
+
+WinSCP    : fenêtre de connexion → « Nouveau site », puis collez dans « Nom d'hôte » :
+              $url
+FileZilla : « Fichier » → « Importer… », avec le fichier du lien ci-dessous.
+
+À la première connexion, le logiciel demande s'il peut faire confiance au
+serveur : l'empreinte qu'il affiche doit être celle ci-dessus.
+EOF
+    if ! systemctl is-active --quiet nginx; then
+        warn "nginx est arrêté : pas de lien pour FileZilla (finalcut seedbox restart)."
+        return 0
+    fi
+    tmp=$(mktemp)
+    sb_gen_filezilla "$port" >"$tmp"
+    share_create "$tmp" "seedbox-filezilla.xml" "Connexion SFTP à la seedbox" \
+        "<li>FileZilla : « Fichier » → « Importer… » → choisissez ce fichier. Le site « Seedbox $SB_DOMAIN » apparaît dans le gestionnaire de sites.</li>
+<li>WinSCP : « Nouveau site », puis collez <code>$url</code> dans « Nom d'hôte ».</li>
+<li>À la première connexion, l'empreinte du serveur doit être : <code>${fp:-inconnue}</code></li>" \
+        "Le fichier ne contient pas de mot de passe : il sera demandé à la connexion."
+    rm -f "$tmp"
 }
 
 # --- Clés SSH du SFTP ----------------------------------------------------------------
@@ -1225,7 +1308,10 @@ sb_uninstall() {
     if command -v certbot >/dev/null; then
         certbot delete --cert-name "$SB_LE_NAME" --non-interactive >>"$FC_LOG" 2>&1 || true
     fi
-    rm -f "$SB_NGINX_LINK" "$SB_NGINX_SITE" "$SB_HTPASSWD" "$SB_F2B_JAIL" "$SB_F2B_MAIN" "$SB_TR_DROPIN"
+    # liens de téléchargement en cours
+    systemctl stop 'finalcut-partage-*' >>"$FC_LOG" 2>&1 || true
+    rm -rf "$SHARE_DIR"
+    rm -f "$SB_NGINX_LINK" "$SB_NGINX_SITE" "$SB_HTPASSWD" "$SB_F2B_JAIL" "$SB_F2B_MAIN" "$SB_TR_DROPIN" "$SHARE_LOG"
     rm -f "$SB_KEYS_DIR/$SB_USER"
     rmdir "$SB_KEYS_DIR" "${SB_TR_DROPIN%/*}" 2>/dev/null || true
     rm -rf "$SB_SSL" "$SB_WEBROOT"
@@ -1235,6 +1321,7 @@ sb_uninstall() {
         run "Suppression des données" rm -rf "${SB_DATA:?}"
     fi
     rm -f "$SB_CONF" "$SB_SECRETS"
+    net_hardening_cleanup
     fw_refresh
     echo
     if ((del_data)); then
@@ -1250,7 +1337,7 @@ sb_menu() {
     while true; do
         sb_load
         sb_installed || return 0
-        free=$(df -h --output=avail "$SB_DATA" 2>/dev/null | tail -n 1 | tr -d ' ' || true)
+        free=$(disk_free_txt "$SB_DATA")
         if [[ $SB_CERT == selfsigned ]]; then
             cert="${C_YEL}auto-signé${C_END} (option 2 pour retenter Let's Encrypt)"
         else
@@ -1260,17 +1347,18 @@ sb_menu() {
         section "GESTION DE LA SEEDBOX"
         printf '  Interface web : https://%s/\n' "$SB_DOMAIN"
         printf '  Certificat    : %s\n' "$cert"
-        printf '  SFTP          : %s@%s — espace libre : %s\n' "$SB_USER" "$SB_DOMAIN" "${free:-?}"
+        printf '  SFTP          : %s@%s — %s\n' "$SB_USER" "$SB_DOMAIN" "$free"
         printf '  Services      : transmission %s · nginx %s · fail2ban %s\n\n' \
             "$(svc_state transmission-daemon)" "$(svc_state nginx)" "$(svc_state fail2ban)"
         cat <<EOF
 1) Changer l'utilisateur ou le mot de passe
 2) Nom de domaine et certificat HTTPS
 3) Clés SSH pour le SFTP
-4) Adresses IP bannies (fail2ban)
+4) Connexion SFTP : réglages pour FileZilla et WinSCP
+5) Adresses IP bannies (fail2ban)
 
-5) Redémarrer les services
-6) Désinstaller la seedbox
+6) Redémarrer les services
+7) Désinstaller la seedbox
 
 Q) Retour
 EOF
@@ -1288,13 +1376,17 @@ EOF
                 pause
                 ;;
             3) sb_keys_menu ;;
-            4) sb_bans ;;
-            5)
+            4)
+                sb_sftp_config
+                pause
+                ;;
+            5) sb_bans ;;
+            6)
                 sb_restart
                 echo
                 pause
                 ;;
-            6) sb_uninstall ;;
+            7) sb_uninstall ;;
             q) return 0 ;;
         esac
     done
@@ -1350,6 +1442,10 @@ sb_cli() {
         sftp-password)
             sb_require_installed
             sb_set_sftp_password "${1-}"
+            ;;
+        sftp-config)
+            sb_require_installed
+            sb_sftp_config
             ;;
         bans)
             sb_require_installed

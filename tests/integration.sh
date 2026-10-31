@@ -146,6 +146,98 @@ nothing_changed() {
     ! grep -E 'Démarrage|Redémarrage|Rechargement|Arrêt|Application|Installation de|Création' <<<"$out"
 }
 
+# Durcissement réseau du noyau appliqué, y compris sur l'interface existante
+net_hardened() {
+    local nic
+    nic=$(ip -4 route show default | awk '{ print $5; exit }')
+    sysctl net.ipv4.conf.all.send_redirects net.ipv4.conf.all.accept_source_route "net.ipv4.conf.$nic.accept_redirects"
+    [[ $(sysctl -n net.ipv4.conf.all.send_redirects net.ipv4.conf.all.accept_source_route \
+        "net.ipv4.conf.$nic.accept_redirects" | tr -d '\n') == 000 ]]
+}
+
+# Chemin « /partage/<jeton>/ » du lien affiché par une commande
+share_path() {
+    local url
+    url=$(grep -oE 'https://[^ ]+/partage/[0-9a-f]{32}/' <<<"$1" | head -n 1)
+    [[ -n $url ]] || return 1
+    printf '/%s' "${url#https://*/}"
+}
+
+# Lien à usage unique : la page s'ouvre (plusieurs fois), le fichier se
+# télécharge une fois, puis le lien disparaît
+share_test() {
+    local out path page i
+    out=$(fc vpn share telephone 2>&1) || {
+        printf '%s\n' "$out"
+        return 1
+    }
+    path=$(share_path "$out") || {
+        printf 'lien absent :\n%s\n' "$out"
+        return 1
+    }
+    page=$(curl -sk --max-time 10 "https://127.0.0.1$path")
+    [[ $page == *"Télécharger telephone.conf"* ]] || {
+        printf 'page inattendue :\n%s\n' "$page"
+        return 1
+    }
+    [[ $(http_code "$path") == 200 ]] || {
+        echo "ouvrir la page ne doit pas consommer le lien"
+        return 1
+    }
+    curl -skf --max-time 10 -o "$W/partage.conf" "https://127.0.0.1${path}telephone.conf" || return 1
+    cmp "$W/partage.conf" /etc/finalcut/vpn/clients/telephone.conf || return 1
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        [[ $(http_code "${path}telephone.conf") == 404 ]] && return 0
+        sleep 1
+    done
+    echo "le fichier est toujours téléchargeable après usage (essai $i)"
+    return 1
+}
+
+# Réglages SFTP et site FileZilla téléchargeable
+sftp_config_test() {
+    local out path xml
+    out=$(fc seedbox sftp-config 2>&1) || {
+        printf '%s\n' "$out"
+        return 1
+    }
+    [[ $out == *"sftp://$SBU@127.0.0.1:22/"* && $out == *"SHA256:"* ]] || {
+        printf '%s\n' "$out"
+        return 1
+    }
+    path=$(share_path "$out") || return 1
+    xml=$(curl -skf --max-time 10 "https://127.0.0.1${path}seedbox-filezilla.xml") || return 1
+    [[ $xml == *"<User>$SBU</User>"* && $xml == *"<Protocol>1</Protocol>"* ]] || {
+        printf '%s\n' "$xml"
+        return 1
+    }
+}
+
+# Une adresse bannie par la prison sshd l'est de tous les ports
+f2b_allports_test() {
+    local ip=203.0.113.7 rules lines i
+    fail2ban-client set sshd banip "$ip" || return 1
+    # l'action de bannissement s'exécute en arrière-plan
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+        rules=$(nft list ruleset)
+        [[ $rules == *"$ip"* ]] && break
+        sleep 1
+    done
+    fail2ban-client set sshd unbanip "$ip" || true
+    lines=$(grep -F '@addr-set-sshd' <<<"$rules" || true)
+    [[ $rules == *"$ip"* && -n $lines && $lines != *dport* ]] || {
+        printf '%s\n' "$lines"
+        return 1
+    }
+}
+
+# « finalcut apply » remet en ordre un fichier modifié à la main
+apply_test() {
+    echo '# modification à la main' >>/etc/fail2ban/jail.d/finalcut.local
+    output_has "Redémarrage de fail2ban" fc apply || return 1
+    ! grep -q 'modification à la main' /etc/fail2ban/jail.d/finalcut.local
+}
+
 summary() {
     printf '\n\033[1m%s réussis, %s échoués\033[0m\n' "$PASS" "$FAIL"
     ((FAIL == 0))
@@ -171,6 +263,7 @@ EOF
     step "Généralités"
     check "finalcut version" output_has "finalcut 2." fc version
     check "finalcut help" output_has "vpn add NOM" fc help
+    check "finalcut help : nouvelles commandes" output_has "vpn share NOM" fc help
     check_fails "commande inconnue refusée" fc nimportequoi
 
     step "VPN : installation par fichier de configuration"
@@ -179,6 +272,8 @@ EOF
     check "client « telephone » créé" test -s /etc/finalcut/vpn/clients/telephone.conf
     check "port 60001 redirigé vers 10.8.0.2" output_has "dport 60001 dnat to 10.8.0.2" nft list table ip finalcut
     check "routage IPv4 activé" test "$(sysctl -n net.ipv4.ip_forward)" = 1
+    check "réglages réseau du noyau durcis" net_hardened
+    check "durcissement enregistré pour le démarrage" test -s /etc/sysctl.d/90-finalcut-reseau.conf
 
     check "commande « finalcut » trouvée même après un su sans tiret" \
         env PATH=/usr/local/bin:/usr/bin:/bin bash -c 'command -v finalcut'
@@ -196,6 +291,7 @@ EOF
     check_fails "pc-salon a disparu" test -e /etc/finalcut/vpn/clients/pc-salon.env
     check "vpn show telephone" output_has "[Interface]" fc vpn show telephone
     check_fails "nom de client invalide refusé" fc vpn add "nom invalide!"
+    check "vpn share sans seedbox : refus qui indique quoi faire" output_has "finalcut vpn show telephone" fc vpn share telephone
 
     step "VPN : tunnel de bout en bout"
     check "un client se connecte et joint 10.8.0.1" tunnel_test
@@ -214,6 +310,12 @@ EOF
 
     step "Seedbox : relance identique (idempotence)"
     check "aucun service redémarré" nothing_changed fc seedbox install --config "$W/ci.conf"
+
+    step "Liens de téléchargement à usage unique"
+    check "vpn share : page, téléchargement unique, puis lien supprimé" share_test
+    check "seedbox sftp-config : réglages, empreinte et fichier FileZilla" sftp_config_test
+    check "liste des liens impossible" http_is 403 /partage/
+    check "jeton inconnu : 404" http_is 404 /partage/0123456789abcdef0123456789abcdef/
 
     step "SFTP"
     check "connexion et dossiers visibles" output_has "watch" sftp_pw "$PW1" "ls"
@@ -243,6 +345,7 @@ EOF
     step "fail2ban"
     check "règles sshd, nginx-http-auth et recidive" bash -c \
         "fail2ban-client status | grep -q sshd && fail2ban-client status | grep -q nginx-http-auth && fail2ban-client status | grep -q recidive"
+    check "SSH : bannissement de tous les ports, quel que soit le port de SSH" f2b_allports_test
 
     step "Pare-feu"
     check_fails "sans --yes ni terminal : refus" fc firewall enable
@@ -255,12 +358,20 @@ EOF
     check "rechargé au démarrage" systemctl is-enabled --quiet finalcut-firewall.service
     check "tunnel WireGuard à travers le pare-feu" tunnel_test
 
+    step "Réapplication de la configuration (finalcut apply)"
+    check "remet en ordre une modification à la main" apply_test
+    check "relancée : aucun changement" nothing_changed fc apply
+
     summary
 }
 
 phase2() {
     step "Diagnostic"
     check "finalcut doctor sans problème" fc doctor
+    # Port SSH changé dans la configuration sans mettre le pare-feu à jour
+    printf 'Port 2222\n' >/etc/ssh/sshd_config.d/zz-test-port.conf
+    check "doctor signale un port SSH fermé par le pare-feu" output_has "port 2222, fermé par le pare-feu" fc doctor
+    rm -f /etc/ssh/sshd_config.d/zz-test-port.conf
 
     step "Sauvegarde et restauration"
     printf 'une phrase de passe de test\n' >"$W/phrase"

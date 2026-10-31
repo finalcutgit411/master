@@ -5,7 +5,7 @@
 #  Chargée par finalcut.sh : ce fichier ne s'exécute pas seul.
 # =============================================================================
 
-FC_VERSION="2.1.3"
+FC_VERSION="2.2.0"
 # Dépôt GitHub utilisé par « finalcut update » (compte/projet)
 FC_REPO="finalcutgit411/finalcut"
 # État et secrets du script (lisible par root uniquement)
@@ -342,6 +342,64 @@ base_setup() {
         printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' \
             >/etc/apt/apt.conf.d/20auto-upgrades
         ok "Mises à jour de sécurité automatiques activées"
+    fi
+}
+
+# --- Durcissement réseau du noyau --------------------------------------------------
+# Dans /etc/sysctl.d : Debian 13 ne lit plus /etc/sysctl.conf au démarrage.
+# « * » vise toutes les interfaces, y compris celles qui existent déjà ;
+# « - » : ligne ignorée si l'IPv6 est désactivé sur le serveur.
+FC_SYSCTL_NET="/etc/sysctl.d/90-finalcut-reseau.conf"
+
+net_hardening_gen() {
+    cat <<'EOF'
+# Généré par finalcut — durcissement réseau du noyau
+# Ignorer les redirections ICMP : personne ne peut détourner le trafic du serveur
+net.ipv4.conf.*.accept_redirects = 0
+net.ipv4.conf.*.secure_redirects = 0
+-net.ipv6.conf.*.accept_redirects = 0
+# … et ne pas en envoyer
+net.ipv4.conf.*.send_redirects = 0
+# Refuser les paquets qui imposent leur propre chemin (routage par la source)
+net.ipv4.conf.*.accept_source_route = 0
+-net.ipv6.conf.*.accept_source_route = 0
+EOF
+}
+
+# Appelé par l'installation du VPN et de la seedbox (sans effet s'il est à jour)
+net_hardening_apply() {
+    if write_if_changed "$FC_SYSCTL_NET" 644 < <(net_hardening_gen) \
+        || [[ $(sysctl -n net.ipv4.conf.all.send_redirects 2>/dev/null) != 0 ]]; then
+        printf '\n=== %(%F %T)T · durcissement réseau du noyau\n' -1 >>"$FC_LOG"
+        # systemd-sysctl, comme au démarrage : il comprend « * » et « - »
+        if /usr/lib/systemd/systemd-sysctl "$FC_SYSCTL_NET" >>"$FC_LOG" 2>&1; then
+            ok "Réglages réseau du noyau durcis (redirections ICMP, routage par la source)"
+        else
+            warn "Réglages réseau du noyau non appliqués (détails dans $FC_LOG)."
+        fi
+    fi
+}
+
+# Retiré quand ni le VPN ni la seedbox ne sont plus installés
+net_hardening_cleanup() {
+    if ! vpn_installed && ! sb_installed; then rm -f "$FC_SYSCTL_NET"; fi
+}
+
+# Espace libre (en octets) sur la partition d'un dossier
+disk_free_bytes() {
+    df -B1 --output=avail "$1" 2>/dev/null | tail -n 1 | tr -d ' ' || true
+}
+
+# « 38Go libres », en jaune sous 5 Go
+disk_free_txt() {
+    local b
+    b=$(disk_free_bytes "$1")
+    if [[ ! $b =~ ^[0-9]+$ ]]; then
+        printf '?'
+    elif ((b < 5 * 1024 ** 3)); then
+        printf '%s%s libres%s' "$C_YEL" "$(numfmt --to=iec --suffix=o "$b")" "$C_END"
+    else
+        printf '%s libres' "$(numfmt --to=iec --suffix=o "$b")"
     fi
 }
 

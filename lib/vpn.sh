@@ -60,6 +60,19 @@ vpn_count_clients() {
     printf '%s' "$n"
 }
 
+# Clients connectés : dernière « poignée de main » il y a moins de 3 minutes
+# (WireGuard la renouvelle toutes les 2 minutes tant que le tunnel sert)
+vpn_connected_count() {
+    local now n=0 _pk h
+    if systemctl is-active --quiet "wg-quick@$VPN_IF"; then
+        now=$(date +%s)
+        while read -r _pk h; do
+            if [[ $h =~ ^[0-9]+$ ]] && ((h > 0 && now - h < 180)); then n=$((n + 1)); fi
+        done < <(wg show "$VPN_IF" latest-handshakes 2>/dev/null || true)
+    fi
+    printf '%s' "$n"
+}
+
 # 15 caractères max : sous Linux, le nom du fichier devient celui de l'interface
 vpn_valid_name() { [[ $1 =~ ^[A-Za-z0-9_-]{1,15}$ ]]; }
 
@@ -221,6 +234,7 @@ vpn_apply() {
         || [[ $(sysctl -n net.ipv4.ip_forward 2>/dev/null) != 1 ]]; then
         run "Activation du routage IPv4" sysctl -q -p "$VPN_SYSCTL"
     fi
+    net_hardening_apply
 
     while IFS= read -r name; do
         write_if_changed "$VPN_CLIENTS/$name.conf" 600 < <(vpn_gen_client "$name") || true
@@ -295,9 +309,9 @@ vpn_show_client() {
     cat <<EOF
 
 Téléphone  : application WireGuard → « + » → « Scanner un code QR ».
-Ordinateur : application WireGuard → « Importer » avec le fichier :
-             $VPN_CLIENTS/$name.conf
-             (récupérable avec : scp root@$VPN_ENDPOINT:$VPN_CLIENTS/$name.conf .)
+Ordinateur : application WireGuard → « Importer » avec le fichier
+             $VPN_CLIENTS/$name.conf, à récupérer par un lien de
+             téléchargement :  finalcut vpn share $name
 
 Port ouvert pour ce client : ${C_BLD}$port${C_END} (TCP et UDP)
   Les connexions entrantes sur $VPN_ENDPOINT:$port arrivent chez ce client
@@ -313,6 +327,17 @@ EOF
     else
         cat "$VPN_CLIENTS/$name.conf"
     fi
+}
+
+# Lien de téléchargement à usage unique du fichier d'un client (voir share.sh)
+vpn_share_client() {
+    local name=$1
+    vpn_require_client "$name"
+    share_require "Sans seedbox :  finalcut vpn show $name  (QR code, ou contenu à copier-coller)."
+    share_create "$VPN_CLIENTS/$name.conf" "$name.conf" "Configuration VPN « $name »" \
+        "<li>Ordinateur : application WireGuard → importer un tunnel depuis un fichier → choisissez ce fichier.</li>
+<li>Téléphone : application WireGuard → « + » → importer depuis un fichier.</li>" \
+        "Ce fichier contient la clé secrète de « $name » : supprimez-le une fois importé."
 }
 
 # vpn_pick_client VAR "Question" — liste numérotée, choix par numéro ou par nom
@@ -527,6 +552,7 @@ vpn_uninstall() {
     systemctl disable --now "wg-quick@$VPN_IF" >>"$FC_LOG" 2>&1 || true
     nft delete table ip finalcut >>"$FC_LOG" 2>&1 || true
     rm -rf "${VPN_DIR:?}" "$VPN_CONF" "$WG_CONF" "$VPN_SYSCTL"
+    net_hardening_cleanup
     apt_purge wireguard-tools qrencode
     fw_refresh
     ok "VPN désinstallé (le routage IPv4 sera désactivé au prochain redémarrage)."
@@ -542,16 +568,17 @@ vpn_menu() {
         section "GESTION DU VPN"
         printf '  État    : %s\n' "$(svc_state "wg-quick@$VPN_IF")"
         printf '  Adresse : %s:%s (UDP)\n' "$VPN_ENDPOINT" "$VPN_PORT"
-        printf '  Clients : %s / %s\n\n' "$(vpn_count_clients)" "$VPN_MAX"
+        printf '  Clients : %s (%s connecté(s) en ce moment)\n\n' "$(vpn_count_clients)" "$(vpn_connected_count)"
         cat <<EOF
 1) Ajouter un client
 2) Afficher un client (QR code, fichier)
-3) Révoquer un client
-4) Clients et connexions
+3) Lien de téléchargement d'un client (usage unique)
+4) Révoquer un client
+5) Clients et connexions
 
-5) Modifier les réglages (adresse, port, DNS)
-6) Redémarrer le VPN
-7) Désinstaller le VPN
+6) Modifier les réglages (adresse, port, DNS)
+7) Redémarrer le VPN
+8) Désinstaller le VPN
 
 Q) Retour
 EOF
@@ -579,6 +606,17 @@ EOF
                 ;;
             3)
                 titre
+                section "LIEN DE TÉLÉCHARGEMENT"
+                if ! sb_installed; then
+                    warn "Les liens passent par le site HTTPS de la seedbox, qui n'est pas installée :"
+                    warn "utilisez « Afficher un client » (QR code, ou contenu à copier-coller)."
+                elif vpn_pick_client name "Client à envoyer"; then
+                    vpn_share_client "$name"
+                fi
+                pause
+                ;;
+            4)
+                titre
                 section "RÉVOQUER UN CLIENT"
                 if vpn_pick_client name "Client à révoquer" \
                     && confirm "Révoquer définitivement « $name » ?" n; then
@@ -586,23 +624,23 @@ EOF
                 fi
                 pause
                 ;;
-            4)
+            5)
                 titre
                 section "CLIENTS ET CONNEXIONS"
                 vpn_status_table
                 echo
                 pause
                 ;;
-            5)
+            6)
                 vpn_change_settings
                 pause
                 ;;
-            6)
+            7)
                 echo
                 run "Redémarrage du VPN" systemctl restart "wg-quick@$VPN_IF"
                 pause
                 ;;
-            7) vpn_uninstall ;;
+            8) vpn_uninstall ;;
             q) return 0 ;;
         esac
     done
@@ -662,6 +700,11 @@ vpn_cli() {
             vpn_require_installed
             [[ -n ${1-} ]] || die "Usage : finalcut vpn show NOM"
             vpn_show_client "$1"
+            ;;
+        share)
+            vpn_require_installed
+            [[ -n ${1-} ]] || die "Usage : finalcut vpn share NOM"
+            vpn_share_client "$1"
             ;;
         restart)
             vpn_require_installed

@@ -46,7 +46,7 @@ d_free_gb() {
 }
 
 doctor_system() {
-    local free sync
+    local free sync redir
     d_title "Système"
     d_ok "$FC_OS_DESC, finalcut $FC_VERSION"
     free=$(d_free_gb /)
@@ -62,6 +62,14 @@ doctor_system() {
     else
         d_warn "Mises à jour de sécurité automatiques désactivées"
     fi
+    if [[ -f $FC_SYSCTL_NET ]]; then
+        redir=$(sysctl -n net.ipv4.conf.all.accept_redirects net.ipv4.conf.all.send_redirects 2>/dev/null | tr -d '\n' || true)
+        if [[ $redir == 00 ]]; then
+            d_ok "Réglages réseau du noyau durcis"
+        else
+            d_warn "Réglages réseau du noyau non appliqués   → finalcut apply"
+        fi
+    fi
     if [[ -e /run/reboot-required ]]; then
         d_warn "Redémarrage conseillé (mise à jour du noyau ou d'une bibliothèque)"
     fi
@@ -74,7 +82,7 @@ doctor_system() {
 }
 
 doctor_vpn() {
-    local ip=$1 ips total=0 conn=0 pk _a _b _c h _r _t _k now
+    local ip=$1 ips
     d_title "VPN WireGuard"
     d_svc "wg-quick@$VPN_IF" "Service WireGuard"
     if [[ $(wg show "$VPN_IF" listen-port 2>/dev/null || true) == "$VPN_PORT" ]]; then
@@ -106,14 +114,7 @@ doctor_vpn() {
             d_warn "« $VPN_ENDPOINT » pointe vers ${ips:-rien} et non vers ${ip:-ce serveur}"
         fi
     fi
-    now=$(date +%s)
-    if systemctl is-active --quiet "wg-quick@$VPN_IF"; then
-        while IFS=$'\t' read -r pk _a _b _c h _r _t _k; do
-            total=$((total + 1))
-            if ((h > 0 && now - h < 180)); then conn=$((conn + 1)); fi
-        done < <(wg show "$VPN_IF" dump 2>/dev/null | tail -n +2)
-    fi
-    d_ok "Clients : $total, dont $conn connecté(s) en ce moment"
+    d_ok "Clients : $(vpn_count_clients), dont $(vpn_connected_count) connecté(s) en ce moment"
     echo "  (le port UDP ne peut pas être testé de l'extérieur depuis le serveur : en cas de"
     echo "   doute, vérifiez le pare-feu du panneau de l'hébergeur)"
 }
@@ -200,8 +201,7 @@ doctor_seedbox() {
 }
 
 doctor_firewall() {
-    local rules port
-    local -a ports
+    local rules port open
     d_title "Pare-feu"
     if fw_enabled; then
         rules=$(nft list table inet "$FW_TABLE" 2>/dev/null || true)
@@ -209,9 +209,15 @@ doctor_firewall() {
             d_fail "Pare-feu activé mais règles absentes   → finalcut firewall enable --yes"
         else
             d_ok "Actif — ouvertures : $(fw_summary)"
-            IFS=', ' read -r -a ports <<<"$(fw_ssh_ports)"
-            for port in "${ports[@]}"; do
-                if [[ $rules != *"$port"* ]]; then d_fail "Le port SSH $port n'est pas ouvert !"; fi
+            # Port SSH changé sans mettre le pare-feu à jour : on serait enfermé
+            # dehors à la prochaine connexion (ou au prochain redémarrage de SSH)
+            open=" $(fw_open_tcp_ports <<<"$rules" | tr '\n' ' ') "
+            for port in $(fw_sshd_ports); do
+                if [[ $open == *" $port "* ]]; then
+                    d_ok "Port SSH $port ouvert dans le pare-feu"
+                else
+                    d_fail "SSH utilise le port $port, fermé par le pare-feu : risque de rester dehors   → finalcut firewall enable"
+                fi
             done
         fi
     else

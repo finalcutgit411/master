@@ -40,6 +40,20 @@ fw_ssh_ports() {
     printf '%s' "${ports//,/, }"
 }
 
+# Ports sur lesquels SSH écoute vraiment, plus ceux de sa configuration
+# (pris en compte au prochain redémarrage de SSH)
+fw_sshd_ports() {
+    {
+        sshd -T 2>/dev/null | awk '$1 == "port" { print $2 }'
+        ss -Hltnp 2>/dev/null | awk '/"sshd"/ { n = split($4, a, ":"); print a[n] }'
+    } | awk '/^[0-9]+$/ && !seen[$0]++' || true
+}
+
+# Ports TCP acceptés par des règles chargées (texte de « nft list » sur l'entrée)
+fw_open_tcp_ports() {
+    { grep -oE 'tcp dport (\{[^}]*\}|[0-9]+) accept' || true; } | { grep -oE '[0-9]+' || true; } | sort -un
+}
+
 # Résumé lisible des ouvertures
 fw_summary() {
     local s

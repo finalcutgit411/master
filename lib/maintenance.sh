@@ -158,6 +158,42 @@ restore_main() {
     fi
 }
 
+# --- Réapplication de la configuration -------------------------------------------
+
+# Remet le serveur dans l'état enregistré dans /etc/finalcut, avec les réglages
+# de la version installée : après une mise à jour de finalcut, ou si quelque
+# chose a été modifié à la main. Comme une relance de l'installation, seuls
+# les fichiers qui changent sont réécrits et seuls les services concernés
+# redémarrent.
+apply_main() {
+    local n=0
+    titre
+    section "APPLICATION DE LA CONFIGURATION"
+    if vpn_installed; then
+        vpn_apply
+        n=$((n + 1))
+    fi
+    if sb_installed; then
+        sb_apply
+        n=$((n + 1))
+    fi
+    if fw_enabled; then
+        fw_refresh
+        n=$((n + 1))
+    fi
+    if ((n)); then
+        ok "Configuration à jour (finalcut $FC_VERSION)."
+    else
+        echo "Rien à appliquer : ni VPN, ni seedbox, ni pare-feu."
+    fi
+}
+
+# Après une mise à jour : la nouvelle version applique ses corrections
+update_reapply() {
+    echo
+    exec "$FC_DIR/finalcut.sh" apply
+}
+
 # --- Mise à jour -----------------------------------------------------------------
 
 # version_gt A B → vrai si A est strictement plus récente que B
@@ -201,7 +237,7 @@ update_tarball() {
     mv "$tmp/finalcut-$ver" "$FC_DIR"
     rm -rf "$FC_DIR.ancien" "$tmp"
     ok "finalcut mis à jour en version $ver (voir $FC_DIR/CHANGELOG.md)."
-    exit 0
+    update_reapply
 }
 
 update_git() {
@@ -219,7 +255,7 @@ update_git() {
     if ! confirm "Mettre à jour ?" o; then return 0; fi
     run "Passage à la version ${tag#v}" git -C "$FC_DIR" -c advice.detachedHead=false checkout --quiet "$tag"
     ok "finalcut mis à jour en version ${tag#v} (voir $FC_DIR/CHANGELOG.md)."
-    exit 0
+    update_reapply
 }
 
 update_main() {
