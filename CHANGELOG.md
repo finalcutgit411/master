@@ -3,6 +3,11 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.1.3] - 2026-10-31
+
+### Modifié
+- Le dépôt s'appelle désormais `finalcutgit411/finalcut` : adresse mise à jour pour `finalcut update` et dans le README. L'ancienne adresse reste redirigée par GitHub.
+
 ## [2.1.2] - 2026-10-31
 
 ### Corrigé

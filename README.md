@@ -7,7 +7,7 @@ Script en bash, lisible de haut en bas, qui transforme un serveur Debian fraîch
 
 On l'utilise par un **menu** pour débuter, ou par des **commandes** et un **fichier de configuration** pour automatiser. Les deux parties sont indépendantes.
 
-[![CI](https://github.com/finalcutgit411/master/actions/workflows/ci.yml/badge.svg)](https://github.com/finalcutgit411/master/actions/workflows/ci.yml)
+[![CI](https://github.com/finalcutgit411/finalcut/actions/workflows/ci.yml/badge.svg)](https://github.com/finalcutgit411/finalcut/actions/workflows/ci.yml)
 
 ## Compatibilité
 
@@ -24,17 +24,17 @@ On télécharge une version publiée et on vérifie son empreinte avant de la la
 
 ```bash
 apt update && apt full-upgrade -y
-V=2.1.2
+V=2.1.3
 cd "$(mktemp -d)"
-curl -fLO https://github.com/finalcutgit411/master/releases/download/v$V/finalcut-$V.tar.gz \
-  && curl -fLO https://github.com/finalcutgit411/master/releases/download/v$V/SHA256SUMS \
+curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/finalcut-$V.tar.gz \
+  && curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/SHA256SUMS \
   && sha256sum -c SHA256SUMS \
   && tar -xzf finalcut-$V.tar.gz \
   && mv finalcut-$V /opt/finalcut \
   && /opt/finalcut/finalcut.sh
 ```
 
-Les versions disponibles sont listées sur la page [Releases](https://github.com/finalcutgit411/master/releases).
+Les versions disponibles sont listées sur la page [Releases](https://github.com/finalcutgit411/finalcut/releases).
 
 ### Avec git
 
@@ -42,7 +42,7 @@ Pour suivre le développement, ou si vous préférez git :
 
 ```bash
 apt update && apt full-upgrade -y && apt install -y git
-git clone https://github.com/finalcutgit411/master.git /opt/finalcut
+git clone https://github.com/finalcutgit411/finalcut.git /opt/finalcut
 /opt/finalcut/finalcut.sh
 ```
 
