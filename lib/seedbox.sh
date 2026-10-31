@@ -740,6 +740,8 @@ sb_apply() {
     apt_install transmission-daemon nginx certbot fail2ban python3-systemd bind9-dnsutils
     sb_apply_user
     sb_save
+    # ports 80/443 ouverts avant la demande de certificat Let's Encrypt
+    fw_refresh
     sb_apply_dirs
     sb_apply_transmission
     sb_apply_htpasswd
@@ -747,7 +749,6 @@ sb_apply() {
     sb_apply_sftp
     sb_apply_fail2ban
     sb_save
-    fw_refresh
 }
 
 # --- Vérification et récapitulatif ------------------------------------------------

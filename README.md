@@ -24,7 +24,7 @@ On télécharge une version publiée et on vérifie son empreinte avant de la la
 
 ```bash
 apt update && apt full-upgrade -y
-V=2.1.1
+V=2.1.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/master/releases/download/v$V/finalcut-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/master/releases/download/v$V/SHA256SUMS \

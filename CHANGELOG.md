@@ -3,6 +3,12 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.1.2] - 2026-10-31
+
+### Corrigé
+- Pare-feu activé avant la seedbox : les ports 80/443 n'étaient ouverts qu'à la fin de l'installation, après la demande de certificat, que Let's Encrypt ne pouvait donc pas valider (« Timeout during connect »). Les ports sont maintenant ouverts dès le début, pour la seedbox comme pour le VPN.
+- La commande `finalcut` est installée dans `/usr/local/bin`, présent dans le PATH même après un `su` sans tiret.
+
 ## [2.1.1] - 2026-10-31
 
 ### Corrigé

@@ -71,10 +71,13 @@ Options
 EOF
 }
 
-# Raccourci « finalcut » pour relancer le menu de n'importe où
+# Raccourci « finalcut » pour relancer le menu de n'importe où. Il va dans
+# /usr/local/bin, présent dans le PATH même après un « su » sans tiret
+# (contrairement à /usr/local/sbin, utilisé par les versions précédentes).
 install_shortcut() {
-    local link=/usr/local/sbin/finalcut
+    local link=/usr/local/bin/finalcut old=/usr/local/sbin/finalcut
     if [[ ! -e $link ]]; then ln -s "$FC_DIR/finalcut.sh" "$link" 2>/dev/null || true; fi
+    if [[ -L $old && $(readlink -f "$old") == "$FC_DIR/finalcut.sh" ]]; then rm -f "$old"; fi
 }
 
 main_menu() {

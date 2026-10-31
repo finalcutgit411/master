@@ -213,6 +213,8 @@ vpn_apply() {
     if [[ -n $nic ]]; then VPN_NIC=$nic; fi
     [[ -n $VPN_NIC ]] || die "Interface réseau principale introuvable (pas de route par défaut ?)."
     vpn_save
+    # port du VPN ouvert dans le pare-feu avant le démarrage
+    fw_refresh
 
     # le serveur doit faire suivre les paquets des clients vers Internet
     if write_if_changed "$VPN_SYSCTL" 644 < <(printf '# Généré par finalcut : routage des clients du VPN\nnet.ipv4.ip_forward = 1\n') \
@@ -237,7 +239,6 @@ vpn_apply() {
         fi
         systemctl enable --quiet "wg-quick@$VPN_IF" 2>/dev/null || true
     fi
-    fw_refresh
 }
 
 vpn_next_id() {

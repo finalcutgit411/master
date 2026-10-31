@@ -180,6 +180,9 @@ EOF
     check "port 60001 redirigé vers 10.8.0.2" output_has "dport 60001 dnat to 10.8.0.2" nft list table ip finalcut
     check "routage IPv4 activé" test "$(sysctl -n net.ipv4.ip_forward)" = 1
 
+    check "commande « finalcut » trouvée même après un su sans tiret" \
+        env PATH=/usr/local/bin:/usr/bin:/bin bash -c 'command -v finalcut'
+
     step "VPN : relance identique (idempotence)"
     md5sum /etc/finalcut/vpn/server.key /etc/wireguard/wg0.conf >"$W/vpn.md5"
     check "aucun changement à la relance" nothing_changed fc vpn install --config "$W/ci.conf"
