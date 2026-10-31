@@ -1,48 +1,87 @@
-# Publication d'une version : il suffit d'envoyer une étiquette vX.Y.Z
-#   git tag v2.1.0 && git push origin v2.1.0
-# Les tests complets tournent d'abord ; s'ils passent, la version est publiée
-# sur GitHub avec son archive et le fichier SHA256SUMS (utilisé par
-# « finalcut update » pour vérifier ce qu'il télécharge).
+# Publication automatique d'une version
+#
+# Pour publier : changez FC_VERSION dans lib/common.sh, ajoutez la section
+# correspondante dans CHANGELOG.md, puis envoyez sur master. Si cette version
+# n'est pas encore publiée, les tests complets tournent, puis GitHub crée
+# l'étiquette vX.Y.Z et publie l'archive avec son fichier SHA256SUMS (utilisé
+# par « finalcut update » pour vérifier ce qu'il télécharge).
+# Envoyer soi-même une étiquette vX.Y.Z fonctionne aussi.
 name: Publication
 
 on:
   push:
+    branches: [master]
+    paths:
+      - lib/common.sh
+      - CHANGELOG.md
+      - .github/workflows/release.yml
     tags: ["v*.*.*"]
+  workflow_dispatch:
+
+concurrency:
+  group: publication
+  cancel-in-progress: false
 
 jobs:
+  version:
+    name: Version à publier ?
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(sed -n 's/^FC_VERSION="\(.*\)"$/\1/p' lib/common.sh)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$v" ]; then
+            echo "::error::L'étiquette $GITHUB_REF_NAME ne correspond pas à FC_VERSION=$v (lib/common.sh)"
+            exit 1
+          fi
+          if gh release view "v$v" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La version $v est déjà publiée : rien à faire."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif ! grep -q "^## \[$v\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md n'a pas de section [$v]"
+            exit 1
+          else
+            echo "Version $v à publier."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   tests:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
     uses: ./.github/workflows/ci.yml
 
   release:
     name: Publication de la version
-    needs: tests
+    needs: [version, tests]
+    if: needs.version.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      V: ${{ needs.version.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
 
-      - name: L'étiquette correspond-elle à FC_VERSION ?
-        run: |
-          tag=${GITHUB_REF_NAME#v}
-          code=$(sed -n 's/^FC_VERSION="\(.*\)"$/\1/p' lib/common.sh)
-          if [ "$tag" != "$code" ]; then
-            echo "L'étiquette v$tag ne correspond pas à FC_VERSION=$code dans lib/common.sh"
-            exit 1
-          fi
-
       - name: Archive, empreinte et notes de version
         run: |
-          v=${GITHUB_REF_NAME#v}
-          git archive --format=tar.gz --prefix="finalcut-$v/" -o "finalcut-$v.tar.gz" "$GITHUB_REF_NAME"
-          sha256sum "finalcut-$v.tar.gz" > SHA256SUMS
+          git archive --format=tar.gz --prefix="finalcut-$V/" -o "finalcut-$V.tar.gz" "$GITHUB_SHA"
+          sha256sum "finalcut-$V.tar.gz" > SHA256SUMS
           # section de cette version dans le CHANGELOG
-          awk -v v="[$v]" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md > notes.md
+          awk -v v="[$V]" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md > notes.md
+          cat SHA256SUMS
 
       - name: Publication sur GitHub
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          v=${GITHUB_REF_NAME#v}
-          gh release create "$GITHUB_REF_NAME" "finalcut-$v.tar.gz" SHA256SUMS \
-            --title "finalcut $v" --notes-file notes.md
+          gh release create "v$V" "finalcut-$V.tar.gz" SHA256SUMS \
+            --target "$GITHUB_SHA" --title "finalcut $V" --notes-file notes.md

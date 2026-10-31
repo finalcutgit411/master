@@ -204,14 +204,11 @@ En local : `make check` (il faut `shellcheck` et `shfmt`), `make fmt` pour remet
 
 ### Publier une version
 
-1. Mettez à jour `FC_VERSION` dans `lib/common.sh` et ajoutez une section dans `CHANGELOG.md`.
-2. Publiez :
+1. Mettez à jour `FC_VERSION` dans `lib/common.sh`, par exemple `2.2.0`.
+2. Ajoutez une section `## [2.2.0]` dans `CHANGELOG.md`.
+3. Envoyez sur `master`.
 
-```bash
-git tag v2.1.0 && git push origin v2.1.0
-```
-
-`.github/workflows/release.yml` relance tous les tests, puis publie sur GitHub l'archive et `SHA256SUMS`. C'est là que `finalcut update` va chercher les nouvelles versions.
+`.github/workflows/release.yml` voit qu'une nouvelle version n'est pas encore publiée. Il relance tous les tests, puis crée l'étiquette `v2.2.0` et publie sur GitHub l'archive et `SHA256SUMS`. C'est là que `finalcut update` va chercher les nouvelles versions. Envoyer soi-même une étiquette `v2.2.0` fonctionne aussi.
 
 Le dépôt interrogé par `finalcut update` est défini par `FC_REPO` dans `lib/common.sh`. En cas de renommage du dépôt ou de copie (fork), adaptez-le, ainsi que les liens de ce README.
 
