@@ -5,7 +5,7 @@
 #  Chargée par finalcut.sh : ce fichier ne s'exécute pas seul.
 # =============================================================================
 
-FC_VERSION="2.2.1"
+FC_VERSION="2.2.2"
 # Dépôt GitHub utilisé par « finalcut update » (compte/projet)
 FC_REPO="finalcutgit411/finalcut"
 # État et secrets du script (lisible par root uniquement)

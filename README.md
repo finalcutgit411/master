@@ -24,7 +24,7 @@ On télécharge une version publiée et on vérifie son empreinte avant de la la
 
 ```bash
 apt update && apt full-upgrade -y
-V=2.2.1
+V=2.2.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/finalcut-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/finalcut/releases/download/v$V/SHA256SUMS \
@@ -64,7 +64,7 @@ Ensuite, la commande `finalcut` relance le menu. `finalcut update` passe à la v
 finalcut vpn install [--config FICHIER]     finalcut seedbox install [--config FICHIER] [--staging]
 finalcut vpn add telephone [--qr]           finalcut seedbox password [--user NOM]
 finalcut vpn remove telephone --yes         finalcut seedbox domain mon.domaine.fr [--staging]
-finalcut vpn list                           finalcut seedbox sftp-config
+finalcut vpn list                           finalcut seedbox sftp-config [filezilla]
 finalcut vpn show telephone                 finalcut seedbox sftp-key add ma-cle.pub
 finalcut vpn share pc-bureau                finalcut seedbox sftp-password off
                                             finalcut seedbox bans | unban IP
@@ -129,7 +129,7 @@ Pour vos essais, `--staging` utilise les serveurs de test de Let's Encrypt. Ils 
 Plus besoin de `scp` pour récupérer un fichier sur son ordinateur :
 
 - `finalcut vpn share pc-bureau` donne un lien vers la configuration WireGuard du client ;
-- `finalcut seedbox sftp-config` affiche les réglages SFTP et l'empreinte du serveur, avec un lien vers un fichier à importer dans FileZilla (pour WinSCP, une adresse `sftp://` à coller).
+- `finalcut seedbox sftp-config` donne une adresse à coller dans WinSCP, qui contient l'empreinte du serveur : WinSCP vérifie tout seul que c'est le bon serveur, sans question à la première connexion. Avec `filezilla`, elle crée en plus un lien vers un fichier à importer dans FileZilla.
 
 Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire impossible à deviner, ne fonctionne **qu'une fois** et expire au bout de **10 minutes**. Ouvrir la page ne compte pas : seul le téléchargement du fichier « consomme » le lien. Un aperçu automatique dans une messagerie ne le gâche donc pas.
 

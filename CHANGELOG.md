@@ -3,6 +3,11 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 numérotation [SemVer](https://semver.org/lang/fr/) : MAJEUR.MINEUR.CORRECTIF.
 
+## [2.2.2] - 2026-10-31
+
+### Modifié
+- `finalcut seedbox sftp-config` est pensé d'abord pour WinSCP : l'adresse à coller contient l'empreinte du serveur, que WinSCP vérifie tout seul (plus de question « faire confiance à ce serveur ? » à la première connexion). Le fichier FileZilla n'est plus créé que sur demande : `finalcut seedbox sftp-config filezilla`, ou en répondant oui dans le menu.
+
 ## [2.2.1] - 2026-10-31
 
 ### Modifié

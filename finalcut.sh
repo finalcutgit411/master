@@ -54,7 +54,7 @@ Seedbox
   seedbox password [--user NOM]      changer le mot de passe (et le nom)
                                      (lu sur l'entrée standard hors terminal)
   seedbox domain NOM [--staging]     changer de domaine / redemander le certificat
-  seedbox sftp-config                réglages SFTP pour FileZilla et WinSCP
+  seedbox sftp-config [filezilla]    réglages SFTP : adresse pour WinSCP, fichier FileZilla
   seedbox sftp-key add FICHIER.pub | list | remove N
   seedbox sftp-password on|off       autoriser le mot de passe en SFTP
   seedbox bans | unban IP            adresses bannies par fail2ban

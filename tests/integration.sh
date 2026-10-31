@@ -194,14 +194,22 @@ share_test() {
     return 1
 }
 
-# Réglages SFTP et site FileZilla téléchargeable
+# Réglages SFTP : adresse WinSCP avec l'empreinte du serveur (calculée ici
+# autrement : SHA-256 de la clé publique, en base64 « URL »), puis site
+# FileZilla téléchargeable
 sftp_config_test() {
-    local out path xml
+    local out path xml fp
+    fp=$(awk '{ print $2 }' /etc/ssh/ssh_host_ed25519_key.pub | base64 -d \
+        | openssl dgst -sha256 -binary | openssl base64 -A | tr '+/' '-_')
     out=$(fc seedbox sftp-config 2>&1) || {
         printf '%s\n' "$out"
         return 1
     }
-    [[ $out == *"sftp://$SBU@127.0.0.1:22/"* && $out == *"SHA256:"* ]] || {
+    [[ $out == *"sftp://$SBU;fingerprint=ssh-ed25519-$fp@127.0.0.1:22/"* && $out == *"SHA256:"* ]] || {
+        printf 'attendu : sftp://%s;fingerprint=ssh-ed25519-%s@127.0.0.1:22/\n%s\n' "$SBU" "$fp" "$out"
+        return 1
+    }
+    out=$(fc seedbox sftp-config filezilla 2>&1) || {
         printf '%s\n' "$out"
         return 1
     }
@@ -313,7 +321,7 @@ EOF
 
     step "Liens de téléchargement à usage unique"
     check "vpn share : page, téléchargement unique, puis lien supprimé" share_test
-    check "seedbox sftp-config : réglages, empreinte et fichier FileZilla" sftp_config_test
+    check "seedbox sftp-config : adresse WinSCP avec empreinte, fichier FileZilla" sftp_config_test
     check "liste des liens impossible" http_is 403 /partage/
     check "jeton inconnu : 404" http_is 404 /partage/0123456789abcdef0123456789abcdef/
 

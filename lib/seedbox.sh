@@ -883,12 +883,54 @@ EOF
 }
 
 # Réglages de connexion SFTP + lien vers le fichier FileZilla
+# Empreinte au format des adresses WinSCP : « ssh-ed25519-<empreinte SHA-256> »,
+# en base64 complété par « = », avec « - » à la place de « + » et « _ » à la
+# place de « / » (https://winscp.net/eng/docs/session_url)
+sb_host_fingerprint_url() {
+    local f=/etc/ssh/ssh_host_ed25519_key.pub fp
+    [[ -r $f ]] || return 0
+    fp=$(ssh-keygen -l -E sha256 -f "$f" 2>/dev/null | awk '{ print $2 }' || true)
+    fp=${fp#SHA256:}
+    [[ -n $fp ]] || return 0
+    while ((${#fp} % 4)); do fp+="="; done
+    fp=${fp//+/-}
+    fp=${fp//\//_}
+    printf 'ssh-ed25519-%s' "$fp"
+}
+
+# Adresse à coller dans WinSCP, avec l'empreinte du serveur quand elle est
+# connue : WinSCP vérifie alors la clé du serveur tout seul, sans question
+sb_winscp_url() {
+    local port=$1 fp
+    fp=$(sb_host_fingerprint_url)
+    if [[ -n $fp ]]; then
+        printf 'sftp://%s;fingerprint=%s@%s:%s/' "$SB_USER" "$fp" "$SB_DOMAIN" "$port"
+    else
+        printf 'sftp://%s@%s:%s/' "$SB_USER" "$SB_DOMAIN" "$port"
+    fi
+}
+
+# Lien vers le site à importer dans FileZilla
+sb_filezilla_share() {
+    local port=$1 tmp
+    systemctl is-active --quiet nginx || die "nginx est arrêté :  finalcut seedbox restart"
+    tmp=$(mktemp)
+    sb_gen_filezilla "$port" >"$tmp"
+    share_create "$tmp" "seedbox-filezilla.xml" "Connexion SFTP à la seedbox (FileZilla)" \
+        "<li>FileZilla : « Fichier » → « Importer… » → choisissez ce fichier.</li>
+<li>Le site « Seedbox $SB_DOMAIN » apparaît dans le gestionnaire de sites. Le mot de passe est demandé à la connexion.</li>
+<li>À la première connexion, l'empreinte du serveur doit être : <code>$(sb_host_fingerprint)</code></li>" \
+        "Le fichier ne contient pas de mot de passe."
+    rm -f "$tmp"
+}
+
+# Réglages de connexion SFTP : adresse pour WinSCP, et sur demande
+# (« filezilla ») un lien vers le fichier à importer dans FileZilla
 sb_sftp_config() {
-    local port fp url tmp keys=""
+    local port fp keys=""
     port=$(sb_ssh_port)
     port=${port:-22}
     fp=$(sb_host_fingerprint)
-    url="sftp://$SB_USER@$SB_DOMAIN:$port/"
     if [[ $SB_SFTP_PASSWORD == no ]]; then keys=" (clé SSH uniquement)"; fi
     titre
     section "CONNEXION SFTP À LA SEEDBOX"
@@ -897,25 +939,24 @@ sb_sftp_config() {
     if [[ -n $fp ]]; then printf '  Empreinte   : %s\n' "$fp"; fi
     cat <<EOF
 
-WinSCP    : fenêtre de connexion → « Nouveau site », puis collez dans « Nom d'hôte » :
-              $url
-FileZilla : « Fichier » → « Importer… », avec le fichier du lien ci-dessous.
+${C_BLD}WinSCP${C_END} : dans la fenêtre de connexion, « Nouveau site », collez cette adresse
+dans « Nom d'hôte », puis « Enregistrer » :
 
-À la première connexion, le logiciel demande s'il peut faire confiance au
-serveur : l'empreinte qu'il affiche doit être celle ci-dessus.
+$(sb_winscp_url "$port")
+
+L'empreinte du serveur est dans l'adresse : WinSCP vérifie tout seul que c'est
+bien votre serveur, sans question à la première connexion.
+
 EOF
-    if ! systemctl is-active --quiet nginx; then
-        warn "nginx est arrêté : pas de lien pour FileZilla (finalcut seedbox restart)."
-        return 0
+    if [[ ${1-} == filezilla ]]; then
+        sb_filezilla_share "$port"
+    elif ((FC_INTERACTIVE)); then
+        if confirm "Créer aussi un lien vers un fichier à importer dans FileZilla ?" n; then
+            sb_filezilla_share "$port"
+        fi
+    else
+        echo "FileZilla : fichier à importer avec  finalcut seedbox sftp-config filezilla"
     fi
-    tmp=$(mktemp)
-    sb_gen_filezilla "$port" >"$tmp"
-    share_create "$tmp" "seedbox-filezilla.xml" "Connexion SFTP à la seedbox" \
-        "<li>FileZilla : « Fichier » → « Importer… » → choisissez ce fichier. Le site « Seedbox $SB_DOMAIN » apparaît dans le gestionnaire de sites.</li>
-<li>WinSCP : « Nouveau site », puis collez <code>$url</code> dans « Nom d'hôte ».</li>
-<li>À la première connexion, l'empreinte du serveur doit être : <code>${fp:-inconnue}</code></li>" \
-        "Le fichier ne contient pas de mot de passe : il sera demandé à la connexion."
-    rm -f "$tmp"
 }
 
 # --- Clés SSH du SFTP ----------------------------------------------------------------
@@ -1354,7 +1395,7 @@ sb_menu() {
 1) Changer l'utilisateur ou le mot de passe
 2) Nom de domaine et certificat HTTPS
 3) Clés SSH pour le SFTP
-4) Connexion SFTP : réglages pour FileZilla et WinSCP
+4) Connexion SFTP : réglages pour WinSCP et FileZilla
 5) Adresses IP bannies (fail2ban)
 
 6) Redémarrer les services
@@ -1445,7 +1486,10 @@ sb_cli() {
             ;;
         sftp-config)
             sb_require_installed
-            sb_sftp_config
+            case ${1-} in
+                "" | filezilla) sb_sftp_config "${1-}" ;;
+                *) die "Usage : finalcut seedbox sftp-config [filezilla]" ;;
+            esac
             ;;
         bans)
             sb_require_installed
