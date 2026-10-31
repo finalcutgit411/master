@@ -26,7 +26,7 @@ On télécharge une version publiée et on vérifie son empreinte avant de la la
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.0.1
+V=1.1.0
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -68,7 +68,8 @@ seedtunnel vpn add telephone [--qr]         seedtunnel seedbox password [--user 
 seedtunnel vpn remove telephone --yes       seedtunnel seedbox domain mon.domaine.fr [--staging]
 seedtunnel vpn list                         seedtunnel seedbox sftp-config [filezilla]
 seedtunnel vpn show telephone               seedtunnel seedbox sftp-key add ma-cle.pub
-seedtunnel vpn share pc-bureau              seedtunnel seedbox sftp-password off
+seedtunnel vpn share pc-bureau              seedtunnel seedbox sftp-key new
+                                            seedtunnel seedbox sftp-password off
                                             seedtunnel seedbox bans | unban IP
 seedtunnel firewall enable|disable|status   seedtunnel doctor
 seedtunnel backup [--passphrase-file F]     seedtunnel backup list | share
@@ -138,7 +139,8 @@ Plus besoin de `scp` pour récupérer un fichier sur son ordinateur :
 
 - `seedtunnel vpn share pc-bureau` donne un lien vers la configuration WireGuard du client ;
 - `seedtunnel backup share` donne un lien vers la dernière sauvegarde ;
-- `seedtunnel seedbox sftp-config` donne une adresse à coller dans WinSCP, qui contient l'empreinte du serveur : WinSCP vérifie tout seul que c'est le bon serveur, sans question à la première connexion. Avec `filezilla`, elle crée en plus un lien vers un fichier à importer dans FileZilla.
+- `seedtunnel seedbox sftp-config` donne une adresse à coller dans WinSCP, qui contient l'empreinte du serveur : WinSCP vérifie tout seul que c'est le bon serveur, sans question à la première connexion. Avec `filezilla`, elle crée en plus un lien vers un fichier à importer dans FileZilla ;
+- `seedtunnel seedbox sftp-key new` crée une clé SSH et donne un lien vers elle au format .ppk, prête pour WinSCP et FileZilla : SFTP sans mot de passe. Aucune copie de la clé privée ne reste sur le serveur.
 
 Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire impossible à deviner, ne fonctionne **qu'une fois** et expire au bout de **10 minutes**. Le fichier est supprimé dès qu'il est ouvert : une autre forme de l'adresse ou un téléchargement partiel ne permet pas de le récupérer une deuxième fois. Ouvrir la page ne compte pas, seul le téléchargement du fichier compte : l'aperçu automatique d'une messagerie ne gâche donc pas le lien.
 

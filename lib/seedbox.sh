@@ -957,8 +957,12 @@ seedbox_sftp_config() {
         if confirm 'Also create a link to a file to import into FileZilla?' n; then
             filezilla_share "$port"
         fi
+        if confirm 'Create an SSH key for WinSCP / FileZilla (connection without a password)?' n; then
+            sftp_key_generate
+        fi
     else
         say 'FileZilla: file to import with  seedtunnel seedbox sftp-config filezilla'
+        say 'Connection without a password: key for WinSCP / FileZilla with  seedtunnel seedbox sftp-key new'
     fi
 }
 
@@ -1033,6 +1037,32 @@ sftp_keys_remove() {
     ok 'Key number %s removed.' "$number"
 }
 
+# New SSH key for WinSCP / FileZilla: created here, its public part added to
+# the allowed keys, its private part sent once as a .ppk file (PuTTY format,
+# read by WinSCP and FileZilla) through a one-time link. No copy stays on the
+# server. The key has no passphrase: it opens SFTP without a password.
+sftp_key_generate() {
+    local comment name="seedbox-$SEEDBOX_USER.ppk"
+    systemctl is-active --quiet nginx || die 'nginx is stopped:  seedtunnel seedbox restart'
+    apt_install putty-tools
+    comment="seedtunnel-$SEEDBOX_USER-$(date +%Y%m%d-%H%M%S)"
+    # in a subshell: the temporary folder with the private key is deleted
+    # whatever happens, even if a step stops the script
+    (
+        tmp=$(mktemp -d)
+        trap 'rm -rf "$tmp"' EXIT
+        if ! (umask 077 && ssh-keygen -q -t ed25519 -N '' -C "$comment" -f "$tmp/key" \
+            && puttygen "$tmp/key" -O private -o "$tmp/key.ppk" --ppk-param version=2) </dev/null >>"$APP_LOG" 2>&1; then
+            die 'Cannot create the SSH key (details in %s).' "$APP_LOG"
+        fi
+        sftp_keys_import "$tmp/key.pub"
+        seedbox_apply_sftp
+        share_create "$tmp/key.ppk" "$name" "$(t 'SSH key of %s for WinSCP and FileZilla' "$SEEDBOX_USER")" \
+            "$(text share_steps_sftp_key)" "$(t 'This key opens the seedbox without a password: keep it to yourself.')"
+    ) || exit 1
+    say 'Link unused? Remove the key "%s" (seedtunnel seedbox sftp-key list) and create another one.' "$comment"
+}
+
 seedbox_set_sftp_password() {
     case $1 in
         on | yes) SEEDBOX_SFTP_PASSWORD=yes ;;
@@ -1059,6 +1089,7 @@ sftp_keys_menu() {
         section 'SSH KEYS FOR SFTP'
         say 'An SSH key is a good replacement for the password in SFTP.'
         say 'Paste the PUBLIC key (.pub file, starts with ssh-ed25519 or ssh-rsa).'
+        say 'No key yet? Choice 2 creates one, ready for WinSCP and FileZilla.'
         echo
         sftp_keys_list
         echo
@@ -1066,8 +1097,9 @@ sftp_keys_menu() {
         say '  SFTP password: %s' "$state"
         echo
         say '1) Add a key'
-        say '2) Remove a key'
-        say '3) Allow / refuse the password in SFTP'
+        say '2) Create a key for WinSCP / FileZilla (one-time download link)'
+        say '3) Remove a key'
+        say '4) Allow / refuse the password in SFTP'
         echo
         say 'Q) Back'
         echo
@@ -1082,11 +1114,15 @@ sftp_keys_menu() {
                 pause
                 ;;
             2)
+                sftp_key_generate
+                pause
+                ;;
+            3)
                 ask answer 'Number of the key to remove' ""
                 if [[ -n $answer ]]; then sftp_keys_remove "$answer"; fi
                 pause
                 ;;
-            3)
+            4)
                 if [[ $SEEDBOX_SFTP_PASSWORD == yes ]]; then seedbox_set_sftp_password off; else seedbox_set_sftp_password on; fi
                 pause
                 ;;
@@ -1404,7 +1440,7 @@ seedbox_uninstall() {
     rmdir "$SFTP_KEYS_DIR" "${TRANSMISSION_DROPIN%/*}" 2>/dev/null || true
     rm -rf "$SEEDBOX_SSL_DIR" "$LETSENCRYPT_WEBROOT"
     systemctl daemon-reload 2>/dev/null || true
-    apt_purge transmission-daemon transmission-common nginx nginx-common certbot fail2ban inotify-tools
+    apt_purge transmission-daemon transmission-common nginx nginx-common certbot fail2ban inotify-tools putty-tools
     if ((delete_data)) && [[ -n $SEEDBOX_DATA_DIR && $SEEDBOX_DATA_DIR != / ]]; then
         run 'Deleting the data' rm -rf "${SEEDBOX_DATA_DIR:?}"
     fi
@@ -1530,9 +1566,10 @@ seedbox_cli() {
                     sftp_keys_import "$2"
                     seedbox_apply_sftp
                     ;;
+                new) sftp_key_generate ;;
                 list) sftp_keys_list ;;
                 remove) sftp_keys_remove "${2-}" ;;
-                *) die 'Usage: seedtunnel seedbox sftp-key add|list|remove' ;;
+                *) die 'Usage: seedtunnel seedbox sftp-key add|new|list|remove' ;;
             esac
             ;;
         sftp-password)

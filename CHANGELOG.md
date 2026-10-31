@@ -3,6 +3,14 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.1.0] - 2026-10-31
+
+### Added
+- **`seedtunnel seedbox sftp-key new`**: creates an SSH key for WinSCP / FileZilla and gives a one-time link to it as a .ppk file, for SFTP without a password. Its public part is added to the allowed keys; no copy of the private key stays on the server. Also offered in the « SFTP connection » screen and in the SSH keys menu.
+
+### Changed
+- SSH keys menu: « Create a key for WinSCP / FileZilla » is choice 2; removing a key and the SFTP password moved to 3 and 4.
+
 ## [1.0.1] - 2026-10-31
 
 ### Fixed

@@ -915,6 +915,24 @@ fr: Créer aussi un lien vers un fichier à importer dans FileZilla ?
 en: FileZilla: file to import with  seedtunnel seedbox sftp-config filezilla
 fr: FileZilla : fichier à importer avec  seedtunnel seedbox sftp-config filezilla
 
+en: Create an SSH key for WinSCP / FileZilla (connection without a password)?
+fr: Créer une clé SSH pour WinSCP / FileZilla (connexion sans mot de passe) ?
+
+en: Connection without a password: key for WinSCP / FileZilla with  seedtunnel seedbox sftp-key new
+fr: Connexion sans mot de passe : clé pour WinSCP / FileZilla avec  seedtunnel seedbox sftp-key new
+
+en: Cannot create the SSH key (details in %s).
+fr: Impossible de créer la clé SSH (détails dans %s).
+
+en: SSH key of %s for WinSCP and FileZilla
+fr: Clé SSH de %s pour WinSCP et FileZilla
+
+en: This key opens the seedbox without a password: keep it to yourself.
+fr: Cette clé ouvre la seedbox sans mot de passe : ne la confiez à personne.
+
+en: Link unused? Remove the key "%s" (seedtunnel seedbox sftp-key list) and create another one.
+fr: Lien pas utilisé ? Supprimez la clé « %s » (seedtunnel seedbox sftp-key list) et créez-en une autre.
+
 en: Invalid SSH key: %s…
 fr: Clé SSH invalide : %s…
 
@@ -960,6 +978,9 @@ fr: Une clé SSH remplace avantageusement le mot de passe pour le SFTP.
 en: Paste the PUBLIC key (.pub file, starts with ssh-ed25519 or ssh-rsa).
 fr: Collez la clé PUBLIQUE (fichier .pub, commence par ssh-ed25519 ou ssh-rsa).
 
+en: No key yet? Choice 2 creates one, ready for WinSCP and FileZilla.
+fr: Pas encore de clé ? Le choix 2 en crée une, prête pour WinSCP et FileZilla.
+
 en: allowed
 fr: autorisé
 
@@ -972,11 +993,14 @@ fr:   Mot de passe SFTP : %s
 en: 1) Add a key
 fr: 1) Ajouter une clé
 
-en: 2) Remove a key
-fr: 2) Supprimer une clé
+en: 2) Create a key for WinSCP / FileZilla (one-time download link)
+fr: 2) Créer une clé pour WinSCP / FileZilla (lien de téléchargement unique)
 
-en: 3) Allow / refuse the password in SFTP
-fr: 3) Autoriser / refuser le mot de passe pour le SFTP
+en: 3) Remove a key
+fr: 3) Supprimer une clé
+
+en: 4) Allow / refuse the password in SFTP
+fr: 4) Autoriser / refuser le mot de passe pour le SFTP
 
 en: Public key
 fr: Clé publique
@@ -1197,8 +1221,8 @@ fr: Utilisation : seedtunnel seedbox sftp-config [filezilla]
 en: Usage: seedtunnel seedbox sftp-key add FILE.pub   (- for standard input)
 fr: Utilisation : seedtunnel seedbox sftp-key add FICHIER.pub   (- pour l'entrée standard)
 
-en: Usage: seedtunnel seedbox sftp-key add|list|remove
-fr: Utilisation : seedtunnel seedbox sftp-key add|list|remove
+en: Usage: seedtunnel seedbox sftp-key add|new|list|remove
+fr: Utilisation : seedtunnel seedbox sftp-key add|new|list|remove
 
 en: Unknown command: seedbox %s   (help: seedtunnel help)
 fr: Commande inconnue : seedbox %s   (aide : seedtunnel help)

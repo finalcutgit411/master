@@ -28,6 +28,7 @@ Seedbox
   seedbox domain NAME [--staging]    change the domain / request the certificate again
   seedbox sftp-config [filezilla]    SFTP settings: address for WinSCP, FileZilla file
   seedbox sftp-key add FILE.pub | list | remove N
+  seedbox sftp-key new               key for WinSCP / FileZilla (one-time download link)
   seedbox sftp-password on|off       allow the password in SFTP
   seedbox bans | unban IP            addresses banned by fail2ban
   seedbox restart | uninstall [--yes] [--purge-data]
@@ -133,6 +134,14 @@ text_en_share_steps_filezilla() {
 <li>FileZilla: « File » → « Import… » → choose this file.</li>
 <li>The site « Seedbox $SEEDBOX_DOMAIN » shows in the Site Manager. The password is asked when connecting.</li>
 <li>At the first connection, the fingerprint of the server must be: <code>$fingerprint</code></li>
+EOF
+}
+
+text_en_share_steps_sftp_key() {
+    cat <<'EOF'
+<li>Keep this file on your computer, in a folder you keep (not in Downloads).</li>
+<li>WinSCP: in the login window, on your site (for a saved site, edit it first): « Advanced… » → « SSH » → « Authentication » → « Private key file »: choose this file → « OK » → « Save ».</li>
+<li>FileZilla: « Site Manager » → your site → « Logon Type »: « Key file » → choose this file.</li>
 EOF
 }
 

@@ -252,6 +252,40 @@ sftp_config_test() {
     }
 }
 
+# Key created by seedtunnel for WinSCP: downloaded once as a .ppk file, it opens
+# SFTP, and no copy of it stays on the server
+generated_key_test() {
+    local out path file="seedbox-$SBU.ppk"
+    out=$(app seedbox sftp-key new 2>&1) || {
+        printf '%s\n' "$out"
+        return 1
+    }
+    path=$(share_path "$out") || {
+        printf 'no link:\n%s\n' "$out"
+        return 1
+    }
+    curl -skf --max-time 10 -o "$W/generated.ppk" "https://127.0.0.1$path$file" || return 1
+    grep -q '^PuTTY-User-Key-File-2: ssh-ed25519' "$W/generated.ppk" || {
+        head -n 2 "$W/generated.ppk"
+        return 1
+    }
+    link_gone "$path$file" || return 1
+    rm -f "$W/generated"
+    puttygen "$W/generated.ppk" -O private-openssh-new -o "$W/generated" </dev/null || return 1
+    chmod 600 "$W/generated"
+    out=$(printf 'ls\n' | sftp -q -i "$W/generated" -oIdentitiesOnly=yes -oBatchMode=yes \
+        -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -b - "$SBU@127.0.0.1" 2>&1)
+    [[ $out == *watch* ]] || {
+        printf 'SFTP with the created key failed:\n%s\n' "$out"
+        return 1
+    }
+    # nothing left behind in the temporary folders
+    if find /tmp /var/tmp \( -name key -o -name key.pub -o -name key.ppk \) -print | grep .; then
+        echo "a copy of the key stayed on the server"
+        return 1
+    fi
+}
+
 # An address banned by the sshd jail is banned from every port
 fail2ban_all_ports_test() {
     local ip=203.0.113.7 rules lines i
@@ -472,6 +506,7 @@ EOF
     check_fails "connection with the password refused" sftp_password "$PW1" "ls"
     check "web still reachable with the password" http_is 200 /transmission/web/ -u "$SBU:$PW1"
     check "SFTP password allowed again" app seedbox sftp-password on
+    check "sftp-key new: .ppk downloaded once, opens SFTP, no copy left" generated_key_test
 
     step "Change of password"
     check "seedbox password (standard input)" bash -c "printf '%s\n' '$PW2' | '$APP' seedbox password"
