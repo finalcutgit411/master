@@ -28,6 +28,21 @@ FAIL=0
 
 step() { printf '\n\033[1m=== %s\033[0m\n' "$*"; }
 
+# Sur GitHub Actions, chaque échec devient aussi une annotation : elle
+# s'affiche dans le résumé du test, avec la fin de la sortie de la commande.
+annotate() {
+    local title body
+    title="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME") — $1"
+    title=${title//'%'/'%25'}
+    title=${title//:/%3A}
+    title=${title//,/%2C}
+    body=$(tail -n 25 "$W/check.out")
+    body=${body//'%'/'%25'}
+    body=${body//$'\r'/'%0D'}
+    body=${body//$'\n'/'%0A'}
+    printf '::error title=%s::%s\n' "$title" "$body"
+}
+
 # check "description" commande…  → la commande doit réussir
 check() {
     local desc=$1
@@ -38,6 +53,7 @@ check() {
     else
         printf '  \033[31m✘ %s\033[0m\n' "$desc"
         tail -n 25 "$W/check.out" | sed 's/^/      /'
+        annotate "$desc"
         FAIL=$((FAIL + 1))
     fi
 }
@@ -49,6 +65,7 @@ check_fails() {
     if "$@" >"$W/check.out" 2>&1; then
         printf '  \033[31m✘ %s (a réussi alors qu'"'"'elle devait échouer)\033[0m\n' "$desc"
         tail -n 25 "$W/check.out" | sed 's/^/      /'
+        annotate "$desc (aurait dû échouer)"
         FAIL=$((FAIL + 1))
     else
         printf '  \033[32m✔\033[0m %s\n' "$desc"

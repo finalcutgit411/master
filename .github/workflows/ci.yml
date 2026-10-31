@@ -17,7 +17,7 @@ jobs:
     name: Analyse du code
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Installation de shellcheck et shfmt
         run: sudo apt-get update -q && sudo apt-get install -y -q shellcheck shfmt
@@ -38,7 +38,7 @@ jobs:
       matrix:
         debian: [bookworm, trixie]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Modules du noyau (WireGuard, nftables)
         run: sudo modprobe -a wireguard nf_tables
@@ -77,3 +77,13 @@ jobs:
         run: |
           docker exec fc cat /var/log/finalcut.log || true
           docker exec fc journalctl --no-pager -n 300 || true
+          # fin des journaux aussi en annotations, lisibles depuis le résumé
+          annotate() {
+            local t=$1 b
+            b=$(cat)
+            b=${b//'%'/'%25'}
+            b=${b//$'\n'/'%0A'}
+            echo "::error title=$t::$b"
+          }
+          docker exec fc tail -n 60 /var/log/finalcut.log 2>&1 | annotate "finalcut.log (${{ matrix.debian }})"
+          docker exec fc journalctl --no-pager -p warning -n 40 2>&1 | annotate "journal système (${{ matrix.debian }})"
