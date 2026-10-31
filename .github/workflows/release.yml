@@ -1,0 +1,48 @@
+# Publication d'une version : il suffit d'envoyer une étiquette vX.Y.Z
+#   git tag v2.1.0 && git push origin v2.1.0
+# Les tests complets tournent d'abord ; s'ils passent, la version est publiée
+# sur GitHub avec son archive et le fichier SHA256SUMS (utilisé par
+# « finalcut update » pour vérifier ce qu'il télécharge).
+name: Publication
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+jobs:
+  tests:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publication de la version
+    needs: tests
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: L'étiquette correspond-elle à FC_VERSION ?
+        run: |
+          tag=${GITHUB_REF_NAME#v}
+          code=$(sed -n 's/^FC_VERSION="\(.*\)"$/\1/p' lib/common.sh)
+          if [ "$tag" != "$code" ]; then
+            echo "L'étiquette v$tag ne correspond pas à FC_VERSION=$code dans lib/common.sh"
+            exit 1
+          fi
+
+      - name: Archive, empreinte et notes de version
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          git archive --format=tar.gz --prefix="finalcut-$v/" -o "finalcut-$v.tar.gz" "$GITHUB_REF_NAME"
+          sha256sum "finalcut-$v.tar.gz" > SHA256SUMS
+          # section de cette version dans le CHANGELOG
+          awk -v v="[$v]" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md > notes.md
+
+      - name: Publication sur GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          gh release create "$GITHUB_REF_NAME" "finalcut-$v.tar.gz" SHA256SUMS \
+            --title "finalcut $v" --notes-file notes.md
