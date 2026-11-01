@@ -1,4 +1,4 @@
-# Seedtunnel — WireGuard VPN + secure seedbox
+# seedtunnel — WireGuard VPN + secure seedbox
 
 *[Version française](README.fr.md)*
 
