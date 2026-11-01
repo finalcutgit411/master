@@ -67,6 +67,7 @@ backup_read_passphrase() {
     local again
     if [[ -n $OPT_PASSPHRASE_FILE ]]; then
         [[ -r $OPT_PASSPHRASE_FILE ]] || die 'Passphrase file not found: %s' "$OPT_PASSPHRASE_FILE"
+        secret_file_check "$OPT_PASSPHRASE_FILE"
         IFS= read -r BACKUP_PASSPHRASE <"$OPT_PASSPHRASE_FILE" || true
     elif [[ -t 0 ]]; then
         IFS= read -r -s -p "$(t 'Passphrase of the backup:') " BACKUP_PASSPHRASE || exit 130
@@ -361,7 +362,7 @@ backup_menu() {
 
 # Puts back the torrents, their progress and the settings of Transmission
 restore_transmission_state() {
-    local extracted=$1 source="$1$TRANSMISSION_STATE_DIR" settings folder count
+    local extracted=$1 source="$1$TRANSMISSION_STATE_DIR" settings folder count target
     [[ -d $source/torrents || -d $source/resume ]] || return 0
     run 'Stopping Transmission' systemctl stop transmission-daemon
     install -d -m 755 -o "$TRANSMISSION_USER" -g "$TRANSMISSION_USER" "$TRANSMISSION_STATE_DIR"
@@ -374,8 +375,11 @@ restore_transmission_state() {
     done
     for settings in "$extracted/etc/transmission-daemon/settings.json" "$source/settings.json"; do
         if [[ -f $settings && ! -L $settings ]]; then
-            # « cat > » keeps the file itself (Debian links to it)
-            cat "$settings" >"$(transmission_settings_file)"
+            # replaced by renaming, never half-written (the link of Debian
+            # points to the real file, and still does)
+            target=$(transmission_settings_file)
+            install -m 600 -o "$TRANSMISSION_USER" -g "$TRANSMISSION_USER" "$settings" "$target.tmp"
+            mv -f "$target.tmp" "$target"
             break
         fi
     done
@@ -428,7 +432,11 @@ restore_main() {
     mkdir "$BACKUP_TMP_DIR/x"
     run 'Extracting the archive' tar -xzf "$BACKUP_TMP_DIR/backup.tar.gz" --numeric-owner -C "$BACKUP_TMP_DIR/x"
     stamp=$(date +%Y%m%d-%H%M%S)
-    if [[ -n $(ls -A "$APP_STATE_DIR" 2>/dev/null) ]]; then
+    # the list of the packages installed by seedtunnel describes this server,
+    # not the one that was backed up: it stays
+    rm -f "$BACKUP_TMP_DIR/x/etc/seedtunnel/packages"
+    if [[ -f $APP_STATE_DIR/packages ]]; then cp -p "$APP_STATE_DIR/packages" "$BACKUP_TMP_DIR/x/etc/seedtunnel/"; fi
+    if [[ -n $(find "$APP_STATE_DIR" -mindepth 1 -maxdepth 1 ! -name packages 2>/dev/null || true) ]]; then
         mv "$APP_STATE_DIR" "$APP_STATE_DIR.before-restore-$stamp"
         warn 'Previous settings moved to %s' "$APP_STATE_DIR.before-restore-$stamp"
     else

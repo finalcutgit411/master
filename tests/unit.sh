@@ -303,6 +303,8 @@ firewall_trial_load() {
     systemctl() { :; }
     nft() { echo "nft $*" >>"$WORK/fw/calls"; }
     systemd-run() { echo "systemd-run $*" >>"$WORK/fw/calls"; }
+    # a new SSH login went through the new rules
+    journalctl() { echo "Accepted publickey for admin from 203.0.113.5 port 50000 ssh2: ED25519 SHA256:x"; }
 }
 
 firewall_was_on() {
@@ -461,6 +463,9 @@ nginx_reload_retried_after_failure() (
     (($(calls "$WORK/nginx-reloads") == 2))
 )
 
+# What « sshd -T » shows for the seedbox account when its SFTP rule applies
+sshd_rule_in_force() { printf 'chrootdirectory %s\nforcecommand internal-sftp -u 0002\nallowtcpforwarding no\n' "$SEEDBOX_DATA_DIR"; }
+
 ssh_reload_retried_after_failure() (
     load
     rm -rf "$APP_STATE_DIR/pending"
@@ -473,7 +478,7 @@ ssh_reload_retried_after_failure() (
     SEEDBOX_SFTP_PASSWORD=yes
     sshd_generate_seedbox_conf() { echo "Match User lancelot"; }
     chown() { :; }
-    sshd() { return 0; }
+    sshd() { if [[ $1 == -T ]]; then sshd_rule_in_force; fi; }
     systemctl() { retried "$WORK/ssh-reloads"; }
     if (seedbox_apply_sftp) &>"$WORK/ssh.out"; then
         cat "$WORK/ssh.out"
@@ -543,11 +548,12 @@ backup_refuses_open_folder() (
 
 # --- one-time links: no link without its watcher ---------------------------------
 
-share_refused_without_watcher() (
+share_load() {
     load
-    SHARE_DIR="$WORK/share-nowatch"
+    SHARE_DIR="$WORK/share-$1"
     rm -rf "$SHARE_DIR"
     SEEDBOX_DOMAIN=seedbox.example.org
+    SEEDBOX_CERTIFICATE=letsencrypt
     echo secret >"$WORK/to-share"
     apt_install() { :; }
     seedbox_apply_nginx() { :; }
@@ -567,9 +573,13 @@ share_refused_without_watcher() (
     chown() { :; }
     systemd-run() { :; }
     systemctl() { echo "systemctl $*" >>"$WORK/share-calls"; }
+    sleep() { :; }
+}
+
+share_refused_without_watcher() (
+    share_load nowatch
     # the watcher never shows up
     pgrep() { return 1; }
-    sleep() { :; }
     if (share_create "$WORK/to-share" file.conf Title "" Note) &>"$WORK/share.out"; then
         cat "$WORK/share.out"
         return 1
@@ -609,6 +619,7 @@ restore_cleans_up_after_failure() (
     tar -czf - -C "$root" etc/seedtunnel | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
         -pass pass:"a test passphrase" -out "$WORK/restore.enc"
     echo "a test passphrase" >"$WORK/restore-passphrase"
+    chmod 600 "$WORK/restore-passphrase"
     OPT_PASSPHRASE_FILE="$WORK/restore-passphrase"
     OPT_YES=1
     export TMPDIR="$WORK/restore-tmp"
@@ -669,6 +680,270 @@ validators_reject_out_of_range() (
         && ! vpn_is_valid_dns "a" && ! vpn_is_valid_dns "," && ! vpn_is_valid_dns "300.1.1.1"
 )
 
+# --- SFTP: never an account without its restrictions ------------------------------
+
+sftp_load() {
+    load
+    rm -rf "$APP_STATE_DIR/pending"
+    SSHD_SEEDBOX_CONF="$WORK/sshd-seedbox.conf"
+    SFTP_KEYS_DIR="$WORK/sftp-keys"
+    rm -f "$SSHD_SEEDBOX_CONF"
+    : >"$WORK/user-calls"
+    SEEDBOX_USER=lancelot
+    SEEDBOX_DATA_DIR="$WORK/data"
+    SEEDBOX_SFTP_PASSWORD=yes
+    sshd_generate_seedbox_conf() { echo "Match User lancelot"; }
+    chown() { :; }
+    systemctl() { :; }
+    id() { [[ $1 == lancelot ]]; }
+    usermod() { echo "usermod $*" >>"$WORK/user-calls"; }
+    pkill() { echo "pkill $*" >>"$WORK/user-calls"; }
+}
+
+sftp_rule_not_applied_suspends_account() (
+    sftp_load
+    # sshd accepts the file, but a Match block placed before ours wins: no
+    # chroot, and tunnels allowed for the account
+    sshd() { if [[ $1 == -T ]]; then printf 'chrootdirectory none\nforcecommand none\nallowtcpforwarding yes\n'; fi; }
+    if (seedbox_apply_sftp) &>"$WORK/sftp.out"; then
+        cat "$WORK/sftp.out"
+        return 1
+    fi
+    cat "$WORK/user-calls"
+    grep -qxF "usermod --expiredate 1 lancelot" "$WORK/user-calls" \
+        && grep -qxF "pkill -KILL -u lancelot" "$WORK/user-calls" || return 1
+    # once the rule applies, the account suspended by seedtunnel comes back
+    sshd() { if [[ $1 == -T ]]; then sshd_rule_in_force; fi; }
+    getent() { echo "lancelot:!:20000:0:99999:7::1:"; }
+    seedbox_apply_sftp &>>"$WORK/sftp.out" || return 1
+    grep -qxF "usermod --expiredate  lancelot" "$WORK/user-calls"
+)
+
+rename_suspends_account_first() (
+    sftp_load
+    SFTP_KEYS_DIR="$WORK/rename-keys"
+    groupmod() { :; }
+    getent() { return 1; }
+    seedbox_save() { :; }
+    seedbox_apply() { echo "apply" >>"$WORK/user-calls"; }
+    seedbox_set_credentials galahad &>"$WORK/rename.out" || {
+        cat "$WORK/rename.out"
+        return 1
+    }
+    cat "$WORK/user-calls"
+    # suspended, sessions closed, then renamed: never an account named
+    # galahad that the rule written for lancelot does not cover
+    [[ $(head -n 3 "$WORK/user-calls") == $'usermod --expiredate 1 lancelot\npkill -KILL -u lancelot\nusermod --login galahad lancelot' ]]
+)
+
+# --- self-signed certificate: its fingerprint comes with every link ----------------
+
+share_shows_selfsigned_fingerprint() (
+    share_load fingerprint
+    SEEDBOX_CERTIFICATE=selfsigned
+    SEEDBOX_DOMAIN=203.0.113.7
+    SEEDBOX_SSL_DIR="$WORK/ssl"
+    mkdir -p "$SEEDBOX_SSL_DIR"
+    openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 1 -subj /CN=203.0.113.7 \
+        -keyout "$SEEDBOX_SSL_DIR/selfsigned.key" -out "$SEEDBOX_SSL_DIR/selfsigned.crt" &>/dev/null || return 1
+    pgrep() { return 0; }
+    share_create "$WORK/to-share" file.conf Title "" Note &>"$WORK/share-fp.out" || {
+        cat "$WORK/share-fp.out"
+        return 1
+    }
+    cat "$WORK/share-fp.out"
+    grep -qF "$(openssl x509 -in "$SEEDBOX_SSL_DIR/selfsigned.crt" -noout -fingerprint -sha256 | cut -d= -f2)" "$WORK/share-fp.out"
+)
+
+# --- files holding a secret: readable by their owner only ---------------------------
+
+secret_files_must_be_private() (
+    load
+    printf 'VPN_PORT=51820\n' >"$WORK/open.conf"
+    printf 'a test passphrase\n' >"$WORK/open-passphrase"
+    chmod 644 "$WORK/open.conf"
+    chmod 640 "$WORK/open-passphrase"
+    OPT_PASSPHRASE_FILE="$WORK/open-passphrase"
+    if (config_load "$WORK/open.conf") &>"$WORK/secret.out"; then return 1; fi
+    if (backup_read_passphrase 0) &>>"$WORK/secret.out"; then return 1; fi
+    cat "$WORK/secret.out"
+    # readable by their owner only: accepted
+    chmod 600 "$WORK/open.conf" "$WORK/open-passphrase"
+    (config_load "$WORK/open.conf") && (backup_read_passphrase 0) </dev/null
+)
+
+# --- firewall: « yes » only counts once a new SSH login went through -------------
+
+firewall_yes_needs_new_ssh_login() (
+    firewall_trial_load
+    firewall_was_on
+    # « yes » typed, but no new SSH login since the rules were applied
+    journalctl() { :; }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "old rules" && ! -e $FIREWALL_CANDIDATE ]] || return 1
+    # a login of the SFTP account (it may come through the VPN) does not count
+    SEEDBOX_USER=lancelot
+    journalctl() { echo "Accepted password for lancelot from 10.8.0.2 port 50000 ssh2"; }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    [[ $(<"$FIREWALL_RULES") == "old rules" ]]
+)
+
+# --- packages: a removal only takes what seedtunnel installed ----------------------
+
+packages_load() {
+    load
+    # a new server: nothing installed by seedtunnel yet
+    rm -f "$APP_STATE_DIR/packages" "$APP_STATE_DIR/vpn.conf" "$APP_STATE_DIR/seedbox.conf" "$WORK/apt-calls"
+    printf '%s\n' curl nginx unrelated >"$WORK/installed"
+    package_installed() { grep -qxF -- "$1" "$WORK/installed"; }
+    packages_installed_list() { LC_ALL=C sort "$WORK/installed"; }
+    APP_APT_UPDATED=1
+}
+
+install_records_what_it_brought() (
+    packages_load
+    apt-get() {
+        echo "apt-get $*" >>"$WORK/apt-calls"
+        # transmission-daemon comes with transmission-common
+        if [[ $* == *" install "* ]]; then printf '%s\n' transmission-daemon transmission-common >>"$WORK/installed"; fi
+    }
+    # nginx was there before
+    apt_install curl nginx transmission-daemon &>/dev/null || return 1
+    cat "$APP_STATE_DIR/packages"
+    [[ $(<"$APP_STATE_DIR/packages") == $'transmission-common\ntransmission-daemon' ]]
+)
+
+purge_only_what_seedtunnel_installed() (
+    packages_load
+    printf '%s\n' certbot libdep >>"$WORK/installed"
+    printf '%s\n' certbot libdep >"$APP_STATE_DIR/packages"
+    apt-get() {
+        echo "apt-get $*" >>"$WORK/apt-calls"
+        # what nothing needs any more: a dependency of certbot, and a package
+        # that has nothing to do with seedtunnel
+        if [[ $1 == -s ]]; then printf 'Remv libdep [1.0]\nRemv unrelated [2.0]\n'; fi
+    }
+    apt_purge nginx certbot &>"$WORK/purge.out" || {
+        cat "$WORK/purge.out"
+        return 1
+    }
+    cat "$WORK/apt-calls"
+    grep -q " purge -y certbot$" "$WORK/apt-calls" && grep -q " purge -y libdep$" "$WORK/apt-calls" \
+        && ! grep -q "nginx\|unrelated\|autoremove -y" "$WORK/apt-calls"
+)
+
+packages_from_older_version_still_removed() (
+    packages_load
+    # set up by a version without the list: what it installed is still removed
+    echo "SEEDBOX_USER=lancelot" >"$APP_STATE_DIR/seedbox.conf"
+    apt-get() { echo "apt-get $*" >>"$WORK/apt-calls"; }
+    apt_purge nginx certbot &>/dev/null || return 1
+    cat "$WORK/apt-calls"
+    grep -q " purge -y nginx$" "$WORK/apt-calls"
+)
+
+# --- Transmission: settings never half-written, Transmission not left stopped -----
+
+transmission_settings_failure_keeps_them() (
+    load
+    TRANSMISSION_DROPIN="$WORK/dropin/seedtunnel.conf"
+    SEEDBOX_DATA_DIR="$WORK/data"
+    printf '{"old": true}\n' >"$WORK/settings.json"
+    : >"$WORK/tr-calls"
+    transmission_settings_file() { echo "$WORK/settings.json"; }
+    transmission_desired_settings() { echo '{"new": true}'; }
+    transmission_settings_uptodate() { return 1; }
+    diskguard_stopped() { return 1; }
+    chown() { :; }
+    systemctl() { echo "systemctl $*" >>"$WORK/tr-calls"; }
+    # the disk is full: the new settings stop halfway
+    jq() {
+        [[ $1 == empty ]] && return 1
+        printf '{"old": true, "ne'
+        return 1
+    }
+    if (seedbox_apply_transmission) &>"$WORK/tr.out"; then return 1; fi
+    cat "$WORK/tr.out" "$WORK/tr-calls"
+    # the previous settings are whole, nothing left behind, and Transmission runs again
+    [[ $(<"$WORK/settings.json") == '{"old": true}' && ! -e $WORK/settings.json.tmp ]] \
+        && grep -qx "systemctl start transmission-daemon" "$WORK/tr-calls" || return 1
+    # it works: replaced in one go
+    unset -f jq
+    seedbox_apply_transmission &>"$WORK/tr.out" || return 1
+    [[ $(jq -c . "$WORK/settings.json") == '{"old":true,"new":true}' && ! -e $WORK/settings.json.tmp ]]
+)
+
+transmission_waits_for_data_disk() (
+    load
+    SEEDBOX_DATA_DIR=/srv/seedbox
+    transmission_generate_dropin | grep -qxF "RequiresMountsFor=/srv/seedbox"
+)
+
+# --- ports 80/443: every program listening is checked -----------------------------
+
+web_ports_other_program_beside_nginx() (
+    load
+    # nginx on 80 (an earlier attempt), apache2 on 443
+    ss() { printf '%s\n' 'LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:(("nginx",pid=10,fd=6))' \
+        'LISTEN 0 511 0.0.0.0:443 0.0.0.0:* users:(("apache2",pid=20,fd=4))'; }
+    if (seedbox_check_web_ports) &>"$WORK/ports.out"; then return 1; fi
+    grep -q apache2 "$WORK/ports.out" || return 1
+    # nginx alone (the seedbox itself): fine
+    ss() { echo 'LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:(("nginx",pid=10,fd=6))'; }
+    seedbox_check_web_ports
+)
+
+# --- full disk protection: a disk that cannot be measured is reported -------------
+
+diskguard_warns_when_unmeasurable() (
+    load
+    DISKGUARD_MARKER="$WORK/diskguard.stopped"
+    rm -f "$DISKGUARD_MARKER" "$WORK/logger"
+    SEEDBOX_DATA_DIR="$WORK/missing-disk"
+    seedbox_installed() { return 0; }
+    logger() { echo "logger $*" >>"$WORK/logger"; }
+    disk_free_gb() { :; }
+    # Transmission is not stopped for it, but it is said, in the journal too
+    diskguard_check &>"$WORK/dg.out" || return 1
+    diskguard_prestart &>>"$WORK/dg.out" || return 1
+    cat "$WORK/dg.out"
+    grep -q "Cannot measure the free space" "$WORK/dg.out" && grep -q "cannot be measured" "$WORK/logger"
+)
+
+# --- diagnostics: the certificate served is checked as a browser does -------------
+
+doctor_reports_certificate_refused() (
+    load
+    SEEDBOX_CERTIFICATE=letsencrypt
+    SEEDBOX_DOMAIN=seedbox.example.org
+    DOCTOR_ERRORS=0
+    DOCTOR_WARNINGS=0
+    # valid on the disk, but the one served does not verify (curl: 60)
+    curl() {
+        [[ " $* " == *" -k "* || " $* " == *" -sk "* ]] && return 0
+        return 60
+    }
+    doctor_certificate_served 203.0.113.7 &>"$WORK/cert.out"
+    cat "$WORK/cert.out"
+    ((DOCTOR_ERRORS == 1)) || return 1
+    # served and trusted: fine
+    curl() { return 0; }
+    DOCTOR_ERRORS=0
+    doctor_certificate_served 203.0.113.7 &>/dev/null
+    ((DOCTOR_ERRORS == 0))
+)
+
+# --- VPN clients: what happens when the tunnel drops is explained ---------------
+
+vpn_help_explains_kill_switch() (
+    load
+    i18n_load fr
+    local name=laptop port=60002 VPN_PUBLIC_ADDRESS=203.0.113.7
+    text_en_vpn_client_help | grep -q "kill switch" && text_fr_vpn_client_help | grep -q "kill switch" \
+        && text_en_share_steps_vpn | grep -q "kill switch" && text_fr_share_steps_vpn | grep -q "kill switch"
+)
+
 printf '\033[1m=== Unit tests\033[0m\n'
 check "vpn_sync: WireGuard refusing the configuration shows « failed »" vpn_sync_reports_wg_failure
 check "vpn_sync: a failure of « wg-quick strip » is seen" vpn_sync_reports_strip_failure
@@ -708,6 +983,20 @@ check "restore: decrypted files deleted after a failure" restore_cleans_up_after
 check "full disk: Transmission refused to start, allowed again with room" diskguard_refuses_start_on_full_disk
 check "update: new version failing → previous version back" update_failed_keeps_previous_version
 check "validation: addresses, ports and DNS out of range refused" validators_reject_out_of_range
+check "SFTP: restrictions not in force → account suspended, then back" sftp_rule_not_applied_suspends_account
+check "SFTP: renamed account suspended before its new name" rename_suspends_account_first
+check "one-time link: fingerprint of the self-signed certificate shown" share_shows_selfsigned_fingerprint
+check "files holding a secret: refused if others can read them" secret_files_must_be_private
+check "firewall: « yes » refused without a new SSH login" firewall_yes_needs_new_ssh_login
+check "packages: installed ones listed, dependencies included" install_records_what_it_brought
+check "packages: removal only takes what seedtunnel installed" purge_only_what_seedtunnel_installed
+check "packages: server set up by an older version → its packages still removed" packages_from_older_version_still_removed
+check "Transmission: settings write failing → previous ones whole, Transmission started" transmission_settings_failure_keeps_them
+check "Transmission: waits for the disk of the data" transmission_waits_for_data_disk
+check "ports 80/443: another program beside nginx is seen" web_ports_other_program_beside_nginx
+check "full disk: free space not measurable → said, Transmission left alone" diskguard_warns_when_unmeasurable
+check "diagnostics: certificate served refused by browsers → error" doctor_reports_certificate_refused
+check "VPN help: the kill switch is explained" vpn_help_explains_kill_switch
 
 printf '\n\033[1m%s passed, %s failed\033[0m\n' "$PASS" "$FAIL"
 ((FAIL == 0))

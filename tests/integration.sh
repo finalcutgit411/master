@@ -496,6 +496,9 @@ EOF
     check "error message in French" output_has "Commande inconnue" env SEEDTUNNEL_LANG=fr "$APP" whatever
 
     step "VPN: installation from a configuration file"
+    install -m 644 "$W/ci.conf" "$W/open.conf"
+    check_fails "configuration file readable by others refused" app vpn install --config "$W/open.conf"
+    check_fails "nothing installed by it" test -e /etc/seedtunnel/vpn.conf
     check "installation" app vpn install --config "$W/ci.conf"
     check "WireGuard service running" systemctl is-active --quiet wg-quick@wg0
     check 'client "phone" created' test -s /etc/seedtunnel/vpn/clients/phone.conf
@@ -537,6 +540,7 @@ EOF
     check "wrong password refused" http_is 401 /transmission/web/ -u "$SBU:wrong"
     check "no password in clear in the configuration" bash -c "! grep -rqF -- '$PW1' /etc/seedtunnel /etc/nginx /etc/transmission-daemon"
     check "Transmission locked down by systemd" output_has "ProtectSystem=strict" systemctl show transmission-daemon -p ProtectSystem
+    check "Transmission waits for the disk of the data" output_has "$DATA" systemctl show transmission-daemon -p RequiresMountsFor
 
     step "Seedbox: same run again (idempotence)"
     check "no service restarted" nothing_changed app seedbox install --config "$W/ci.conf"
@@ -632,6 +636,7 @@ phase2() {
     check "turning the firewall off" app firewall disable --yes
     check_fails "nothing left to back up: weekly backup turned off" systemctl is-enabled --quiet seedtunnel-backup.timer
     printf 'wrong passphrase\n' >"$W/wrong"
+    chmod 600 "$W/wrong"
     check_fails "wrong passphrase refused" app restore "$W/backup.enc" --passphrase-file "$W/wrong" --yes
     check "restore" app restore "$W/backup.enc" --passphrase-file "$W/passphrase" --yes
     check "same VPN keys, clients and hashes" md5sum -c --quiet "$W/before.md5"
@@ -654,6 +659,8 @@ phase2() {
     check "backups kept" bash -c "ls /var/backups/seedtunnel/*.enc"
     check "data kept" test -f "$DATA/documents/test.txt"
     check "SSH still running" systemctl is-active --quiet ssh
+    check_fails "packages installed by seedtunnel removed" bash -c "dpkg-query -W -f='\${Status}\n' wireguard-tools nginx nginx-common transmission-daemon 2>/dev/null | grep -q ' installed$'"
+    check "package there before seedtunnel kept (qrencode)" output_has "install ok installed" dpkg-query -W -f='${Status}' qrencode
 
     summary
 }

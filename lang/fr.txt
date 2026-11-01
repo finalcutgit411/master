@@ -335,8 +335,8 @@ fr: Impossible de remplacer %s : la version précédente est conservée.
 en: Configuration file not found: %s
 fr: Fichier de configuration introuvable : %s
 
-en: %s can be read by other users: run  chmod 600 %s
-fr: %s est lisible par d'autres utilisateurs : faites  chmod 600 %s
+en: %s may hold a secret: it must belong to root and be readable by root only:  chown root: %s && chmod 600 %s
+fr: %s peut contenir un secret : il doit appartenir à root et n'être lisible que par root :  chown root: %s && chmod 600 %s
 
 en: %s, line %s: expected format KEY=value
 fr: %s, ligne %s : format attendu CLÉ=valeur
@@ -376,9 +376,6 @@ fr: Installation de %s
 
 en: Removing %s
 fr: Suppression de %s
-
-en: Removing unused dependencies
-fr: Nettoyage des dépendances inutiles
 
 en: Automatic security updates enabled
 fr: Mises à jour de sécurité automatiques activées
@@ -813,8 +810,8 @@ fr: Création de l'utilisateur %s
 en: No known password for %s: set one with  seedtunnel seedbox password
 fr: Aucun mot de passe connu pour %s : définissez-en un avec  seedtunnel seedbox password
 
-en: Cannot read %s (invalid JSON?).
-fr: Impossible de lire %s (JSON invalide ?).
+en: Cannot write the settings of Transmission %s (invalid JSON or disk full?). The previous ones were kept.
+fr: Impossible d'écrire les réglages de Transmission %s (JSON invalide ou disque plein ?). Les précédents sont gardés.
 
 en: Starting Transmission
 fr: Démarrage de Transmission
@@ -858,11 +855,8 @@ fr: sshd refuse la configuration générée (détails dans %s). SSH n'a pas ét�
 en: Reloading SSH
 fr: Rechargement de SSH
 
-en: The SFTP rule does not seem to apply: /etc/ssh/sshd_config must contain
-fr: La règle SFTP ne semble pas prise en compte : /etc/ssh/sshd_config doit contenir
-
-en: "Include /etc/ssh/sshd_config.d/*.conf" (there by default on Debian).
-fr: « Include /etc/ssh/sshd_config.d/*.conf » (présent par défaut sur Debian).
+en: The SFTP restrictions (chroot, SFTP only, no tunnel) do not apply to %s: the account is suspended. /etc/ssh/sshd_config must contain "Include /etc/ssh/sshd_config.d/*.conf" before any Match block; then run:  seedtunnel apply
+fr: Les restrictions SFTP (chroot, SFTP seul, pas de tunnel) ne s'appliquent pas à %s : le compte est suspendu. /etc/ssh/sshd_config doit contenir « Include /etc/ssh/sshd_config.d/*.conf » avant tout bloc Match ; puis lancez :  seedtunnel apply
 
 en: Your SSH uses AllowUsers/AllowGroups: add %s to it so that it can connect.
 fr: Votre SSH utilise AllowUsers/AllowGroups : ajoutez-y %s pour qu'il puisse se connecter.
@@ -1244,8 +1238,8 @@ fr: Impossible de lancer la surveillance du lien (détails dans %s).
 en: Download link (%sone time only, for %s minutes%s):
 fr: Lien de téléchargement (%sune seule fois, pendant %s minutes%s) :
 
-en: Self-signed certificate: the browser will show a warning, to accept.
-fr: Certificat auto-signé : le navigateur affichera une alerte, à accepter.
+en: Self-signed certificate: the browser shows a warning. Before accepting it, check that the certificate it shows has this SHA-256 fingerprint:
+fr: Certificat auto-signé : le navigateur affiche une alerte. Avant de l'accepter, vérifiez que le certificat qu'il montre a cette empreinte SHA-256 :
 
 # --- Mise à jour -------------------------------------------------------------------------
 
@@ -1628,3 +1622,18 @@ fr: La version %s n'a pas pu appliquer la configuration : retour à la version %
 
 en: Update cancelled, version %s kept (details in %s).
 fr: Mise à jour annulée, version %s conservée (détails dans %s).
+
+en: Cannot measure the free space of %s: the full disk protection cannot work.
+fr: Impossible de mesurer l'espace libre de %s : la protection contre le disque plein ne peut pas fonctionner.
+
+en: Certificate accepted by browsers for %s
+fr: Certificat accepté par les navigateurs pour %s
+
+en: The certificate served for %s is refused by browsers (curl code %s)   → seedtunnel seedbox domain %s
+fr: Le certificat servi pour %s est refusé par les navigateurs (code curl %s)   → seedtunnel seedbox domain %s
+
+en: No new SSH login was seen since the rules were applied: open a NEW SSH connection first, then type "yes" again.
+fr: Aucune nouvelle connexion SSH vue depuis l'application des règles : ouvrez d'abord une NOUVELLE connexion SSH, puis tapez de nouveau « oui ».
+
+en: Removing the dependencies installed with them
+fr: Suppression des dépendances installées avec eux

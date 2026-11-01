@@ -150,8 +150,33 @@ firewall_undo() {
     fi
 }
 
+# Proof that SSH still works with the new rules: a login accepted by sshd
+# since $1 (seconds since 1970), by another account than the SFTP one (which
+# may come through the VPN, always allowed)
+firewall_new_ssh_login() {
+    local logins
+    logins=$(journalctl --since "@$1" -o cat --no-pager 2>/dev/null \
+        | grep -E '^Accepted (publickey|password|keyboard-interactive)' || true)
+    if [[ -n ${SEEDBOX_USER-} ]]; then logins=$(grep -vF " for $SEEDBOX_USER from " <<<"$logins" || true); fi
+    [[ -n $logins ]]
+}
+
+# « yes » keeps the rules only once a new SSH login went through them; any
+# other answer, or no proof before the automatic undo, cancels
+firewall_wait_confirmation() {
+    local start=$1 answer left
+    while :; do
+        left=$((start + 110 - $(date +%s)))
+        ((left > 0)) || return 1
+        IFS= read -r -t "$left" -p "$(t 'Does it work? Type "yes" to keep the firewall:') " answer || return 1
+        [[ ${answer,,} == yes || ${answer,,} == oui ]] || return 1
+        if firewall_new_ssh_login "$start"; then return 0; fi
+        warn 'No new SSH login was seen since the rules were applied: open a NEW SSH connection first, then type "yes" again.'
+    done
+}
+
 firewall_enable() {
-    local answer was_on=0
+    local was_on=0 start
     local -a undo
     banner
     section 'FIREWALL'
@@ -183,10 +208,10 @@ firewall_enable() {
         run 'Scheduling the automatic undo (2 min)' \
             systemd-run --quiet --unit="$FIREWALL_ROLLBACK_UNIT" --on-active=120 /usr/sbin/nft "${undo[@]}"
         run 'Applying the rules (temporarily)' nft -f "$FIREWALL_CANDIDATE"
+        start=$(date +%s)
         echo
         say 'Now open a NEW SSH connection to this server, without closing this one.'
-        if IFS= read -r -t 110 -p "$(t 'Does it work? Type "yes" to keep the firewall:') " answer \
-            && [[ ${answer,,} == yes || ${answer,,} == oui ]]; then
+        if firewall_wait_confirmation "$start"; then
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
         else
             echo

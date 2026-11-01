@@ -6,7 +6,7 @@
 # =============================================================================
 
 APP_NAME="seedtunnel"
-APP_VERSION="1.2.0"
+APP_VERSION="1.2.1"
 # GitHub repository used by « seedtunnel update » (owner/project)
 APP_REPO="finalcutgit411/seedtunnel"
 # Server state and secrets (readable by root only)
@@ -284,12 +284,21 @@ CONFIG_KEYS=" LANGUAGE VPN_PUBLIC_ADDRESS VPN_PORT VPN_DNS VPN_CLIENTS SEEDBOX_U
  SEEDBOX_LETSENCRYPT SEEDBOX_LETSENCRYPT_SERVER SEEDBOX_SSH_KEYS_FILE
  SEEDBOX_SFTP_PASSWORD FIREWALL "
 
+# A file that may hold a secret must belong to root and be readable by root
+# only (it is refused otherwise, before being read)
+secret_file_check() {
+    local owner="" mode=""
+    read -r owner mode < <(stat -L -c '%u %a' -- "$1" 2>/dev/null) || true
+    if [[ $owner != "$EUID" || $mode != [0-7]00 ]]; then
+        die '%s may hold a secret: it must belong to root and be readable by root only:  chown root: %s && chmod 600 %s' "$1" "$1" "$1"
+    fi
+}
+
 config_load() {
     local file=$1 line key value number=0
     [[ -r $file ]] || die 'Configuration file not found: %s' "$file"
-    if [[ $(stat -c '%a' "$file") != [0-7]00 ]]; then
-        warn '%s can be read by other users: run  chmod 600 %s' "$file" "$file"
-    fi
+    # it may hold a password
+    secret_file_check "$file"
     while IFS= read -r line || [[ -n $line ]]; do
         number=$((number + 1))
         line=${line%$'\r'}
@@ -363,35 +372,81 @@ package_installed() {
     [[ $(dpkg-query -W -f='${Status}' "$1" 2>/dev/null || true) == *" installed" ]]
 }
 
+# Packages installed by seedtunnel are listed in $APP_STATE_DIR/packages (with
+# the dependencies they brought): a removal only takes those. An nginx that
+# served another site before, for example, stays. The list starts empty on a
+# new server. On a server set up by an older version (no list), what that
+# version would have removed counts as installed by seedtunnel.
+packages_record_init() {
+    local package
+    [[ ! -e $APP_STATE_DIR/packages ]] || return 0
+    install -d -m 700 "$APP_STATE_DIR"
+    {
+        if [[ -e $APP_STATE_DIR/vpn.conf ]]; then
+            for package in wireguard-tools qrencode; do
+                if package_installed "$package"; then printf '%s\n' "$package"; fi
+            done
+        fi
+        if [[ -e $APP_STATE_DIR/seedbox.conf ]]; then
+            for package in transmission-daemon transmission-common nginx nginx-common certbot fail2ban inotify-tools putty-tools; do
+                if package_installed "$package"; then printf '%s\n' "$package"; fi
+            done
+        fi
+    } >"$APP_STATE_DIR/packages"
+}
+
+# Names of the installed packages, sorted
+packages_installed_list() {
+    dpkg-query -W -f='${db:Status-Status} ${Package}\n' 2>/dev/null | awk '$1 == "installed" { print $2 }' | LC_ALL=C sort -u
+}
+
 # apt_install PACKAGE… — installs only what is missing. The package list is
 # refreshed once per run; we wait for the dpkg lock (automatic updates often
 # hold it right after boot).
 apt_install() {
-    local package
+    local package before
     local -a missing=()
     for package in "$@"; do package_installed "$package" || missing+=("$package"); done
     ((${#missing[@]})) || return 0
+    packages_record_init
     export DEBIAN_FRONTEND=noninteractive
     if ((!APP_APT_UPDATED)); then
         run 'Updating the package list' apt-get -o DPkg::Lock::Timeout=300 update
         APP_APT_UPDATED=1
     fi
+    before=$(packages_installed_list)
     run "$(t 'Installing %s' "${missing[*]}")" apt-get -o DPkg::Lock::Timeout=300 install -y --no-install-recommends "${missing[@]}"
+    # what came with them (dependencies included) goes into the list
+    LC_ALL=C comm -13 <(printf '%s\n' "$before") <(packages_installed_list) >>"$APP_STATE_DIR/packages"
 }
 
-# apt_purge PACKAGE… — only removes the ones actually installed
+# apt_purge PACKAGE… — only removes the ones installed by seedtunnel, then the
+# dependencies they brought that nothing needs any more. No « autoremove »: it
+# would also take packages that have nothing to do with seedtunnel.
 apt_purge() {
-    local package
-    local -a present=()
-    for package in "$@"; do package_installed "$package" && present+=("$package"); done
+    local list="$APP_STATE_DIR/packages" package
+    local -a present=() orphans=()
+    packages_record_init
+    for package in "$@"; do
+        # not installed, or there before seedtunnel: left alone
+        if package_installed "$package" && grep -qxF -- "$package" "$list"; then present+=("$package"); fi
+    done
     ((${#present[@]})) || return 0
     export DEBIAN_FRONTEND=noninteractive
     run "$(t 'Removing %s' "${present[*]}")" apt-get -o DPkg::Lock::Timeout=300 purge -y "${present[@]}"
-    run 'Removing unused dependencies' apt-get -o DPkg::Lock::Timeout=300 autoremove -y
+    mapfile -t orphans < <(apt-get -s autoremove 2>/dev/null | awk '/^Remv / { sub(/:.*/, "", $2); print $2 }' \
+        | grep -xF -f "$list" || true)
+    if ((${#orphans[@]})); then
+        run 'Removing the dependencies installed with them' apt-get -o DPkg::Lock::Timeout=300 purge -y "${orphans[@]}"
+    fi
+    # the list keeps what is still installed
+    LC_ALL=C sort -u "$list" | LC_ALL=C comm -12 - <(packages_installed_list) >"$list.new" || true
+    mv -f "$list.new" "$list"
 }
 
 # Base packages + automatic security updates
 base_setup() {
+    packages_record_init
     apt_install curl ca-certificates openssl jq nftables procps iproute2 unattended-upgrades
     if [[ ! -f /etc/apt/apt.conf.d/20auto-upgrades ]]; then
         printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' \

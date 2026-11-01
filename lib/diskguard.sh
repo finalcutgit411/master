@@ -24,6 +24,13 @@ DISKGUARD_TIMER="/etc/systemd/system/seedtunnel-diskguard.timer"
 
 diskguard_stopped() { [[ -e $DISKGUARD_MARKER ]]; }
 
+# The free space cannot be read: said loudly (journal, diagnostics), since the
+# protection cannot work then. Transmission is not stopped for it.
+diskguard_cannot_measure() {
+    logger -t seedtunnel "Free space of $SEEDBOX_DATA_DIR cannot be measured: full disk protection inactive" 2>/dev/null || true
+    warn 'Cannot measure the free space of %s: the full disk protection cannot work.' "$SEEDBOX_DATA_DIR"
+}
+
 diskguard_generate_service() {
     cat <<EOF
 # Written by seedtunnel — stops Transmission when the disk is almost full
@@ -76,7 +83,10 @@ diskguard_prestart() {
     local free stop_below=${SEEDTUNNEL_DISKGUARD_STOP_BELOW_GB:-$DISKGUARD_STOP_BELOW_GB}
     seedbox_installed || return 0
     free=$(disk_free_gb "$SEEDBOX_DATA_DIR")
-    [[ $free =~ ^[0-9]+$ ]] || return 0
+    if [[ ! $free =~ ^[0-9]+$ ]]; then
+        diskguard_cannot_measure
+        return 0
+    fi
     if ((free < stop_below)); then
         date +%s >"$DISKGUARD_MARKER"
         logger -t seedtunnel "Transmission not started: disk almost full ($free GB free)" 2>/dev/null || true
@@ -93,7 +103,10 @@ diskguard_check() {
     local start_above=${SEEDTUNNEL_DISKGUARD_START_ABOVE_GB:-$DISKGUARD_START_ABOVE_GB}
     seedbox_installed || return 0
     free=$(disk_free_gb "$SEEDBOX_DATA_DIR")
-    [[ $free =~ ^[0-9]+$ ]] || return 0
+    if [[ ! $free =~ ^[0-9]+$ ]]; then
+        diskguard_cannot_measure
+        return 0
+    fi
     if diskguard_stopped; then
         if ((free >= start_above)); then
             systemctl start transmission-daemon

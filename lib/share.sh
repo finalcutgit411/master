@@ -190,7 +190,10 @@ share_create() {
     say 'Download link (%sone time only, for %s minutes%s):' "$C_BOLD" "$((SHARE_LIFETIME / 60))" "$C_RESET"
     printf '  %shttps://%s%s/%s/%s\n\n' "$C_BOLD" "$SEEDBOX_DOMAIN" "$SHARE_URL_PATH" "$token" "$C_RESET"
     if [[ $SEEDBOX_CERTIFICATE == selfsigned ]]; then
-        say 'Self-signed certificate: the browser will show a warning, to accept.'
+        # a link may carry a private key: the warning is only accepted for
+        # the right certificate, not blindly
+        say 'Self-signed certificate: the browser shows a warning. Before accepting it, check that the certificate it shows has this SHA-256 fingerprint:'
+        printf '  %s\n' "$(seedbox_selfsigned_fingerprint)"
         echo
     fi
 }

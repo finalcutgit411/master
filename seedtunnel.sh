@@ -192,7 +192,10 @@ check_system
 # lock: they work even if a menu was left open in another window.
 case "${1-} ${2-} ${3-}" in
     "doctor  " | "diskguard-check  " | "diskguard-prestart  " | "backup  " | "backup list " | "backup auto run" | "backup auto status" | "backup auto ") ;;
-    *) take_lock ;;
+    *)
+        take_lock
+        packages_record_init
+        ;;
 esac
 install_shortcut
 vpn_load

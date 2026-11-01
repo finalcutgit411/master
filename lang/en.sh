@@ -62,6 +62,12 @@ Computer : WireGuard app → « Import tunnel(s) from file », with the file
 Open port for this client: ${C_BOLD}$port${C_RESET} (TCP and UDP)
   Incoming connections on $VPN_PUBLIC_ADDRESS:$port reach this client while
   it is connected: set this port in your torrent program.
+
+If the tunnel drops, the device goes out without it, with its real address.
+To block everything outside the tunnel (kill switch):
+  Windows     : WireGuard app → Edit the tunnel → tick « Block untunneled traffic (kill-switch) ».
+  Android     : Settings → VPN → WireGuard (gear) → « Always-on VPN » and « Block connections without VPN ».
+  qBittorrent : Options → Advanced → Network interface → the WireGuard tunnel.
 EOF
 }
 
@@ -69,6 +75,7 @@ text_en_share_steps_vpn() {
     cat <<'EOF'
 <li>Computer: WireGuard app → import a tunnel from a file → choose this file.</li>
 <li>Phone: WireGuard app → « + » → import from a file.</li>
+<li>If the tunnel drops, the device goes out without it. To block everything outside the tunnel (kill switch): on Windows, edit the tunnel and tick « Block untunneled traffic (kill-switch) »; on Android, Settings → VPN → WireGuard → « Always-on VPN » and « Block connections without VPN »; in qBittorrent, Options → Advanced → Network interface → the WireGuard tunnel.</li>
 EOF
 }
 

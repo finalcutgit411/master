@@ -199,7 +199,9 @@ seedbox_check_data_dir() {
 seedbox_check_web_ports() {
     local out
     out=$(ss -Hltnp '( sport = :80 or sport = :443 )' 2>/dev/null || true)
-    if [[ -n $out && $out != *nginx* ]]; then
+    # each listening line: nginx on one port does not cover another program on the other
+    out=$(grep -v nginx <<<"$out" || true)
+    if [[ -n $out ]]; then
         die 'Ports 80/443 are already used by another program:\n%s\n  Stop it (apache2 for example) before installing the seedbox.' "$out"
     fi
 }
@@ -369,6 +371,10 @@ transmission_generate_dropin() {
     esac
     cat <<EOF
 # Written by seedtunnel — Transmission locked down by systemd
+[Unit]
+# downloads on a disk of their own: never on the system disk if it is missing
+RequiresMountsFor=$SEEDBOX_DATA_DIR
+
 [Service]
 # not started on an almost full disk (« + »: this check runs as root)
 ExecStartPre=+$APP_DIR/seedtunnel.sh diskguard-prestart
@@ -412,18 +418,19 @@ seedbox_apply_transmission() {
         # Transmission writes its settings back when it stops: change them while stopped
         run 'Stopping Transmission' systemctl stop transmission-daemon
         [[ -s $settings ]] || printf '{}\n' >"$settings"
-        if ! jq --argjson d "$desired" '. + $d' "$settings" >"$settings.tmp"; then
+        if ! jq --argjson d "$desired" '. + $d' "$settings" >"$settings.tmp" || ! jq empty "$settings.tmp" 2>/dev/null; then
             rm -f "$settings.tmp"
-            die 'Cannot read %s (invalid JSON?).' "$settings"
+            systemctl start transmission-daemon >>"$APP_LOG" 2>&1 || true
+            die 'Cannot write the settings of Transmission %s (invalid JSON or disk full?). The previous ones were kept.' "$settings"
         fi
-        # « cat > » keeps the file itself (Debian links to it)
-        if ! cat "$settings.tmp" >"$settings"; then
+        # replaced by renaming, never half-written ($settings is the real file:
+        # the link of Debian points to it, and still does)
+        if ! { chown "$TRANSMISSION_USER:$TRANSMISSION_USER" "$settings.tmp" && chmod 600 "$settings.tmp" \
+            && mv -f "$settings.tmp" "$settings"; }; then
             rm -f "$settings.tmp"
-            die 'Cannot write %s (disk full?).' "$settings"
+            systemctl start transmission-daemon >>"$APP_LOG" 2>&1 || true
+            die 'Cannot write the settings of Transmission %s (invalid JSON or disk full?). The previous ones were kept.' "$settings"
         fi
-        rm -f "$settings.tmp"
-        chown "$TRANSMISSION_USER:$TRANSMISSION_USER" "$settings"
-        chmod 600 "$settings"
         restart=1
     fi
     systemctl enable --quiet transmission-daemon 2>/dev/null || true
@@ -456,6 +463,11 @@ seedbox_selfsigned_ensure() {
         openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -days 3650 \
         -subj "/CN=$SEEDBOX_DOMAIN" -addext "subjectAltName=$san" \
         -keyout "$SEEDBOX_SSL_DIR/selfsigned.key" -out "$SEEDBOX_SSL_DIR/selfsigned.crt"
+}
+
+# SHA-256 fingerprint of the self-signed certificate, as browsers show it
+seedbox_selfsigned_fingerprint() {
+    openssl x509 -in "$SEEDBOX_SSL_DIR/selfsigned.crt" -noout -fingerprint -sha256 2>/dev/null | cut -d= -f2 || true
 }
 
 # Is the existing Let's Encrypt certificate for this name?
@@ -655,6 +667,32 @@ seedbox_apply_https() {
 
 sftp_has_keys() { [[ -s $SFTP_KEYS_DIR/$SEEDBOX_USER ]] && grep -q '^ssh-\|^ecdsa-\|^sk-' "$SFTP_KEYS_DIR/$SEEDBOX_USER"; }
 
+# Effective SSH settings of the seedbox account, as sshd applies them
+seedbox_sshd_settings() { sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true; }
+
+# seedbox_sftp_rule_applies SETTINGS — chroot, SFTP only and no tunnel in force?
+seedbox_sftp_rule_applies() {
+    grep -qxF "chrootdirectory $SEEDBOX_DATA_DIR" <<<"$1" \
+        && grep -q '^forcecommand internal-sftp' <<<"$1" \
+        && grep -qxF 'allowtcpforwarding no' <<<"$1"
+}
+
+# A suspended account cannot log in at all, by password or by key (expired
+# account), and its sessions are closed: used while its SFTP restrictions are
+# not in force. Expiry « 1 » (2 January 1970) marks a suspension by seedtunnel.
+seedbox_user_suspend() {
+    local user=${1:-$SEEDBOX_USER}
+    id "$user" &>/dev/null || return 0
+    usermod --expiredate 1 "$user" >>"$APP_LOG" 2>&1 || true
+    pkill -KILL -u "$user" >>"$APP_LOG" 2>&1 || true
+}
+
+seedbox_user_resume() {
+    if [[ $(getent shadow "$SEEDBOX_USER" 2>/dev/null | cut -d: -f8 || true) == 1 ]]; then
+        usermod --expiredate '' "$SEEDBOX_USER" >>"$APP_LOG" 2>&1 || true
+    fi
+}
+
 sshd_generate_seedbox_conf() {
     cat <<EOF
 # Written by seedtunnel — SFTP access to the seedbox, locked in $SEEDBOX_DATA_DIR
@@ -699,11 +737,15 @@ seedbox_apply_sftp() {
     fi
     rm -f "$SSHD_SEEDBOX_CONF.previous"
 
-    # Does the rule really apply? (Include present, no AllowUsers in the way…)
-    settings=$(sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
-    if [[ $settings != *"chrootdirectory $SEEDBOX_DATA_DIR"* ]]; then
-        warn 'The SFTP rule does not seem to apply: /etc/ssh/sshd_config must contain'
-        warn '"Include /etc/ssh/sshd_config.d/*.conf" (there by default on Debian).'
+    # Do the restrictions really apply to the account (Include present, no
+    # Match block before ours…)? If not, the account is suspended: no access
+    # at all rather than an account without its restrictions.
+    settings=$(seedbox_sshd_settings)
+    if seedbox_sftp_rule_applies "$settings"; then
+        seedbox_user_resume
+    else
+        seedbox_user_suspend
+        die 'The SFTP restrictions (chroot, SFTP only, no tunnel) do not apply to %s: the account is suspended. /etc/ssh/sshd_config must contain "Include /etc/ssh/sshd_config.d/*.conf" before any Match block; then run:  seedtunnel apply' "$SEEDBOX_USER"
     fi
     if [[ $settings == *$'\nallowusers '* || $settings == *$'\nallowgroups '* ]]; then
         warn 'Your SSH uses AllowUsers/AllowGroups: add %s to it so that it can connect.' "$SEEDBOX_USER"
@@ -1231,6 +1273,7 @@ seedbox_install_from_config() {
     password_file=$(config_get SEEDBOX_PASSWORD_FILE)
     if [[ -n $password_file ]]; then
         [[ -r $password_file ]] || die 'SEEDBOX_PASSWORD_FILE not found: %s' "$password_file"
+        secret_file_check "$password_file"
         IFS= read -r password <"$password_file" || true
     fi
     if [[ -n $password ]]; then
@@ -1261,6 +1304,9 @@ seedbox_set_credentials() {
     if [[ $new != "$old" ]]; then
         seedbox_is_valid_user "$new" || die 'Invalid user name: "%s"' "$new"
         if id "$new" &>/dev/null; then die '"%s" already exists on this system.' "$new"; fi
+        # suspended while its SFTP rule (written for the old name) does not
+        # cover it; seedbox_apply resumes it once the rule applies to the new name
+        seedbox_user_suspend "$old"
         run "$(t 'Renaming %s to %s' "$old" "$new")" usermod --login "$new" "$old"
         if getent group "$old" >/dev/null; then
             run "$(t 'Renaming the group %s' "$old")" groupmod --new-name "$new" "$old"

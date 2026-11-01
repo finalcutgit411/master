@@ -26,7 +26,7 @@ On télécharge une version publiée et on vérifie son checksum (SHA-256) avant
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.2.0
+V=1.2.1
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -115,7 +115,7 @@ Le fichier n'est jamais exécuté : il est seulement lu ligne par ligne, et les 
 | Port | 51820/UDP par défaut |
 | Clients | jusqu'à 253, nommés, révocables, appliqués à chaud |
 | Port ouvert | le client n°N reçoit le port 60000+N en TCP et UDP |
-| Fuites | tout le trafic IPv4 et IPv6 du client passe par le tunnel |
+| Fuites | tout le trafic IPv4 et IPv6 du client passe par le tunnel, tant que le tunnel est en place (voir le kill switch plus bas) |
 | Récupération | QR code pour les téléphones, ou lien de téléchargement à usage unique pour les ordinateurs |
 
 ### Seedbox
@@ -153,7 +153,7 @@ Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire i
 
 Cela concerne ce qui arrive sur le serveur lui-même. Les clients du VPN sont considérés comme de confiance : ce qui vient d'eux par le tunnel est accepté.
 
-Dans un terminal, chaque changement est d'abord **à l'essai** : sans confirmation depuis une nouvelle connexion SSH dans les 2 minutes, les règles précédentes reviennent (ou aucune règle, la première fois). Les règles chargées au démarrage ne changent qu'après confirmation.
+Dans un terminal, chaque changement est d'abord **à l'essai** : sans confirmation depuis une nouvelle connexion SSH dans les 2 minutes, les règles précédentes reviennent (ou aucune règle, la première fois). « oui » ne compte qu'une fois que sshd a accepté une nouvelle connexion depuis l'application des règles. Les règles chargées au démarrage ne changent qu'après confirmation.
 
 ### Diagnostic
 
@@ -189,7 +189,9 @@ Les fichiers téléchargés ne sont pas dans la sauvegarde : copiez-les avec `rs
 - L'interface de contrôle de Transmission (RPC) n'écoute que sur `127.0.0.1` : on y accède par nginx, et le mot de passe est vérifié deux fois, par nginx puis par Transmission. Seul son port BitTorrent (60000) est ouvert aux pairs.
 - Transmission est **enfermé par systemd** (`ProtectSystem=strict`…) : il ne peut écrire que dans ses dossiers.
 - Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seuls leurs hash sont gardés. Seule exception : la passphrase de la sauvegarde hebdomadaire, si vous l'activez, enregistrée lisible par root uniquement pour que la sauvegarde tourne seule.
-- L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel.
+- L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel. Si sshd ne lui applique pas ces restrictions (un bloc `Match` placé avant elles dans `sshd_config`, par exemple), le compte est suspendu plutôt que laissé sans elles.
+- Les fichiers qui peuvent contenir un secret (`--config`, `SEEDBOX_PASSWORD_FILE`, `--passphrase-file`) sont refusés si quelqu'un d'autre que root peut les lire.
+- Avec un certificat auto-signé, chaque lien de téléchargement est donné avec son empreinte SHA-256, à vérifier avant d'accepter l'alerte du navigateur.
 - fail2ban bannit les attaquants de SSH de **tous les ports**, quel que soit le port de SSH.
 - Réglages réseau du noyau durcis (`/etc/sysctl.d/90-seedtunnel-network.conf`) : redirections ICMP ignorées, routage par la source refusé.
 - La configuration SSH est vérifiée (`sshd -t`) avant d'être rechargée. En cas d'erreur, la version précédente est remise.
@@ -268,13 +270,17 @@ Le dépôt interrogé par `seedtunnel update` est défini par `APP_REPO` dans `l
 
 - **WireGuard ne fonctionne qu'en UDP.** Sur un réseau qui bloque l'UDP, essayez le port 443 en UDP : il est souvent ouvert, car HTTP/3 l'utilise.
 - **Le VPN est en IPv4 uniquement.** L'IPv6 des clients est bloqué dans le tunnel plutôt que de fuiter.
+- **Si le tunnel tombe, le client sort sans lui**, avec sa vraie adresse : le serveur n'y peut rien, c'est au client de l'empêcher. Pour bloquer tout ce qui passe hors du tunnel (kill switch) :
+  - Windows : application WireGuard → Modifier le tunnel → cochez la case « kill-switch » ;
+  - Android : Paramètres → VPN → WireGuard (roue dentée) → « VPN permanent » et « Bloquer les connexions sans VPN » ;
+  - qBittorrent (tout système) : Options → Avancé → Interface réseau → le tunnel WireGuard : pas de tunnel, pas de téléchargement.
 - **La seedbox est mono-utilisateur.**
 
 ## Désinstallation
 
 `seedtunnel seedbox uninstall`, `seedtunnel vpn uninstall`, `seedtunnel firewall disable`, ou les options du menu.
 
-Les données téléchargées sont conservées, sauf avec `--purge-data`. Les sauvegardes restent dans `/var/backups/seedtunnel`.
+Les données téléchargées sont conservées, sauf avec `--purge-data`. Les sauvegardes restent dans `/var/backups/seedtunnel`. Seuls les paquets installés par seedtunnel sont supprimés (listés dans `/etc/seedtunnel/packages`) : un nginx déjà là avant, par exemple, reste.
 
 ## Historique
 

@@ -116,6 +116,21 @@ doctor_vpn() {
     say "   doubt, check the firewall in the control panel of the provider)"
 }
 
+# The certificate served, as a browser sees it through the public IP: chain,
+# name and dates checked (no -k). A valid certificate on the disk is not
+# enough: nginx may still serve an older one, or another one. Only for Let's
+# Encrypt (the self-signed one and the test servers are refused by design).
+doctor_certificate_served() {
+    local ip=$1 rc=0
+    [[ $SEEDBOX_CERTIFICATE == letsencrypt ]] || return 0
+    curl -s -o /dev/null --max-time 8 --resolve "$SEEDBOX_DOMAIN:443:$ip" "https://$SEEDBOX_DOMAIN/" 2>/dev/null || rc=$?
+    case $rc in
+        0) doctor_ok 'Certificate accepted by browsers for %s' "$SEEDBOX_DOMAIN" ;;
+        # TLS failures: handshake, name, certificate, chain
+        35 | 51 | 58 | 60) doctor_error 'The certificate served for %s is refused by browsers (curl code %s)   → seedtunnel seedbox domain %s' "$SEEDBOX_DOMAIN" "$rc" "$SEEDBOX_DOMAIN" ;;
+    esac
+}
+
 doctor_seedbox() {
     local ip=$1 crt days code free settings
     doctor_title 'Seedbox'
@@ -177,10 +192,11 @@ doctor_seedbox() {
         else
             doctor_warn 'HTTPS unreachable through the public IP %s (code %s): firewall?' "$ip" "${code:-$(t 'none')}"
         fi
+        doctor_certificate_served "$ip"
     fi
 
-    settings=$(sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true)
-    if [[ $settings == *"chrootdirectory $SEEDBOX_DATA_DIR"* ]]; then
+    settings=$(seedbox_sshd_settings)
+    if seedbox_sftp_rule_applies "$settings"; then
         doctor_ok 'SFTP locked in %s' "$SEEDBOX_DATA_DIR"
     else
         doctor_error 'SFTP rule inactive for %s   → seedtunnel apply' "$SEEDBOX_USER"

@@ -3,6 +3,28 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.1] - 2026-11-01
+
+Second audit of 1.2.0: what could still go wrong without anything failing.
+
+### Security
+- **SFTP**: if sshd did not apply the restrictions of the SFTP account (chroot, SFTP only, no tunnel), for example because of a `Match` block placed before them, the account kept working without them, with a mere warning. It is now suspended (sessions closed) until they apply, and comes back by itself then.
+- **Renaming the SFTP account**: between the rename and the new SSH rule, the account had a name that no rule covered. It is now suspended during the change.
+- **Self-signed certificate**: the download links (which may carry a private key) only said to accept the warning of the browser. They now give the SHA-256 fingerprint of the certificate, to check before accepting it.
+- **Files holding a secret**: a `--config` file readable by others was only warned about, and `SEEDBOX_PASSWORD_FILE` and `--passphrase-file` were not checked. All three are now refused unless readable by root only.
+- **Firewall**: « yes » kept the new rules even if no new SSH connection had been tried. It now only counts once sshd has accepted a new login since the rules were applied; otherwise the question comes back, until the automatic undo.
+
+### Fixed
+- **Removal**: removing the seedbox or the VPN purged nginx, certbot, fail2ban… even if they were there before seedtunnel, then ran `apt autoremove`, which could take packages that have nothing to do with seedtunnel. Only the packages installed by seedtunnel (and the dependencies they brought) are now removed. On a server set up by an older version, what that version installed is still removed.
+- **Transmission**: its settings were rewritten in place: a full disk at that moment left them half-written, and Transmission stayed stopped. They are now written aside, checked, then renamed; on failure the previous ones stay and Transmission starts again.
+- **Transmission** started even when the disk of the data was not mounted, filling the system disk. It now waits for it (`RequiresMountsFor`).
+- **Installation**: nginx listening on one of the ports 80/443 hid another program on the other one. Each port is now checked.
+- **Full disk protection**: when the free space could not be measured, it did nothing, silently. It now says so (terminal and journal); Transmission is left running.
+- **Diagnostics**: `seedtunnel doctor` now checks the Let's Encrypt certificate as a browser does (chain, name, dates), through the public IP: a valid file on the disk is not enough if nginx serves another one.
+
+### Changed
+- **Kill switch**: if the tunnel drops, a client goes out without it, with its real address. The help of a new client, the download page of its configuration and the README now say how to prevent it (Windows, Android, qBittorrent).
+
 ## [1.2.0] - 2026-10-31
 
 Fixes from an independent audit of 1.1.2: what happens when a step fails
