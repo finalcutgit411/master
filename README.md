@@ -26,7 +26,7 @@ Download a published version and check its fingerprint before running it. The co
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.2.3
+V=1.2.4
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -153,7 +153,7 @@ The link goes through the HTTPS site of the seedbox. It holds a random token tha
 
 This concerns what reaches the server itself. The VPN clients are trusted: what comes from them through the tunnel is accepted.
 
-In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). « yes » only counts once sshd has accepted a new login since the rules were applied, coming the same way as your session: through the VPN if you are connected through it, from the Internet otherwise. The rules loaded at boot only change once confirmed.
+In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). « yes » only counts once sshd has accepted a new login since the rules were applied: from the Internet, it always counts; through the VPN, only if your session comes through the VPN too; from the server itself, never. A confirmation from the Internet proves nothing for the VPN: its port is checked by the automatic tests, with a new tunnel through the firewall. The rules loaded at boot only change once confirmed.
 
 ### Diagnostics
 

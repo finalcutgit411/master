@@ -118,6 +118,50 @@ rename_test() {
     printf '%s\n' "$PW2" | env PATH=/usr/local/bin:/usr/bin:/bin "$APP" seedbox password --user "$SBU" || return 1
     id "$SBU" &>/dev/null && ! id "$new" &>/dev/null && [[ -z $(getent shadow "$SBU" | cut -d: -f8) ]]
 }
+# Runs one function of seedtunnel, its libraries and settings loaded (for a
+# check that the commands only use in a terminal)
+seedtunnel_function() {
+    bash -c '
+        APP_DIR=/opt/seedtunnel
+        for library in common i18n vpn seedbox firewall share diskguard backup update doctor; do
+            . "$APP_DIR/lib/$library.sh"
+        done
+        i18n_load en
+        vpn_load
+        seedbox_load
+        "$@"' seedtunnel "$@"
+}
+
+# Confirming the firewall: a real SSH login, from the client network, is
+# recognised (Debian 12 and 13: the program writing it is the right one), a
+# fake message written by another program calling itself sshd is not
+firewall_proof_test() {
+    local start i
+    start=$(date +%s)
+    sleep 1
+    logger -t sshd "Accepted publickey for admin from 203.0.113.9 port 50000 ssh2: ED25519 SHA256:fake"
+    sleep 1
+    if seedtunnel_function firewall_new_ssh_login "$start"; then
+        echo "fake message accepted as a proof"
+        return 1
+    fi
+    useradd -m st-admin
+    printf 'st-admin:%s\n' "$PW1" | chpasswd
+    ip netns exec st-client sshpass -p "$PW1" ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null \
+        -oPubkeyAuthentication=no st-admin@192.168.250.1 true || {
+        userdel -r st-admin 2>/dev/null
+        return 1
+    }
+    userdel -r st-admin 2>/dev/null || true
+    for i in 1 2 3 4 5; do
+        if seedtunnel_function firewall_new_ssh_login "$start"; then return 0; fi
+        sleep 1
+    done
+    echo "real SSH login not recognised; what the journal holds:"
+    journalctl --since "@$start" -o verbose --no-pager | grep -E 'MESSAGE=Accepted|_EXE=|_COMM=' | tail -n 12
+    return 1
+}
+
 sftp_key() {
     printf '%s\n' "$1" | sftp -q -i "$W/key" -oIdentitiesOnly=yes -oBatchMode=yes \
         -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -b - "$SBU@127.0.0.1"
@@ -615,6 +659,7 @@ EOF
     check "default policy: drop" grep -q 'policy drop' "$W/fw.txt"
     check "loaded again at boot" systemctl is-enabled --quiet seedtunnel-firewall.service
     check "WireGuard tunnel through the firewall" tunnel_test
+    check "confirmation: real SSH login recognised, fake message refused" firewall_proof_test
 
     step "Full disk protection"
     check "Transmission stopped under the threshold, started again above" diskguard_test

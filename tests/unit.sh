@@ -308,6 +308,12 @@ firewall_trial_load() {
     # this session comes from the Internet
     SSH_CONNECTION="203.0.113.5 49999 198.51.100.1 22"
     who() { :; }
+    # addresses of the server
+    ip() {
+        printf '%s\n' '1: lo    inet 127.0.0.1/8 scope host lo' \
+            '2: eth0    inet 198.51.100.1/24 brd 198.51.100.255 scope global eth0' \
+            '2: eth0    inet6 2001:db8::1/64 scope global' '3: wg0    inet 10.8.0.1/24 scope global wg0'
+    }
 }
 
 firewall_was_on() {
@@ -1054,6 +1060,44 @@ firewall_vpn_session_confirms_through_vpn() (
     [[ $(<"$FIREWALL_RULES") == "old rules" ]]
 )
 
+firewall_internet_login_confirms_vpn_session() (
+    firewall_trial_load
+    firewall_was_on
+    # this session comes through the VPN, the new login from the Internet:
+    # the way the rules can break works
+    SSH_CONNECTION="10.8.0.2 49999 10.8.0.1 22"
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "new rules" ]]
+)
+
+firewall_login_from_server_itself_does_not_count() (
+    firewall_trial_load
+    firewall_was_on
+    # « ssh admin@its-own-public-address » run on the server: never leaves it
+    journalctl() {
+        echo "Accepted publickey for admin from 198.51.100.1 port 50000 ssh2: ED25519 SHA256:x"
+        echo "Accepted publickey for admin from 2001:db8::1 port 50001 ssh2: ED25519 SHA256:x"
+    }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "old rules" ]]
+)
+
+firewall_only_reads_messages_of_sshd() (
+    firewall_trial_load
+    firewall_was_on
+    # the journal holds a login message, but not from an OpenSSH program: it
+    # only comes out when the journal is read without the filter on _EXE
+    journalctl() {
+        [[ " $* " == *" _EXE="* ]] && return 0
+        echo "Accepted publickey for admin from 203.0.113.5 port 50000 ssh2: ED25519 SHA256:x"
+    }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "old rules" ]]
+)
+
 # --- diagnostics: certificate not checked → said --------------------------------
 
 doctor_says_certificate_not_checked() (
@@ -1173,6 +1217,9 @@ check "SFTP: restrictions checked from everywhere, all of them" sftp_rule_checke
 check "SFTP: rename failing halfway → old name back" rename_undone_when_a_step_fails
 check "firewall: session from the Internet → a login through the VPN does not count" firewall_vpn_login_does_not_count
 check "firewall: session through the VPN → a login through the VPN counts" firewall_vpn_session_confirms_through_vpn
+check "firewall: session through the VPN → a login from the Internet counts" firewall_internet_login_confirms_vpn_session
+check "firewall: a login from the server to its own address does not count" firewall_login_from_server_itself_does_not_count
+check "firewall: only the messages written by sshd are read" firewall_only_reads_messages_of_sshd
 check "diagnostics: certificate served not checked → warning" doctor_says_certificate_not_checked
 check "validation: IPv6 addresses, valid and invalid forms" ipv6_forms
 check "restore stopped halfway: how to go back is said" restore_unfinished_says_how_to_go_back

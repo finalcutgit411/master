@@ -3,6 +3,15 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.4] - 2026-11-01
+
+Confirming the firewall, after a review of 1.2.3.
+
+### Fixed
+- **The rule was not the one written**: 1.2.3 said a new login had to come « the same way » as your session. In fact (and on purpose), a login from the Internet always counts: it is the way the new rules can break. The rule, now written as it is: from the Internet, always; through the VPN, only if your session comes through the VPN; from the server itself, never.
+- **A login from the server to its own public address** (`ssh admin@its-address`, run on the server) counted, although it never leaves the server. All the addresses of the server are now left out, not only 127.0.0.1 and ::1.
+- **Any message starting with « Accepted publickey… »** counted, whatever program wrote it. Only those written by the OpenSSH programs count now (journald notes the real program that wrote each message). Tested on Debian 12 and 13 with a real SSH login, and with a fake message written by another program calling itself sshd.
+
 ## [1.2.3] - 2026-11-01
 
 ### Changed

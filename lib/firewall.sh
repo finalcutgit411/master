@@ -150,6 +150,18 @@ firewall_undo() {
     fi
 }
 
+# The OpenSSH programs that write « Accepted … » in the journal: sshd
+# (Debian 12), sshd-session and sshd-auth (Debian 13)
+FIREWALL_SSHD_PROGRAMS="/usr/sbin/sshd /usr/lib/openssh/sshd-session /usr/lib/openssh/sshd-auth"
+
+# Addresses of the server itself, IPv4 and IPv6 (one per line, without /prefix)
+firewall_local_addresses() { ip -o addr show 2>/dev/null | awk '{ sub(/\/.*/, "", $4); print $4 }' || true; }
+
+# Is the address $1 the server itself (localhost or one of its addresses)?
+firewall_is_local_address() {
+    [[ $1 == 127.* || $1 == ::1 ]] || grep -qxF -- "$1" <<<"$(firewall_local_addresses)"
+}
+
 # Does the session running seedtunnel come from the Internet (not through
 # the VPN, not from the server itself, not from the console)? SSH_CONNECTION,
 # or else the terminal (after sudo or su)
@@ -157,22 +169,39 @@ firewall_session_from_internet() {
     local source=${SSH_CONNECTION-}
     source=${source%% *}
     if [[ -z $source ]]; then source=$(who -m 2>/dev/null | sed -n 's/.*(\([^)]*\)).*/\1/p' || true); fi
-    [[ -n $source && $source != "$VPN_SUBNET".* && $source != 127.* && $source != ::1 ]]
+    [[ -n $source && $source != "$VPN_SUBNET".* ]] && ! firewall_is_local_address "$source"
+}
+
+# SSH logins accepted since $1 (seconds since 1970), one per line:
+# « ADDRESS USER ». Only the messages written by the OpenSSH programs: journald
+# notes the real program that wrote each message (_EXE), so a message written
+# by another program, even one calling itself sshd, is left out. No search
+# without this filter: no message from sshd, no proof.
+firewall_ssh_logins() {
+    local program
+    local -a filters=()
+    for program in $FIREWALL_SSHD_PROGRAMS; do filters+=("_EXE=$program"); done
+    journalctl --since "@$1" -o cat --no-pager "${filters[@]}" 2>/dev/null \
+        | sed -nE 's/^Accepted (publickey|password|keyboard-interactive)[^ ]* for ([^ ]+) from ([^ ]+) port .*/\3 \2/p' || true
 }
 
 # Proof that SSH still works with the new rules: a login accepted by sshd
-# since $1 (seconds since 1970), coming the same way as the session running
-# seedtunnel. From the Internet if it comes from the Internet: a login through
-# the VPN (always allowed) would prove nothing for that way. Logins from the
-# server itself never count, nor those of the SFTP account.
+# since $1. From the Internet: always counts. Through the VPN: only counts if
+# the session running seedtunnel comes through the VPN too (from the Internet,
+# it would prove nothing for that way; the VPN is always allowed, but this
+# does not prove that its port works for a new tunnel either). Never counts:
+# a login from the server itself, or of the SFTP account.
 firewall_new_ssh_login() {
-    local logins vpn="${VPN_SUBNET//./\\.}\\.[0-9]+"
-    logins=$(journalctl --since "@$1" -o cat --no-pager 2>/dev/null \
-        | grep -E '^Accepted (publickey|password|keyboard-interactive)' \
-        | grep -vE " from (127\.[0-9.]+|::1) port " || true)
-    if firewall_session_from_internet; then logins=$(grep -vE " from $vpn port " <<<"$logins" || true); fi
-    if [[ -n ${SEEDBOX_USER-} ]]; then logins=$(grep -vF " for $SEEDBOX_USER from " <<<"$logins" || true); fi
-    [[ -n $logins ]]
+    local address user from_internet=0
+    if firewall_session_from_internet; then from_internet=1; fi
+    while read -r address user; do
+        [[ -n $address ]] || continue
+        if firewall_is_local_address "$address"; then continue; fi
+        if ((from_internet)) && [[ $address == "$VPN_SUBNET".* ]]; then continue; fi
+        if [[ $user == "${SEEDBOX_USER-}" ]]; then continue; fi
+        return 0
+    done < <(firewall_ssh_logins "$1")
+    return 1
 }
 
 # « yes » keeps the rules only once a new SSH login went through them; any
