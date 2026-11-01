@@ -128,6 +128,8 @@ doctor_certificate_served() {
         0) doctor_ok 'Certificate accepted by browsers for %s' "$SEEDBOX_DOMAIN" ;;
         # TLS failures: handshake, name, certificate, chain
         35 | 51 | 58 | 60) doctor_error 'The certificate served for %s is refused by browsers (curl code %s)   → seedtunnel seedbox domain %s' "$SEEDBOX_DOMAIN" "$rc" "$SEEDBOX_DOMAIN" ;;
+        # connection refused, timeout…: the certificate could not be seen
+        *) doctor_warn 'Certificate served for %s not checked: HTTPS unreachable through the public IP (curl code %s)' "$SEEDBOX_DOMAIN" "$rc" ;;
     esac
 }
 
@@ -195,8 +197,7 @@ doctor_seedbox() {
         doctor_certificate_served "$ip"
     fi
 
-    settings=$(seedbox_sshd_settings)
-    if seedbox_sftp_rule_applies "$settings"; then
+    if seedbox_sftp_rule_applies; then
         doctor_ok 'SFTP locked in %s' "$SEEDBOX_DATA_DIR"
     else
         doctor_error 'SFTP rule inactive for %s   → seedtunnel apply' "$SEEDBOX_USER"

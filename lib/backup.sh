@@ -33,11 +33,29 @@ BACKUP_SERVICE="/etc/systemd/system/seedtunnel-backup.service"
 BACKUP_TIMER="/etc/systemd/system/seedtunnel-backup.timer"
 BACKUP_PASSPHRASE=""
 BACKUP_TMP_DIR=""
+# during a restore, once the settings in place are replaced: where they went
+# (« none » if there were none)
+RESTORE_PREVIOUS=""
 
 backup_cleanup() {
     if [[ -n $BACKUP_TMP_DIR && -d $BACKUP_TMP_DIR ]]; then rm -rf "$BACKUP_TMP_DIR"; fi
     BACKUP_TMP_DIR=""
     BACKUP_PASSPHRASE=""
+}
+
+# A restore that stops halfway (error, Ctrl+C) says how to get back to where
+# it started: the server may be partly restored
+restore_unfinished() {
+    case $RESTORE_PREVIOUS in
+        "") return 0 ;;
+        none)
+            warn 'The restore did not finish (details in %s). Once the cause is fixed, run it again.' "$APP_LOG"
+            ;;
+        *)
+            warn 'The restore did not finish (details in %s). Your previous settings are kept in %s. To go back to them:' "$APP_LOG" "$RESTORE_PREVIOUS"
+            printf '  rm -rf %s && mv %s %s && seedtunnel apply\n' "$APP_STATE_DIR" "$RESTORE_PREVIOUS" "$APP_STATE_DIR" >&2
+            ;;
+    esac
 }
 
 # What goes into the archive (paths without the leading /)
@@ -399,7 +417,7 @@ restore_main() {
     BACKUP_TMP_DIR=$(mktemp -d)
     # the decrypted archive holds secrets: deleted whatever happens (an error
     # that stops the script, Ctrl+C)
-    trap 'backup_cleanup' EXIT
+    trap 'restore_unfinished; backup_cleanup' EXIT
     trap 'exit 130' INT TERM
     if ! openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in "$file" -out "$BACKUP_TMP_DIR/backup.tar.gz" \
         -pass fd:3 3<<<"$BACKUP_PASSPHRASE" 2>>"$APP_LOG"; then
@@ -438,11 +456,13 @@ restore_main() {
     if [[ -f $APP_STATE_DIR/packages ]]; then cp -p "$APP_STATE_DIR/packages" "$BACKUP_TMP_DIR/x/etc/seedtunnel/"; fi
     if [[ -n $(find "$APP_STATE_DIR" -mindepth 1 -maxdepth 1 ! -name packages 2>/dev/null || true) ]]; then
         mv "$APP_STATE_DIR" "$APP_STATE_DIR.before-restore-$stamp"
-        warn 'Previous settings moved to %s' "$APP_STATE_DIR.before-restore-$stamp"
+        RESTORE_PREVIOUS="$APP_STATE_DIR.before-restore-$stamp"
+        warn 'Previous settings moved to %s' "$RESTORE_PREVIOUS"
     else
         rm -rf "$APP_STATE_DIR"
+        RESTORE_PREVIOUS=none
     fi
-    cp -a "$BACKUP_TMP_DIR/x/etc/seedtunnel" /etc/
+    cp -a "$BACKUP_TMP_DIR/x/etc/seedtunnel" "$APP_STATE_DIR"
     if [[ -d $BACKUP_TMP_DIR/x/etc/letsencrypt ]]; then cp -a "$BACKUP_TMP_DIR/x/etc/letsencrypt" /etc/; fi
     if [[ -d $BACKUP_TMP_DIR/x/etc/ssh/seedtunnel_authorized_keys ]]; then
         cp -a "$BACKUP_TMP_DIR/x/etc/ssh/seedtunnel_authorized_keys" /etc/ssh/
@@ -465,6 +485,7 @@ restore_main() {
     fi
     if firewall_enabled; then firewall_enable; fi
     if [[ -r $BACKUP_PASSPHRASE_FILE ]]; then backup_auto_install_units; fi
+    RESTORE_PREVIOUS=""
     backup_cleanup
     trap - EXIT INT TERM
     INTERACTIVE=$was

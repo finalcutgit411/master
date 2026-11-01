@@ -100,7 +100,7 @@ vpn_is_valid_dns() {
     for entry in "${entries[@]}"; do
         entry=${entry// /}
         [[ -n $entry ]] || return 1
-        if ! is_ipv4 "$entry" && ! [[ $entry == *:*:* && $entry =~ ^[0-9A-Fa-f:]{2,39}$ ]]; then return 1; fi
+        if ! is_ipv4 "$entry" && ! is_ipv6 "$entry"; then return 1; fi
         count=$((count + 1))
     done
     ((count > 0))

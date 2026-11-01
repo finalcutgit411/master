@@ -3,6 +3,21 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.2] - 2026-11-01
+
+Third audit, of 1.2.1: the remaining ways a step could fail halfway.
+
+### Security
+- **SFTP suspension**: if the account could not be suspended (account database locked…), the message still said it was. The suspension is now checked (expiry date read back, no process left), and a failure is said, with the command to run by hand.
+- **SFTP restrictions**: they were only checked for a connection from the server itself, and 3 of the 8 were checked. All 8 are now checked (tunnels, TTY, X11, agent included), for a connection from the server, through the VPN and from the Internet: a `Match Address` block could treat them differently.
+- **Firewall**: a new SSH login through the VPN (always allowed) counted as proof that SSH works with the new rules. Only a login from the Internet counts now.
+
+### Fixed
+- **Renaming the SFTP account**: if a step failed halfway (group, keys), the account kept its new name while seedtunnel kept the old one, and the next run would have created a second account. The steps already done are now undone: the account keeps its old name.
+- **Restore**: when it stopped halfway, nothing said how to get back. It now says where the previous settings are kept and the command to go back to them.
+- **Diagnostics**: when HTTPS could not be reached, the check of the certificate served said nothing. It now says that the certificate was not checked.
+- **DNS of the VPN**: some invalid IPv6 addresses (`2001:::1`) were accepted.
+
 ## [1.2.1] - 2026-11-01
 
 Second audit of 1.2.0: what could still go wrong without anything failing.

@@ -6,7 +6,7 @@
 # =============================================================================
 
 APP_NAME="seedtunnel"
-APP_VERSION="1.2.1"
+APP_VERSION="1.2.2"
 # GitHub repository used by « seedtunnel update » (owner/project)
 APP_REPO="finalcutgit411/seedtunnel"
 # Server state and secrets (readable by root only)
@@ -531,6 +531,32 @@ is_ipv4() {
     read -r -a parts <<<"$1"
     for part in "${parts[@]}"; do
         ((10#$part <= 255)) || return 1
+    done
+}
+
+# IPv6 address (without an IPv4 part at the end): 8 groups of 1 to 4
+# hexadecimal digits, or fewer with a single « :: » standing for the missing
+# ones (one group of zeros at least)
+is_ipv6() {
+    local address=$1 group
+    local -a groups
+    [[ $address =~ ^[0-9A-Fa-f:]{2,39}$ && $address != *:::* ]] || return 1
+    if [[ $address == *::* ]]; then
+        [[ ${address#*::} != *::* ]] || return 1
+        address=${address/::/:}
+        address=${address#:}
+        address=${address%:}
+        [[ -n $address ]] || return 0
+    fi
+    [[ $address != :* && $address != *: ]] || return 1
+    IFS=: read -r -a groups <<<"$address"
+    if [[ $1 == *::* ]]; then
+        ((${#groups[@]} <= 7)) || return 1
+    else
+        ((${#groups[@]} == 8)) || return 1
+    fi
+    for group in "${groups[@]}"; do
+        [[ $group =~ ^[0-9A-Fa-f]{1,4}$ ]] || return 1
     done
 }
 

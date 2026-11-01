@@ -667,30 +667,82 @@ seedbox_apply_https() {
 
 sftp_has_keys() { [[ -s $SFTP_KEYS_DIR/$SEEDBOX_USER ]] && grep -q '^ssh-\|^ecdsa-\|^sk-' "$SFTP_KEYS_DIR/$SEEDBOX_USER"; }
 
-# Effective SSH settings of the seedbox account, as sshd applies them
-seedbox_sshd_settings() { sshd -T -C "user=$SEEDBOX_USER,host=localhost,addr=127.0.0.1" 2>/dev/null || true; }
+# Effective SSH settings of the seedbox account connecting from the address
+# $1, as sshd applies them
+seedbox_sshd_settings() { sshd -T -C "user=$SEEDBOX_USER,host=$1,addr=$1" 2>/dev/null || true; }
 
-# seedbox_sftp_rule_applies SETTINGS — chroot, SFTP only and no tunnel in force?
+# Are all the restrictions written for the account (sshd_generate_seedbox_conf)
+# in force, wherever it connects from? From the server itself, through the
+# VPN, from the Internet: a Match Address block could treat them differently.
 seedbox_sftp_rule_applies() {
-    grep -qxF "chrootdirectory $SEEDBOX_DATA_DIR" <<<"$1" \
-        && grep -q '^forcecommand internal-sftp' <<<"$1" \
-        && grep -qxF 'allowtcpforwarding no' <<<"$1"
+    local address settings line
+    for address in 127.0.0.1 "$VPN_SUBNET.2" 203.0.113.1; do
+        settings=$(seedbox_sshd_settings "$address")
+        grep -qxF "chrootdirectory $SEEDBOX_DATA_DIR" <<<"$settings" || return 1
+        grep -q '^forcecommand internal-sftp' <<<"$settings" || return 1
+        for line in 'permittty no' 'allowtcpforwarding no' 'allowagentforwarding no' \
+            'allowstreamlocalforwarding no' 'x11forwarding no' 'permittunnel no'; do
+            grep -qxF "$line" <<<"$settings" || return 1
+        done
+    done
 }
 
 # A suspended account cannot log in at all, by password or by key (expired
 # account), and its sessions are closed: used while its SFTP restrictions are
 # not in force. Expiry « 1 » (2 January 1970) marks a suspension by seedtunnel.
+# Checked, not assumed: fails if the account is not expired afterwards, or
+# still has processes.
 seedbox_user_suspend() {
-    local user=${1:-$SEEDBOX_USER}
+    local user=${1:-$SEEDBOX_USER} i
     id "$user" &>/dev/null || return 0
     usermod --expiredate 1 "$user" >>"$APP_LOG" 2>&1 || true
-    pkill -KILL -u "$user" >>"$APP_LOG" 2>&1 || true
+    [[ $(getent shadow "$user" 2>/dev/null | cut -d: -f8 || true) == 1 ]] || return 1
+    for i in {1..20}; do
+        pkill -KILL -u "$user" >>"$APP_LOG" 2>&1 || true
+        if ! pgrep -u "$user" >/dev/null 2>&1; then return 0; fi
+        sleep 0.2
+    done
+    return 1
 }
 
+# Back to normal, if it was suspended by seedtunnel
 seedbox_user_resume() {
-    if [[ $(getent shadow "$SEEDBOX_USER" 2>/dev/null | cut -d: -f8 || true) == 1 ]]; then
-        usermod --expiredate '' "$SEEDBOX_USER" >>"$APP_LOG" 2>&1 || true
+    local user=${1:-$SEEDBOX_USER}
+    if [[ $(getent shadow "$user" 2>/dev/null | cut -d: -f8 || true) == 1 ]]; then
+        usermod --expiredate '' "$user" >>"$APP_LOG" 2>&1 || true
     fi
+}
+
+# Renames the account, its group and its SSH keys, suspended meanwhile (its
+# SFTP rule is written for the old name). If a step fails, the steps already
+# done are undone: the account keeps its old name, never half renamed.
+seedbox_rename_account() {
+    local old=$1 new=$2 group=0
+    if ! seedbox_user_suspend "$old"; then
+        seedbox_user_resume "$old"
+        die 'Cannot suspend %s before renaming it (details in %s): nothing was changed.' "$old" "$APP_LOG"
+    fi
+    usermod --login "$new" "$old" >>"$APP_LOG" 2>&1 || seedbox_rename_undo "$old" "$new" 0 0
+    if getent group "$old" >/dev/null; then
+        groupmod --new-name "$new" "$old" >>"$APP_LOG" 2>&1 || seedbox_rename_undo "$old" "$new" 1 0
+        group=1
+    fi
+    if [[ -e $SFTP_KEYS_DIR/$old ]]; then
+        mv -f "$SFTP_KEYS_DIR/$old" "$SFTP_KEYS_DIR/$new" || seedbox_rename_undo "$old" "$new" 1 "$group"
+    fi
+    ok 'Account %s renamed to %s' "$old" "$new"
+}
+
+# seedbox_rename_undo OLD NEW USER_RENAMED GROUP_RENAMED — a step of the
+# rename failed: the old names come back, then stop
+seedbox_rename_undo() {
+    local old=$1 new=$2
+    if (($4)); then groupmod --new-name "$old" "$new" >>"$APP_LOG" 2>&1 || true; fi
+    if (($3)) && ! usermod --login "$old" "$new" >>"$APP_LOG" 2>&1; then
+        die 'Renaming %s to %s failed, and so did putting the old name back (details in %s). By hand:  usermod --login %s %s' "$old" "$new" "$APP_LOG" "$old" "$new"
+    fi
+    seedbox_user_resume "$old"
+    die 'Renaming %s to %s failed (details in %s): the account keeps its name %s.' "$old" "$new" "$APP_LOG" "$old"
 }
 
 sshd_generate_seedbox_conf() {
@@ -740,13 +792,14 @@ seedbox_apply_sftp() {
     # Do the restrictions really apply to the account (Include present, no
     # Match block before ours…)? If not, the account is suspended: no access
     # at all rather than an account without its restrictions.
-    settings=$(seedbox_sshd_settings)
-    if seedbox_sftp_rule_applies "$settings"; then
+    if seedbox_sftp_rule_applies; then
         seedbox_user_resume
-    else
-        seedbox_user_suspend
+    elif seedbox_user_suspend; then
         die 'The SFTP restrictions (chroot, SFTP only, no tunnel) do not apply to %s: the account is suspended. /etc/ssh/sshd_config must contain "Include /etc/ssh/sshd_config.d/*.conf" before any Match block; then run:  seedtunnel apply' "$SEEDBOX_USER"
+    else
+        die 'The SFTP restrictions (chroot, SFTP only, no tunnel) do not apply to %s, and the account could not be suspended (details in %s). Suspend it by hand:  usermod --expiredate 1 %s && pkill -KILL -u %s' "$SEEDBOX_USER" "$APP_LOG" "$SEEDBOX_USER" "$SEEDBOX_USER"
     fi
+    settings=$(seedbox_sshd_settings 127.0.0.1)
     if [[ $settings == *$'\nallowusers '* || $settings == *$'\nallowgroups '* ]]; then
         warn 'Your SSH uses AllowUsers/AllowGroups: add %s to it so that it can connect.' "$SEEDBOX_USER"
     fi
@@ -1304,14 +1357,8 @@ seedbox_set_credentials() {
     if [[ $new != "$old" ]]; then
         seedbox_is_valid_user "$new" || die 'Invalid user name: "%s"' "$new"
         if id "$new" &>/dev/null; then die '"%s" already exists on this system.' "$new"; fi
-        # suspended while its SFTP rule (written for the old name) does not
-        # cover it; seedbox_apply resumes it once the rule applies to the new name
-        seedbox_user_suspend "$old"
-        run "$(t 'Renaming %s to %s' "$old" "$new")" usermod --login "$new" "$old"
-        if getent group "$old" >/dev/null; then
-            run "$(t 'Renaming the group %s' "$old")" groupmod --new-name "$new" "$old"
-        fi
-        if [[ -e $SFTP_KEYS_DIR/$old ]]; then mv -f "$SFTP_KEYS_DIR/$old" "$SFTP_KEYS_DIR/$new"; fi
+        # seedbox_apply resumes it once the rule applies to the new name
+        seedbox_rename_account "$old" "$new"
         SEEDBOX_USER=$new
         seedbox_save
     fi

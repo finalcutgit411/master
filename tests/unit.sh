@@ -464,7 +464,10 @@ nginx_reload_retried_after_failure() (
 )
 
 # What « sshd -T » shows for the seedbox account when its SFTP rule applies
-sshd_rule_in_force() { printf 'chrootdirectory %s\nforcecommand internal-sftp -u 0002\nallowtcpforwarding no\n' "$SEEDBOX_DATA_DIR"; }
+sshd_rule_in_force() {
+    printf 'chrootdirectory %s\nforcecommand internal-sftp -u 0002\n' "$SEEDBOX_DATA_DIR"
+    printf '%s no\n' permittty allowtcpforwarding allowagentforwarding allowstreamlocalforwarding x11forwarding permittunnel
+}
 
 ssh_reload_retried_after_failure() (
     load
@@ -695,9 +698,23 @@ sftp_load() {
     sshd_generate_seedbox_conf() { echo "Match User lancelot"; }
     chown() { :; }
     systemctl() { :; }
+    sleep() { :; }
     id() { [[ $1 == lancelot ]]; }
-    usermod() { echo "usermod $*" >>"$WORK/user-calls"; }
+    # the expiry date of the account is kept in $WORK/expiry
+    rm -f "$WORK/expiry"
+    usermod() {
+        echo "usermod $*" >>"$WORK/user-calls"
+        if [[ $1 == --expiredate ]]; then printf '%s' "$2" >"$WORK/expiry"; fi
+    }
+    getent() {
+        case $1 in
+            shadow) printf '%s:!:20000:0:99999:7::%s:\n' "$2" "$(cat "$WORK/expiry" 2>/dev/null)" ;;
+            group) [[ $2 == lancelot ]] ;;
+            *) return 2 ;;
+        esac
+    }
     pkill() { echo "pkill $*" >>"$WORK/user-calls"; }
+    pgrep() { return 1; }
 }
 
 sftp_rule_not_applied_suspends_account() (
@@ -714,7 +731,6 @@ sftp_rule_not_applied_suspends_account() (
         && grep -qxF "pkill -KILL -u lancelot" "$WORK/user-calls" || return 1
     # once the rule applies, the account suspended by seedtunnel comes back
     sshd() { if [[ $1 == -T ]]; then sshd_rule_in_force; fi; }
-    getent() { echo "lancelot:!:20000:0:99999:7::1:"; }
     seedbox_apply_sftp &>>"$WORK/sftp.out" || return 1
     grep -qxF "usermod --expiredate  lancelot" "$WORK/user-calls"
 )
@@ -723,7 +739,6 @@ rename_suspends_account_first() (
     sftp_load
     SFTP_KEYS_DIR="$WORK/rename-keys"
     groupmod() { :; }
-    getent() { return 1; }
     seedbox_save() { :; }
     seedbox_apply() { echo "apply" >>"$WORK/user-calls"; }
     seedbox_set_credentials galahad &>"$WORK/rename.out" || {
@@ -944,6 +959,140 @@ vpn_help_explains_kill_switch() (
         && text_en_share_steps_vpn | grep -q "kill switch" && text_fr_share_steps_vpn | grep -q "kill switch"
 )
 
+# --- SFTP (1.2.2): suspension checked, rule checked from everywhere, rename undone -
+
+sftp_suspension_failure_is_said() (
+    sftp_load
+    sshd() { if [[ $1 == -T ]]; then printf 'chrootdirectory none\n'; fi; }
+    # the account database is locked: the expiry date cannot be written
+    usermod() {
+        echo "usermod $*" >>"$WORK/user-calls"
+        return 1
+    }
+    if (seedbox_apply_sftp) &>"$WORK/sftp.out"; then return 1; fi
+    cat "$WORK/sftp.out"
+    grep -q "could not be suspended" "$WORK/sftp.out" || return 1
+    # nor is an account renamed if it cannot be suspended first
+    seedbox_apply() { :; }
+    seedbox_save() { :; }
+    if (seedbox_set_credentials galahad) &>"$WORK/rename.out"; then return 1; fi
+    ! grep -q -- "--login" "$WORK/user-calls"
+)
+
+sftp_rule_checked_from_everywhere() (
+    sftp_load
+    # in force from the server itself only (a Match Address block for the
+    # other addresses, placed before ours)
+    sshd() {
+        [[ $1 == -T ]] || return 0
+        if [[ $3 == *addr=127.0.0.1* ]]; then sshd_rule_in_force; else printf 'chrootdirectory none\n'; fi
+    }
+    if (seedbox_apply_sftp) &>"$WORK/sftp.out"; then
+        cat "$WORK/sftp.out"
+        return 1
+    fi
+    # everywhere, but tunnels (PermitTunnel) still allowed
+    sshd() { if [[ $1 == -T ]]; then sshd_rule_in_force | sed 's/^permittunnel no$/permittunnel yes/'; fi; }
+    if (seedbox_apply_sftp) &>"$WORK/sftp.out"; then
+        cat "$WORK/sftp.out"
+        return 1
+    fi
+    grep -qxF "usermod --expiredate 1 lancelot" "$WORK/user-calls"
+)
+
+rename_undone_when_a_step_fails() (
+    sftp_load
+    SFTP_KEYS_DIR="$WORK/rename-keys"
+    # the group cannot be renamed
+    groupmod() {
+        echo "groupmod $*" >>"$WORK/user-calls"
+        return 1
+    }
+    seedbox_save() { echo "save" >>"$WORK/user-calls"; }
+    seedbox_apply() { echo "apply" >>"$WORK/user-calls"; }
+    if (seedbox_set_credentials galahad) &>"$WORK/rename.out"; then return 1; fi
+    cat "$WORK/rename.out" "$WORK/user-calls"
+    # the old name is back, the account is no longer suspended, nothing saved
+    grep -qxF "usermod --login lancelot galahad" "$WORK/user-calls" \
+        && [[ $(tail -n 1 "$WORK/user-calls") == "usermod --expiredate  lancelot" ]] \
+        && ! grep -qx "save\|apply" "$WORK/user-calls"
+)
+
+# --- firewall: logins through the VPN or from the server itself do not count -----
+
+firewall_vpn_login_does_not_count() (
+    firewall_trial_load
+    firewall_was_on
+    journalctl() {
+        echo "Accepted publickey for admin from 10.8.0.2 port 50000 ssh2: ED25519 SHA256:x"
+        echo "Accepted publickey for admin from 127.0.0.1 port 50001 ssh2: ED25519 SHA256:x"
+    }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "old rules" && ! -e $FIREWALL_CANDIDATE ]]
+)
+
+# --- diagnostics: certificate not checked → said --------------------------------
+
+doctor_says_certificate_not_checked() (
+    load
+    SEEDBOX_CERTIFICATE=letsencrypt
+    SEEDBOX_DOMAIN=seedbox.example.org
+    DOCTOR_ERRORS=0
+    DOCTOR_WARNINGS=0
+    # connection refused
+    curl() { return 7; }
+    doctor_certificate_served 203.0.113.7 &>"$WORK/cert.out"
+    cat "$WORK/cert.out"
+    ((DOCTOR_WARNINGS == 1 && DOCTOR_ERRORS == 0))
+)
+
+# --- IPv6 addresses (DNS of the VPN) ---------------------------------------------
+
+ipv6_forms() (
+    load
+    local good bad
+    for good in 2620:fe::fe 2001:db8::1 ::1 :: fe80:: 2001:db8:0:0:0:0:0:1 1:2:3:4:5:6:7::; do
+        vpn_is_valid_dns "$good" || {
+            echo "refused: $good"
+            return 1
+        }
+    done
+    for bad in 2001:::1 1:2 2001:db8::1::2 12345::1 1:2:3:4:5:6:7:8:9 1::2:3:4:5:6:7:8 :1:2:3:4:5:6:7:8 1:2:3:4:5:6:7:8: g::1; do
+        if vpn_is_valid_dns "$bad"; then
+            echo "accepted: $bad"
+            return 1
+        fi
+    done
+)
+
+# --- restore stopped halfway: how to go back is said -------------------------------
+
+restore_unfinished_says_how_to_go_back() (
+    load
+    local root="$WORK/restore2-root"
+    rm -rf "$root" "$WORK/restore2-state"*
+    mkdir -p "$root/etc/seedtunnel"
+    echo "VPN_PORT=51820" >"$root/etc/seedtunnel/vpn.conf"
+    tar -czf - -C "$root" etc/seedtunnel | openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
+        -pass pass:"a test passphrase" -out "$WORK/restore2.enc"
+    echo "a test passphrase" >"$WORK/restore2-passphrase"
+    chmod 600 "$WORK/restore2-passphrase"
+    OPT_PASSPHRASE_FILE="$WORK/restore2-passphrase"
+    OPT_YES=1
+    # settings in place before the restore
+    APP_STATE_DIR="$WORK/restore2-state"
+    mkdir -p "$APP_STATE_DIR"
+    echo "VPN_PORT=1194" >"$APP_STATE_DIR/vpn.conf"
+    # the restore stops once the new settings are copied (disk full…)
+    i18n_init() { die 'Disk full'; }
+    if (restore_main "$WORK/restore2.enc") &>"$WORK/restore2.out"; then return 1; fi
+    cat "$WORK/restore2.out"
+    grep -q "did not finish" "$WORK/restore2.out" \
+        && grep -q "mv $APP_STATE_DIR.before-restore-[0-9-]* $APP_STATE_DIR" "$WORK/restore2.out" \
+        && [[ $(cat "$APP_STATE_DIR".before-restore-*/vpn.conf) == "VPN_PORT=1194" ]]
+)
+
 printf '\033[1m=== Unit tests\033[0m\n'
 check "vpn_sync: WireGuard refusing the configuration shows « failed »" vpn_sync_reports_wg_failure
 check "vpn_sync: a failure of « wg-quick strip » is seen" vpn_sync_reports_strip_failure
@@ -997,6 +1146,13 @@ check "ports 80/443: another program beside nginx is seen" web_ports_other_progr
 check "full disk: free space not measurable → said, Transmission left alone" diskguard_warns_when_unmeasurable
 check "diagnostics: certificate served refused by browsers → error" doctor_reports_certificate_refused
 check "VPN help: the kill switch is explained" vpn_help_explains_kill_switch
+check "SFTP: suspension that cannot be done is said, no rename" sftp_suspension_failure_is_said
+check "SFTP: restrictions checked from everywhere, all of them" sftp_rule_checked_from_everywhere
+check "SFTP: rename failing halfway → old name back" rename_undone_when_a_step_fails
+check "firewall: a login through the VPN or from the server does not count" firewall_vpn_login_does_not_count
+check "diagnostics: certificate served not checked → warning" doctor_says_certificate_not_checked
+check "validation: IPv6 addresses, valid and invalid forms" ipv6_forms
+check "restore stopped halfway: how to go back is said" restore_unfinished_says_how_to_go_back
 
 printf '\n\033[1m%s passed, %s failed\033[0m\n' "$PASS" "$FAIL"
 ((FAIL == 0))

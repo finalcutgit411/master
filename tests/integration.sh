@@ -104,6 +104,20 @@ sftp_password() {
     printf '%s\n' "$2" | sshpass -p "$1" sftp -q -oBatchMode=no -oStrictHostKeyChecking=no \
         -oUserKnownHostsFile=/dev/null -oPubkeyAuthentication=no -b - "$SBU@127.0.0.1"
 }
+# The SFTP account renamed, then back to its name: it works under its new
+# name, and is never left suspended
+rename_test() {
+    local new=st-renamed
+    printf '%s\n' "$PW2" | env PATH=/usr/local/bin:/usr/bin:/bin "$APP" seedbox password --user "$new" || return 1
+    id "$new" &>/dev/null && ! id "$SBU" &>/dev/null || return 1
+    [[ -z $(getent shadow "$new" | cut -d: -f8) ]] || return 1
+    http_is 409 /transmission/rpc -u "$new:$PW2" || return 1
+    printf 'ls\n' | sshpass -p "$PW2" sftp -q -oBatchMode=no -oStrictHostKeyChecking=no \
+        -oUserKnownHostsFile=/dev/null -oPubkeyAuthentication=no -b - "$new@127.0.0.1" >"$W/rename.out" || return 1
+    grep -q watch "$W/rename.out" || return 1
+    printf '%s\n' "$PW2" | env PATH=/usr/local/bin:/usr/bin:/bin "$APP" seedbox password --user "$SBU" || return 1
+    id "$SBU" &>/dev/null && ! id "$new" &>/dev/null && [[ -z $(getent shadow "$SBU" | cut -d: -f8) ]]
+}
 sftp_key() {
     printf '%s\n' "$1" | sftp -q -i "$W/key" -oIdentitiesOnly=yes -oBatchMode=yes \
         -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -b - "$SBU@127.0.0.1"
@@ -581,6 +595,7 @@ EOF
     check "old password refused" http_is 401 /transmission/web/ -u "$SBU:$PW1"
     check "SFTP with the new password" output_has "watch" sftp_password "$PW2" "ls"
     printf '%s\n' "$PW2" >"$W/password"
+    check "account renamed, works, then back to its name (never left suspended)" rename_test
 
     step "Torrents"
     check "a .torrent dropped into watch/ is added, its progress saved" torrent_test

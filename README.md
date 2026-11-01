@@ -26,7 +26,7 @@ Download a published version and check its fingerprint before running it. The co
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.2.1
+V=1.2.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -153,7 +153,7 @@ The link goes through the HTTPS site of the seedbox. It holds a random token tha
 
 This concerns what reaches the server itself. The VPN clients are trusted: what comes from them through the tunnel is accepted.
 
-In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). « yes » only counts once sshd has accepted a new login since the rules were applied. The rules loaded at boot only change once confirmed.
+In a terminal, every change is **tried first**: without a confirmation from a new SSH connection within 2 minutes, the previous rules come back (or no rules, the first time). « yes » only counts once sshd has accepted a new login from the Internet since the rules were applied (not through the VPN: turn it off for that connection). The rules loaded at boot only change once confirmed.
 
 ### Diagnostics
 
@@ -189,7 +189,7 @@ Downloaded files are not in the backup: copy them with `rsync`.
 - The control interface of Transmission (RPC) only listens on `127.0.0.1`: it is reached through nginx, and the password is checked twice, by nginx then by Transmission. Only its BitTorrent port (60000) is open to the peers.
 - Transmission is **locked down by systemd** (`ProtectSystem=strict`…): it can only write to its own folders.
 - Passwords are **never written in clear**, nor given as an argument to a command. Only their hashes are kept. The one exception is the passphrase of the weekly backup, if you turn it on: it is saved readable by root only, so that the backup can run alone.
-- The SFTP user is locked inside the data folder: no shell, no tunnel. If sshd does not apply these restrictions to it (a `Match` block before them in `sshd_config`, for example), the account is suspended rather than left without them.
+- The SFTP user is locked inside the data folder: no shell, no tunnel. If sshd does not apply all these restrictions to it, from the server, through the VPN and from the Internet (a `Match` block before them in `sshd_config`, for example), the account is suspended rather than left without them.
 - The files that may hold a secret (`--config`, `SEEDBOX_PASSWORD_FILE`, `--passphrase-file`) are refused if anyone but root can read them.
 - With a self-signed certificate, every download link comes with its SHA-256 fingerprint, to check before accepting the warning of the browser.
 - fail2ban bans attackers of SSH from **every port**, whatever the port of SSH.

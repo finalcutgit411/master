@@ -26,7 +26,7 @@ On télécharge une version publiée et on vérifie son checksum (SHA-256) avant
 
 ```bash
 apt update && apt full-upgrade -y
-V=1.2.1
+V=1.2.2
 cd "$(mktemp -d)"
 curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/seedtunnel-$V.tar.gz \
   && curl -fLO https://github.com/finalcutgit411/seedtunnel/releases/download/v$V/SHA256SUMS \
@@ -153,7 +153,7 @@ Le lien passe par le site HTTPS de la seedbox. Il contient un jeton aléatoire i
 
 Cela concerne ce qui arrive sur le serveur lui-même. Les clients du VPN sont considérés comme de confiance : ce qui vient d'eux par le tunnel est accepté.
 
-Dans un terminal, chaque changement est d'abord **à l'essai** : sans confirmation depuis une nouvelle connexion SSH dans les 2 minutes, les règles précédentes reviennent (ou aucune règle, la première fois). « oui » ne compte qu'une fois que sshd a accepté une nouvelle connexion depuis l'application des règles. Les règles chargées au démarrage ne changent qu'après confirmation.
+Dans un terminal, chaque changement est d'abord **à l'essai** : sans confirmation depuis une nouvelle connexion SSH dans les 2 minutes, les règles précédentes reviennent (ou aucune règle, la première fois). « oui » ne compte qu'une fois que sshd a accepté une nouvelle connexion depuis Internet depuis l'application des règles (pas par le VPN : coupez-le pour cette connexion). Les règles chargées au démarrage ne changent qu'après confirmation.
 
 ### Diagnostic
 
@@ -189,7 +189,7 @@ Les fichiers téléchargés ne sont pas dans la sauvegarde : copiez-les avec `rs
 - L'interface de contrôle de Transmission (RPC) n'écoute que sur `127.0.0.1` : on y accède par nginx, et le mot de passe est vérifié deux fois, par nginx puis par Transmission. Seul son port BitTorrent (60000) est ouvert aux pairs.
 - Transmission est **enfermé par systemd** (`ProtectSystem=strict`…) : il ne peut écrire que dans ses dossiers.
 - Les mots de passe ne sont **jamais écrits en clair**, ni passés en argument d'une commande. Seuls leurs hash sont gardés. Seule exception : la passphrase de la sauvegarde hebdomadaire, si vous l'activez, enregistrée lisible par root uniquement pour que la sauvegarde tourne seule.
-- L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel. Si sshd ne lui applique pas ces restrictions (un bloc `Match` placé avant elles dans `sshd_config`, par exemple), le compte est suspendu plutôt que laissé sans elles.
+- L'utilisateur SFTP est enfermé dans le dossier des données : pas de shell, pas de tunnel. Si sshd ne lui applique pas toutes ces restrictions, depuis le serveur, par le VPN et depuis Internet (un bloc `Match` placé avant elles dans `sshd_config`, par exemple), le compte est suspendu plutôt que laissé sans elles.
 - Les fichiers qui peuvent contenir un secret (`--config`, `SEEDBOX_PASSWORD_FILE`, `--passphrase-file`) sont refusés si quelqu'un d'autre que root peut les lire.
 - Avec un certificat auto-signé, chaque lien de téléchargement est donné avec son empreinte SHA-256, à vérifier avant d'accepter l'alerte du navigateur.
 - fail2ban bannit les attaquants de SSH de **tous les ports**, quel que soit le port de SSH.
