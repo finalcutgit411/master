@@ -150,15 +150,27 @@ firewall_undo() {
     fi
 }
 
+# Does the session running seedtunnel come from the Internet (not through
+# the VPN, not from the server itself, not from the console)? SSH_CONNECTION,
+# or else the terminal (after sudo or su)
+firewall_session_from_internet() {
+    local source=${SSH_CONNECTION-}
+    source=${source%% *}
+    if [[ -z $source ]]; then source=$(who -m 2>/dev/null | sed -n 's/.*(\([^)]*\)).*/\1/p' || true); fi
+    [[ -n $source && $source != "$VPN_SUBNET".* && $source != 127.* && $source != ::1 ]]
+}
+
 # Proof that SSH still works with the new rules: a login accepted by sshd
-# since $1 (seconds since 1970), coming from the Internet. Logins through the
-# VPN or from the server itself do not count (they are always allowed), nor
-# those of the SFTP account.
+# since $1 (seconds since 1970), coming the same way as the session running
+# seedtunnel. From the Internet if it comes from the Internet: a login through
+# the VPN (always allowed) would prove nothing for that way. Logins from the
+# server itself never count, nor those of the SFTP account.
 firewall_new_ssh_login() {
-    local logins
+    local logins vpn="${VPN_SUBNET//./\\.}\\.[0-9]+"
     logins=$(journalctl --since "@$1" -o cat --no-pager 2>/dev/null \
         | grep -E '^Accepted (publickey|password|keyboard-interactive)' \
-        | grep -vE " from (127\.[0-9.]+|::1|${VPN_SUBNET//./\\.}\.[0-9]+) port " || true)
+        | grep -vE " from (127\.[0-9.]+|::1) port " || true)
+    if firewall_session_from_internet; then logins=$(grep -vE " from $vpn port " <<<"$logins" || true); fi
     if [[ -n ${SEEDBOX_USER-} ]]; then logins=$(grep -vF " for $SEEDBOX_USER from " <<<"$logins" || true); fi
     [[ -n $logins ]]
 }
@@ -173,7 +185,7 @@ firewall_wait_confirmation() {
         IFS= read -r -t "$left" -p "$(t 'Does it work? Type "yes" to keep the firewall:') " answer || return 1
         [[ ${answer,,} == yes || ${answer,,} == oui ]] || return 1
         if firewall_new_ssh_login "$start"; then return 0; fi
-        warn 'No new SSH login from the Internet was seen since the rules were applied (those through the VPN do not count): open a NEW SSH connection to the public address, with the VPN off, then type "yes" again.'
+        warn 'No new SSH login was seen since the rules were applied: open a NEW SSH connection to this server, the same way as this one, then type "yes" again.'
     done
 }
 
@@ -212,7 +224,7 @@ firewall_enable() {
         run 'Applying the rules (temporarily)' nft -f "$FIREWALL_CANDIDATE"
         start=$(date +%s)
         echo
-        say 'Now open a NEW SSH connection to the public address of this server (VPN off), without closing this one.'
+        say 'Now open a NEW SSH connection to this server, without closing this one.'
         if firewall_wait_confirmation "$start"; then
             systemctl stop "$FIREWALL_ROLLBACK_UNIT.timer" &>/dev/null || true
         else

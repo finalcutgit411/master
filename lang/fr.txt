@@ -680,8 +680,8 @@ fr: Programmation de l'annulation automatique (2 min)
 en: Applying the rules (temporarily)
 fr: Application des règles (provisoire)
 
-en: Now open a NEW SSH connection to the public address of this server (VPN off), without closing this one.
-fr: Ouvrez maintenant une NOUVELLE connexion SSH vers l'adresse publique de ce serveur (VPN coupé), sans fermer celle-ci.
+en: Now open a NEW SSH connection to this server, without closing this one.
+fr: Ouvrez maintenant une NOUVELLE connexion SSH vers ce serveur, sans fermer celle-ci.
 
 en: Does it work? Type "yes" to keep the firewall:
 fr: Elle fonctionne ? Tapez « oui » pour garder le pare-feu :
@@ -1632,8 +1632,8 @@ fr: Certificat accepté par les navigateurs pour %s
 en: The certificate served for %s is refused by browsers (curl code %s)   → seedtunnel seedbox domain %s
 fr: Le certificat servi pour %s est refusé par les navigateurs (code curl %s)   → seedtunnel seedbox domain %s
 
-en: No new SSH login from the Internet was seen since the rules were applied (those through the VPN do not count): open a NEW SSH connection to the public address, with the VPN off, then type "yes" again.
-fr: Aucune nouvelle connexion SSH depuis Internet vue depuis l'application des règles (celles qui passent par le VPN ne comptent pas) : ouvrez une NOUVELLE connexion SSH vers l'adresse publique, VPN coupé, puis tapez de nouveau « oui ».
+en: No new SSH login was seen since the rules were applied: open a NEW SSH connection to this server, the same way as this one, then type "yes" again.
+fr: Aucune nouvelle connexion SSH vue depuis l'application des règles : ouvrez une NOUVELLE connexion SSH vers ce serveur, de la même façon que celle-ci, puis tapez de nouveau « oui ».
 
 en: Removing the dependencies installed with them
 fr: Suppression des dépendances installées avec eux

@@ -305,6 +305,9 @@ firewall_trial_load() {
     systemd-run() { echo "systemd-run $*" >>"$WORK/fw/calls"; }
     # a new SSH login went through the new rules
     journalctl() { echo "Accepted publickey for admin from 203.0.113.5 port 50000 ssh2: ED25519 SHA256:x"; }
+    # this session comes from the Internet
+    SSH_CONNECTION="203.0.113.5 49999 198.51.100.1 22"
+    who() { :; }
 }
 
 firewall_was_on() {
@@ -1023,6 +1026,8 @@ rename_undone_when_a_step_fails() (
 firewall_vpn_login_does_not_count() (
     firewall_trial_load
     firewall_was_on
+    # this session comes from the Internet: a login through the VPN proves
+    # nothing for that way
     journalctl() {
         echo "Accepted publickey for admin from 10.8.0.2 port 50000 ssh2: ED25519 SHA256:x"
         echo "Accepted publickey for admin from 127.0.0.1 port 50001 ssh2: ED25519 SHA256:x"
@@ -1030,6 +1035,23 @@ firewall_vpn_login_does_not_count() (
     firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
     cat "$WORK/fw/out"
     [[ $(<"$FIREWALL_RULES") == "old rules" && ! -e $FIREWALL_CANDIDATE ]]
+)
+
+firewall_vpn_session_confirms_through_vpn() (
+    firewall_trial_load
+    firewall_was_on
+    # this session comes through the VPN (after sudo: found from the terminal)
+    unset SSH_CONNECTION
+    who() { echo "admin    pts/0        2026-11-01 03:00 (10.8.0.2)"; }
+    journalctl() { echo "Accepted publickey for admin from 10.8.0.2 port 50000 ssh2: ED25519 SHA256:x"; }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    cat "$WORK/fw/out"
+    [[ $(<"$FIREWALL_RULES") == "new rules" ]] || return 1
+    # a login from the server itself never counts
+    firewall_was_on
+    journalctl() { echo "Accepted publickey for admin from 127.0.0.1 port 50000 ssh2: ED25519 SHA256:x"; }
+    firewall_enable <<<"yes" >"$WORK/fw/out" 2>&1
+    [[ $(<"$FIREWALL_RULES") == "old rules" ]]
 )
 
 # --- diagnostics: certificate not checked → said --------------------------------
@@ -1149,7 +1171,8 @@ check "VPN help: the kill switch is explained" vpn_help_explains_kill_switch
 check "SFTP: suspension that cannot be done is said, no rename" sftp_suspension_failure_is_said
 check "SFTP: restrictions checked from everywhere, all of them" sftp_rule_checked_from_everywhere
 check "SFTP: rename failing halfway → old name back" rename_undone_when_a_step_fails
-check "firewall: a login through the VPN or from the server does not count" firewall_vpn_login_does_not_count
+check "firewall: session from the Internet → a login through the VPN does not count" firewall_vpn_login_does_not_count
+check "firewall: session through the VPN → a login through the VPN counts" firewall_vpn_session_confirms_through_vpn
 check "diagnostics: certificate served not checked → warning" doctor_says_certificate_not_checked
 check "validation: IPv6 addresses, valid and invalid forms" ipv6_forms
 check "restore stopped halfway: how to go back is said" restore_unfinished_says_how_to_go_back

@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/): MAJOR.MINOR.PATCH.
 
+## [1.2.3] - 2026-11-01
+
+### Changed
+- **Firewall**: since 1.2.2, confirming the new rules needed a new SSH connection from the Internet, so the VPN had to be turned off first. A new login now counts when it comes the same way as the session running seedtunnel: through the VPN if you are connected through it (the VPN is always allowed: you cannot be locked out that way), from the Internet otherwise. Logins from the server itself never count.
+
 ## [1.2.2] - 2026-11-01
 
 Third audit, of 1.2.1: the remaining ways a step could fail halfway.
